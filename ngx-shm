@@ -1,0 +1,122 @@
+#!/usr/bin/env perl
+
+use 5.008001;
+use strict;
+use warnings;
+
+use Getopt::Std qw( getopts );
+
+my %opts;
+
+getopts("hp:", \%opts)
+    or die usage();
+
+if ($opts{h}) {
+    print usage();
+    exit;
+}
+
+my $pid = $opts{p}
+    or die "No nginx process pid specified by the -p option\n";
+
+if ($pid !~ /^\d+$/) {
+    die "Bad -p option value \"$pid\": not look like a pid\n";
+}
+
+my $exec_file = "/proc/$pid/exe";
+if (!-f $exec_file) {
+    die "Nginx process $pid does not exist.\n";
+}
+
+my $nginx_path = readlink $exec_file;
+
+my $ver = `stap --version 2>&1`;
+if (!defined $ver) {
+    die "Systemtap not installed or its \"stap\" utility is not visible to the PATH environment: $!\n";
+}
+
+if ($ver =~ /version\s+(\d+\.\d+)/i) {
+    my $v = $1;
+    if ($v < 1.8) {
+        die "ERROR: at least systemtap 1.8 is required but found $v\n";
+    }
+
+} else {
+    die "ERROR: unknown version of systemtap:\n$ver\n";
+}
+
+open my $in, "|stap -x $pid -"
+    or die "Cannot run stap: $!\n";
+
+my $stap_src = <<_EOC_;
+probe begin {
+    println("Tracing $pid ($nginx_path)...")
+    println("Hit Ctrl-C to end.")
+}
+
+probe process("$nginx_path").function("ngx_process_events_and_timers"),
+    process("$nginx_path").function("ngx_http_handler")
+{
+    if (pid() == target()) {
+        pagesize = \@var("ngx_pagesize\@ngx_alloc.c")
+
+        part = &\@var("ngx_cycle\@ngx_cycle.c")->shared_memory->part
+        zone = \@cast(part, "ngx_list_part_t")->elts
+        for (i = 0; ; i++) {
+            if (i >= \@cast(part, "ngx_list_part_t")->nelts) {
+                if (\@cast(part, "ngx_list_part_t")->next == 0) {
+                    break
+                }
+
+                part = \@cast(part, "ngx_list_part_t")->next
+                zone = \@cast(part, "ngx_list_part_t")->elts
+                i = 0
+            }
+
+            shm = &\@cast(zone, "ngx_shm_zone_t")[i]->shm
+            init = \@cast(zone, "ngx_shm_zone_t")[i]->init
+            name = &\@cast(shm, "ngx_shm_t")->name
+            addr = \@cast(shm, "ngx_shm_t")->addr
+
+            init_name = usymname(init)
+            owner = str_replace(str_replace(init_name, "_init", ""), "_zone", "")
+
+            printf("shm name: %s, owner: %s, total: %dK",
+                   user_string_n(\@cast(name, "ngx_str_t")->data,
+                                 \@cast(name, "ngx_str_t")->len),
+                   owner, \@cast(shm, "ngx_shm_t")->size / 1024)
+
+            if (addr == \@cast(addr, "ngx_slab_pool_t")->addr) {
+                size = 0
+                free = &\@cast(addr, "ngx_slab_pool_t")->free
+                for (page = \@cast(free, "ngx_slab_page_t")->next;
+                     page != free;
+                     page = \@cast(page, "ngx_slab_page_t")->next)
+                {
+                    size += \@cast(page, "ngx_slab_page_t")->slab
+                }
+
+                printf(", free pages: %dK\\n", size * pagesize / 1024)
+            }
+        }
+
+        exit()
+    } /* pid() == target() */
+}
+_EOC_
+
+print $in $stap_src;
+
+close $in;
+
+sub usage {
+    return <<'_EOC_';
+Usage:
+    ngx-shm [optoins]
+
+Options:
+    -h                  Print this usage
+    -p <pid>            Specify the nginx worker process pid
+_EOC_
+}
+

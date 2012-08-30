@@ -1,0 +1,11 @@
+*~
+*.swp
+*.swo
+*.o
+*.so
+reindex
+*.html
+tags
+genmobi.sh
+*.mobi
+*.stp
