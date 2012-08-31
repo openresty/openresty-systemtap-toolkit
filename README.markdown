@@ -3,11 +3,6 @@ NAME
 
 nginx-systemtap-toolkit - Real-time analyzing and diagnosing tools for Nginx based on SystemTap
 
-Status
-======
-
-These scripts are still highly experimental and are not yet considered to be production safe.
-
 Prerequisites
 =============
 
