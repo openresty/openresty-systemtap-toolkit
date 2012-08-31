@@ -8,7 +8,7 @@ use Getopt::Std qw( getopts );
 
 my %opts;
 
-getopts("hp:", \%opts)
+getopts("dhp:n:", \%opts)
     or die usage();
 
 if ($opts{h}) {
@@ -25,7 +25,7 @@ if ($pid !~ /^\d+$/) {
 
 my $exec_file = "/proc/$pid/exe";
 if (!-f $exec_file) {
-    die "Nginx process $pid does not exist.\n";
+    die "Nginx process $pid is not running.\n";
 }
 
 my $nginx_path = readlink $exec_file;
@@ -45,20 +45,112 @@ if ($ver =~ /version\s+(\d+\.\d+)/i) {
     die "ERROR: unknown version of systemtap:\n$ver\n";
 }
 
-open my $in, "|stap -x $pid -"
-    or die "Cannot run stap: $!\n";
+my $stap_src;
 
-my $stap_src = <<_EOC_;
+my $zone = $opts{n};
+
+my $preamble = <<_EOC_;
 probe begin {
-    println("Tracing $pid ($nginx_path)...")
-    println("Hit Ctrl-C to end.")
+    printf("Tracing $pid ($nginx_path)...\\n\\n")
 }
+_EOC_
+
+if ($zone) {
+    my $quoted_zone = quote_str($zone);
+
+    my $zone_name_len = length $zone;
+
+    $stap_src = <<_EOC_;
+$preamble
 
 probe process("$nginx_path").function("ngx_process_events_and_timers"),
     process("$nginx_path").function("ngx_http_handler")
 {
     if (pid() == target()) {
+
+        begin = local_clock_us()
+
         pagesize = \@var("ngx_pagesize\@ngx_alloc.c")
+        part = &\@var("ngx_cycle\@ngx_cycle.c")->shared_memory->part
+        zone = \@cast(part, "ngx_list_part_t")->elts
+        for (i = 0; ; i++) {
+            if (i >= \@cast(part, "ngx_list_part_t")->nelts) {
+                if (\@cast(part, "ngx_list_part_t")->next == 0) {
+                    break
+                }
+
+                part = \@cast(part, "ngx_list_part_t")->next
+                zone = \@cast(part, "ngx_list_part_t")->elts
+                i = 0
+            }
+
+            shm = &\@cast(zone, "ngx_shm_zone_t")[i]->shm
+
+            name = &\@cast(shm, "ngx_shm_t")->name
+
+            if (\@cast(name, "ngx_str_t")->len != $zone_name_len) {
+                continue;
+            }
+
+            zone_name = user_string_n(\@cast(name, "ngx_str_t")->data, $zone_name_len)
+
+            if (zone_name != $quoted_zone) {
+                continue;
+            }
+
+            init = \@cast(zone, "ngx_shm_zone_t")[i]->init
+            addr = \@cast(shm, "ngx_shm_t")->addr
+
+            if (addr != \@cast(addr, "ngx_slab_pool_t")->addr) {
+                error("shm zone \\"" . zone_name . "\\" is corrupted: "
+                      . "pool != pool->addr")
+                exit()
+            }
+
+            init_name = usymname(init)
+            owner = str_replace(str_replace(init_name, "_init", ""), "_zone", "")
+
+            printf("shm zone \\"%s\\"\\n", zone_name)
+            printf("    owner: %s\\n", owner)
+            printf("    total size: %d KB\\n", \@cast(shm, "ngx_shm_t")->size / 1024)
+
+            size = 0
+            free = &\@cast(addr, "ngx_slab_pool_t")->free
+            j = 0
+
+            for (page = \@cast(free, "ngx_slab_page_t")->next;
+                 page != free;
+                 page = \@cast(page, "ngx_slab_page_t")->next)
+            {
+                size += \@cast(page, "ngx_slab_page_t")->slab
+                if (++j % 100 == 0) {
+                    printf("\\r    free pages: %d KB", size * pagesize / 1024)
+                }
+            }
+
+            printf("\\r    free pages: %d KB\\n", size * pagesize / 1024)
+        }
+
+        elapsed = local_clock_us() - begin
+        printf("\\n%d microseconds elapsed in the probe.\\n", elapsed)
+
+        exit()
+    } /* pid() == target() */
+}
+_EOC_
+
+} else {
+    # no zone name specified
+
+    $stap_src = <<_EOC_;
+$preamble
+
+probe process("$nginx_path").function("ngx_process_events_and_timers"),
+    process("$nginx_path").function("ngx_http_handler")
+{
+    if (pid() == target()) {
+
+        begin = local_clock_us()
 
         part = &\@var("ngx_cycle\@ngx_cycle.c")->shared_memory->part
         zone = \@cast(part, "ngx_list_part_t")->elts
@@ -74,36 +166,45 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
             }
 
             shm = &\@cast(zone, "ngx_shm_zone_t")[i]->shm
+            addr = \@cast(shm, "ngx_shm_t")->addr
             init = \@cast(zone, "ngx_shm_zone_t")[i]->init
             name = &\@cast(shm, "ngx_shm_t")->name
-            addr = \@cast(shm, "ngx_shm_t")->addr
+
+            zone_name = user_string_n(\@cast(name, "ngx_str_t")->data,
+                                      \@cast(name, "ngx_str_t")->len)
+
+            if (addr != \@cast(addr, "ngx_slab_pool_t")->addr) {
+                error("shm zone \\"" . zone_name . "\\" is corrupted: "
+                      . "pool != pool->addr")
+                exit()
+            }
 
             init_name = usymname(init)
             owner = str_replace(str_replace(init_name, "_init", ""), "_zone", "")
 
-            printf("shm name: %s, owner: %s, total: %dK",
+            printf("shm zone \\"%s\\"\\n    owner: %s\\n    total size: %d KB\\n\\n",
                    user_string_n(\@cast(name, "ngx_str_t")->data,
                                  \@cast(name, "ngx_str_t")->len),
                    owner, \@cast(shm, "ngx_shm_t")->size / 1024)
-
-            if (addr == \@cast(addr, "ngx_slab_pool_t")->addr) {
-                size = 0
-                free = &\@cast(addr, "ngx_slab_pool_t")->free
-                for (page = \@cast(free, "ngx_slab_page_t")->next;
-                     page != free;
-                     page = \@cast(page, "ngx_slab_page_t")->next)
-                {
-                    size += \@cast(page, "ngx_slab_page_t")->slab
-                }
-
-                printf(", free pages: %dK\\n", size * pagesize / 1024)
-            }
         }
 
+        println("Use the -n <zone> option to see more details about each zone.")
+
+        elapsed = local_clock_us() - begin
+        printf("\\n%d microseconds elapsed in the probe.\\n", elapsed)
         exit()
     } /* pid() == target() */
 }
 _EOC_
+}
+
+if ($opts{d}) {
+    print $stap_src;
+    exit;
+}
+
+open my $in, "|stap -x $pid -"
+    or die "Cannot run stap: $!\n";
 
 print $in $stap_src;
 
@@ -115,8 +216,20 @@ Usage:
     ngx-shm [optoins]
 
 Options:
-    -h                  Print this usage
-    -p <pid>            Specify the nginx worker process pid
+    -d                  Dump out the systemtap script source.
+    -h                  Print this usage.
+    -n <zone>           Show details about the shm zone named <zone>.
+    -p <pid>            Specify the nginx worker process pid.
 _EOC_
+}
+
+sub quote_str {
+    my $s = shift;
+    $s =~ s/\\/\\\\/g;
+    $s =~ s/"/\\"/g;
+    $s =~ s/\n/\\n/g;
+    $s =~ s/\t/\\t/g;
+    $s =~ s/\r/\\r/g;
+    return qq{"$s"};
 }
 
