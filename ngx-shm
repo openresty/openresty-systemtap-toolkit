@@ -129,6 +129,8 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
             }
 
             printf("\\r    free pages: %d KB\\n", size * pagesize / 1024)
+
+            break
         }
 
         elapsed = local_clock_us() - begin
@@ -174,9 +176,9 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
                                       \@cast(name, "ngx_str_t")->len)
 
             if (addr != \@cast(addr, "ngx_slab_pool_t")->addr) {
-                error("shm zone \\"" . zone_name . "\\" is corrupted: "
-                      . "pool != pool->addr")
-                exit()
+                printf("shm zone \\"%s\\" is corrupted: pool != pool->addr\\n",
+                       zone_name)
+                continue;
             }
 
             init_name = usymname(init)
@@ -191,7 +193,7 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
         println("Use the -n <zone> option to see more details about each zone.")
 
         elapsed = local_clock_us() - begin
-        printf("\\n%d microseconds elapsed in the probe.\\n", elapsed)
+        printf("%d microseconds elapsed in the probe.\\n", elapsed)
         exit()
     } /* pid() == target() */
 }
