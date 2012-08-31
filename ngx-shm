@@ -25,7 +25,7 @@ if ($pid !~ /^\d+$/) {
 
 my $exec_file = "/proc/$pid/exe";
 if (!-f $exec_file) {
-    die "Nginx process $pid is not running.\n";
+    die "Process $pid is not running.\n";
 }
 
 my $nginx_path = readlink $exec_file;
@@ -147,12 +147,11 @@ _EOC_
     $stap_src = <<_EOC_;
 $preamble
 
-probe process("$nginx_path").function("ngx_process_events_and_timers"),
-    process("$nginx_path").function("ngx_http_handler")
+probe process("$nginx_path").function("ngx_process_events_and_timers")
 {
     if (pid() == target()) {
 
-        begin = local_clock_us()
+        #begin = local_clock_us()
 
         part = &\@var("ngx_cycle\@ngx_cycle.c")->shared_memory->part
         zone = \@cast(part, "ngx_list_part_t")->elts
@@ -181,8 +180,9 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
                 continue;
             }
 
-            init_name = usymname(init)
+            init_name = "hello world" #usymname(init)
             owner = str_replace(str_replace(init_name, "_init", ""), "_zone", "")
+            #owner = "hello"
 
             printf("shm zone \\"%s\\"\\n    owner: %s\\n    total size: %d KB\\n\\n",
                    user_string_n(\@cast(name, "ngx_str_t")->data,
@@ -192,8 +192,8 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
 
         println("Use the -n <zone> option to see more details about each zone.")
 
-        elapsed = local_clock_us() - begin
-        printf("%d microseconds elapsed in the probe.\\n", elapsed)
+        #elapsed = local_clock_us() - begin
+        #printf("%d microseconds elapsed in the probe.\\n", elapsed)
         exit()
     } /* pid() == target() */
 }
