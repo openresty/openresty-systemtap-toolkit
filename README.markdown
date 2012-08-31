@@ -52,7 +52,6 @@ ngx-shm
         total size: 100 KB
 
     Use the -n <zone> option to see more details about each zone.
-
     34 microseconds elapsed in the probe.
 
     # show the zone details
@@ -62,7 +61,7 @@ ngx-shm
     shm zone "dogs"
         owner: ngx_http_lua_shdict
         total size: 100 KB
-        free pages: 88 KB
+        free pages: 88 KB (2 blocks)
 
     22 microseconds elapsed in the probe.
 
