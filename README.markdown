@@ -6,7 +6,7 @@ nginx-systemtap-toolkit - Real-time analyzing and diagnosing tools for Nginx bas
 Prerequisites
 =============
 
-You need at least SystemTap 1.8+ and perl 5.8.1+ on your Linux system.
+You need at least SystemTap 1.8+ and perl 5.6.1+ on your Linux system.
 
 Also, you should install the debuginfo for your Nginx installation.
 
