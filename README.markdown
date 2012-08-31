@@ -22,7 +22,7 @@ ngx-shm
     # you should ensure the worker is handling requests
     # or the timer_resoluation is set in your nginx.conf
 
-    # assuming the nginx worker pid is 5382
+    # assuming the nginx worker pid is 15218
 
     $ cd /path/to/nginx-systemtap-toolkit/
 
