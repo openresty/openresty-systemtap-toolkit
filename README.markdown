@@ -24,8 +24,10 @@ ngx-shm
 
     # assuming the nginx worker pid is 5382
 
+    $ cd /path/to/nginx-systemtap-toolkit/
+
     # list the zones
-    $ ngx-shm -p 15218
+    $ ./ngx-shm -p 15218
     Tracing 15218 (/opt/nginx/sbin/nginx)...
 
     shm zone "one"
@@ -49,7 +51,7 @@ ngx-shm
     34 microseconds elapsed in the probe.
 
     # show the zone details
-    $ ngx-shm -p 15218 -n dogs
+    $ ./ngx-shm -p 15218 -n dogs
     Tracing 15218 (/opt/nginx/sbin/nginx)...
 
     shm zone "dogs"
