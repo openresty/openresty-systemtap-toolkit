@@ -59,6 +59,8 @@ ngx-shm
         total size: 100 KB
         free pages: 88 KB
 
+    22 microseconds elapsed in the probe.
+
 Author
 ======
 
