@@ -61,7 +61,7 @@ ngx-shm
     shm zone "dogs"
         owner: ngx_http_lua_shdict
         total size: 100 KB
-        free pages: 88 KB (1 pages, 1 blocks)
+        free pages: 88 KB (22 pages, 1 blocks)
 
     22 microseconds elapsed in the probe.
 
