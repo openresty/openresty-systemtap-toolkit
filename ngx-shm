@@ -70,6 +70,7 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
 {
     if (pid() == target()) {
 
+        found = 0
         begin = local_clock_us()
 
         pagesize = \@var("ngx_pagesize\@ngx_alloc.c")
@@ -116,7 +117,7 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
             printf("    owner: %s\\n", owner)
             printf("    total size: %d KB\\n", \@cast(shm, "ngx_shm_t")->size / 1024)
 
-            size = 0
+            pages = 0
             free = &\@cast(addr, "ngx_slab_pool_t")->free
             blocks = 0
 
@@ -124,23 +125,29 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
                  page != free;
                  page = \@cast(page, "ngx_slab_page_t")->next)
             {
-                size += \@cast(page, "ngx_slab_page_t")->slab
+                pages += \@cast(page, "ngx_slab_page_t")->slab
                 if (++blocks % 1000 == 0) {
-                    printf("\\r    free pages: %d KB (%d blocks)",
-                           size * pagesize / 1024, blocks)
+                    printf("\\r    free pages: %d KB (%d pages, %d blocks)",
+                           pages * pagesize / 1024, pages, blocks)
                 }
             }
 
-            printf("\\r    free pages: %d KB (%d blocks)\\n",
-                   size * pagesize / 1024, blocks)
+            printf("\\r    free pages: %d KB (%d pages, %d blocks)\\n",
+                   pages * pagesize / 1024, pages, blocks)
 
+            found = 1
             break
         }
 
+        if (!found) {
+            printf("shm zone \\"%s\\" not found.\\n", $quoted_zone)
+        }
+
         elapsed = local_clock_us() - begin
-        printf("\\n%d microseconds elapsed in the probe.\\n", elapsed)
+        printf("\\n%d microseconds elapsed in the probe handler.\\n", elapsed)
 
         exit()
+
     } /* pid() == target() */
 }
 _EOC_
