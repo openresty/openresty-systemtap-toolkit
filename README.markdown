@@ -46,7 +46,8 @@ among all the nginx worker processes for the specified nginx master process.
     ^C
     worker 4394:    0 reqs, 0 conns
     worker 4395:    2100 reqs,      21 conns
-    worker 4396:    501 reqs,       6 conns worker 4397:    2100 reqs,      21 conns
+    worker 4396:    501 reqs,       6 conns
+    worker 4397:    2100 reqs,      21 conns
     worker 4398:    100 reqs,       1 conns
     worker 4399:    2200 reqs,      22 conns
     worker 4400:    800 reqs,       8 conns
