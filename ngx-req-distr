@@ -8,7 +8,7 @@ use Getopt::Std qw( getopts );
 
 my %opts;
 
-getopts("a:dhm:", \%opts)
+getopts("a:dhm:c", \%opts)
     or die usage();
 
 if ($opts{h}) {
@@ -24,6 +24,8 @@ if ($master_pid !~ /^\d+$/) {
 }
 
 my $stap_args = $opts{a} || '';
+
+my $analyze_conn = $opts{c};
 
 if ($^O ne 'linux') {
     die "Only linux is supported but I am on $^O.\n";
@@ -68,27 +70,67 @@ probe begin {
 }
 _EOC_
 
-$stap_src = <<_EOC_;
+if ($analyze_conn) {
+    my $output_code = '';
+    for my $pid (@$child_pids) {
+        $output_code .= <<_EOC_;
+    printf("worker $pid:\\t%d reqs,\\t%d conns\\n", \@count(reqs[$pid]), \@count(conns[$pid]))
+_EOC_
+    }
+
+    $stap_src = <<_EOC_;
 $preamble
 
-global hits
+global reqs
+global conns
 
 probe process("$nginx_path").function("ngx_http_init_request")
 {
-    #printf("pid %d\\n", pid())
-
+    my_pid = pid()
     if ($condition) {
-        hits[pid()] <<< 1
+        reqs[my_pid] <<< 1
+    }
+}
+
+probe process("$nginx_path").function("ngx_http_init_connection")
+{
+    my_pid = pid()
+    if ($condition) {
+        conns[my_pid] <<< 1
     }
 }
 
 probe end {
     printf("\\n")
-    foreach (pid in hits+) {
-        printf("worker %d:\\t%d reqs,\\n", pid, \@count(hits[pid]))
+$output_code}
+_EOC_
+
+} else {
+    my $output_code = '';
+    for my $pid (@$child_pids) {
+        $output_code .= <<_EOC_;
+    printf("worker $pid:\\t%d reqs\\n", \@count(reqs[$pid]))
+_EOC_
+    }
+
+    $stap_src = <<_EOC_;
+$preamble
+
+global reqs
+
+probe process("$nginx_path").function("ngx_http_init_request")
+{
+    my_pid = pid()
+    if ($condition) {
+        reqs[my_pid] <<< 1
     }
 }
+
+probe end {
+    printf("\\n")
+$output_code}
 _EOC_
+}
 
 if ($opts{d}) {
     print $stap_src;
@@ -109,6 +151,7 @@ Usage:
 
 Options:
     -a <args>           extra arguments to the stap utility.
+    -c                  analyze connections at the same time.
     -d                  Dump out the systemtap script source.
     -h                  Print this usage.
     -m <pid>            Specify the nginx master process pid.
@@ -117,16 +160,6 @@ Examples:
     ngx-req-distr -p 12345
     ngx-req-distr -p 12345 -a '-DMAXACTION=100000'
 _EOC_
-}
-
-sub quote_str {
-    my $s = shift;
-    $s =~ s/\\/\\\\/g;
-    $s =~ s/"/\\"/g;
-    $s =~ s/\n/\\n/g;
-    $s =~ s/\t/\\t/g;
-    $s =~ s/\r/\\r/g;
-    return qq{"$s"};
 }
 
 sub get_child_processes {
@@ -151,6 +184,7 @@ sub get_child_processes {
         }
     }
 
+    @children = sort { $a <=> $b } @children;
     return \@children;
 }
 
@@ -158,7 +192,7 @@ sub gen_pid_test_condition {
     my $pids = shift;
     my @c;
     for my $pid (@$pids) {
-        push @c, "pid() == $pid";
+        push @c, "my_pid == $pid";
     }
     return join " || ", @c;
 }

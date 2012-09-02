@@ -18,8 +18,44 @@ Also, you should install the debuginfo for your Nginx installation.
 Tools
 =====
 
+ngx-req-distr
+-------------
+
+This tool analyzes the (downstream) request and connection distributions
+among all the nginx worker processes for the specified nginx master process.
+
+    # here the nginx master pid is stored in the pid file
+    #   /opt/nginx/logs/nginx.pid
+
+    $ ./ngx-req-distr -m `cat /opt/nginx/logs/nginx.pid`
+    Tracing 4394 4395 4396 4397 4398 4399 4400 4401 (/home/agentzh/git/lua-nginx-module2/work/nginx/sbin/nginx)...
+    Hit Ctrl-C to end.
+    ^C
+    worker 4394:    0 reqs
+    worker 4395:    200 reqs
+    worker 4396:    1600 reqs
+    worker 4397:    0 reqs
+    worker 4398:    2100 reqs
+    worker 4399:    4400 reqs
+    worker 4400:    0 reqs
+    worker 4401:    1701 reqs
+
+    $ ./ngx-req-distr -c -m `cat /opt/nginx/logs/nginx.pid`
+    Tracing 4394 4395 4396 4397 4398 4399 4400 4401 (/opt/nginx/sbin/nginx)...
+    Hit Ctrl-C to end.
+    ^C
+    worker 4394:    0 reqs, 0 conns
+    worker 4395:    2100 reqs,      21 conns
+    worker 4396:    501 reqs,       6 conns worker 4397:    2100 reqs,      21 conns
+    worker 4398:    100 reqs,       1 conns
+    worker 4399:    2200 reqs,      22 conns
+    worker 4400:    800 reqs,       8 conns
+    worker 4401:    2200 reqs,      22 conns
+
 ngx-shm
 -------
+
+This tool analyzes all the shared memory zones in the specified running nginx process.
 
     # find the nginx worker pid
     $ ps aux|grep nginx
