@@ -28,7 +28,7 @@ among all the nginx worker processes for the specified nginx master process.
     #   /opt/nginx/logs/nginx.pid
 
     $ ./ngx-req-distr -m `cat /opt/nginx/logs/nginx.pid`
-    Tracing 4394 4395 4396 4397 4398 4399 4400 4401 (/home/agentzh/git/lua-nginx-module2/work/nginx/sbin/nginx)...
+    Tracing 4394 4395 4396 4397 4398 4399 4400 4401 (/opt/nginx/sbin/nginx)...
     Hit Ctrl-C to end.
     ^C
     worker 4394:    0 reqs
