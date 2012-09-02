@@ -80,7 +80,6 @@ _EOC_
 
     $stap_src = <<_EOC_;
 $preamble
-
 global reqs
 global conns
 
@@ -115,7 +114,6 @@ _EOC_
 
     $stap_src = <<_EOC_;
 $preamble
-
 global reqs
 
 probe process("$nginx_path").function("ngx_http_init_request")
