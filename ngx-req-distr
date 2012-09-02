@@ -84,8 +84,8 @@ probe process("$nginx_path").function("ngx_http_init_request")
 
 probe end {
     printf("\\n")
-    foreach (k in hits+) {
-        printf("worker %d:\t\t%d\\n", k, \@count(hits[k]))
+    foreach (pid in hits+) {
+        printf("worker %d:\\t%d reqs,\\n", pid, \@count(hits[pid]))
     }
 }
 _EOC_
