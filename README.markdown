@@ -20,7 +20,7 @@ Permissions
 
 Running systemtap-based tools requires special user permissions. To prevent running
 these tools with the root user,
-you can add your own non-root user to the `stapusr` and `staprun` user groups.
+you can add your own (non-root) user name to the `stapusr` and `staprun` user groups.
 
 Tools
 =====
