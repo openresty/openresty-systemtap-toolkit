@@ -25,6 +25,10 @@ if ($pid !~ /^\d+$/) {
 
 my $stap_args = $opts{a} || '';
 
+if ($^O ne 'linux') {
+    die "Only linux is supported but I am on $^O.\n";
+}
+
 my $exec_file = "/proc/$pid/exe";
 if (!-f $exec_file) {
     die "Nginx process $pid is not running.\n";

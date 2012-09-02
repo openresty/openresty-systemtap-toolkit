@@ -8,7 +8,7 @@ use Getopt::Std qw( getopts );
 
 my %opts;
 
-getopts("a:dhp:", \%opts)
+getopts("a:dhm:", \%opts)
     or die usage();
 
 if ($opts{h}) {
@@ -16,18 +16,22 @@ if ($opts{h}) {
     exit;
 }
 
-my $pid = $opts{p}
-    or die "No nginx process pid specified by the -p option\n";
+my $master_pid = $opts{m}
+    or die "No nginx master process pid specified by the -m option\n";
 
-if ($pid !~ /^\d+$/) {
-    die "Bad -p option value \"$pid\": not look like a pid\n";
+if ($master_pid !~ /^\d+$/) {
+    die "Bad -m option value \"$master_pid\": not look like a pid\n";
 }
 
 my $stap_args = $opts{a} || '';
 
-my $exec_file = "/proc/$pid/exe";
+if ($^O ne 'linux') {
+    die "Only linux is supported but I am on $^O.\n";
+}
+
+my $exec_file = "/proc/$master_pid/exe";
 if (!-f $exec_file) {
-    die "Nginx process $pid is not running.\n";
+    die "Nginx process $master_pid is not running.\n";
 }
 
 my $nginx_path = readlink $exec_file;
@@ -47,9 +51,9 @@ if ($ver =~ /version\s+(\d+\.\d+)/i) {
     die "ERROR: unknown version of systemtap:\n$ver\n";
 }
 
-my $child_pids = get_child_processes($pid);
+my $child_pids = get_child_processes($master_pid);
 if (!@$child_pids) {
-    push @$child_pids, $pid;
+    push @$child_pids, $master_pid;
 }
 
 my $condition = gen_pid_test_condition($child_pids);
@@ -60,7 +64,7 @@ my $stap_src;
 
 my $preamble = <<_EOC_;
 probe begin {
-    printf("Tracing @$child_pids ($nginx_path)...\\nHit Ctrl-C to end\\n")
+    printf("Tracing @$child_pids ($nginx_path)...\\nHit Ctrl-C to end.\\n")
 }
 _EOC_
 
@@ -107,11 +111,11 @@ Options:
     -a <args>           extra arguments to the stap utility.
     -d                  Dump out the systemtap script source.
     -h                  Print this usage.
-    -p <pid>            Specify the nginx master process pid.
+    -m <pid>            Specify the nginx master process pid.
 
 Examples:
-    ngx-shm -p 12345
-    ngx-shm -p 12345 -a '-DMAXACTION=100000'
+    ngx-req-distr -p 12345
+    ngx-req-distr -p 12345 -a '-DMAXACTION=100000'
 _EOC_
 }
 
