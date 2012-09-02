@@ -66,7 +66,7 @@ if ($zone) {
 $preamble
 
 probe process("$nginx_path").function("ngx_process_events_and_timers"),
-    process("$nginx_path").function("ngx_http_handler")
+    process("$nginx_path").function("ngx_http_init_request")
 {
     if (pid() == target()) {
 
