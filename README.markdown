@@ -15,6 +15,13 @@ You need at least SystemTap 1.8+ and perl 5.6.1+ on your Linux system.
 
 Also, you should install the debuginfo for your Nginx installation.
 
+Permissions
+===========
+
+Running systemtap-based tools requires special user permissions. To prevent running
+these tools with the root user,
+you can add your own non-root user to the `stapusr` and `staprun` user groups.
+
 Tools
 =====
 
