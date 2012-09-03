@@ -233,7 +233,7 @@ Usage:
     ngx-shm [optoins]
 
 Options:
-    -a <args>           extra arguments to the stap utility.
+    -a <args>           Pass extra arguments to the stap utility.
     -d                  Dump out the systemtap script source.
     -h                  Print this usage.
     -n <zone>           Show details about the shm zone named <zone>.
