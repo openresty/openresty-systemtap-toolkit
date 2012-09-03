@@ -21,6 +21,9 @@ Permissions
 Running systemtap-based tools requires special user permissions. To prevent running
 these tools with the root user,
 you can add your own (non-root) user name to the `stapusr` and `staprun` user groups.
+But if the user account running the Nginx process is different from your current
+user account, then you will often still be required to run "sudo" or other means to run these tools
+with root access.
 
 Tools
 =====
