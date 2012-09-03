@@ -8,7 +8,7 @@ use Getopt::Std qw( getopts );
 
 my %opts;
 
-getopts("a:dhp:", \%opts)
+getopts("a:dhp:m", \%opts)
     or die usage();
 
 if ($opts{h}) {
@@ -22,6 +22,8 @@ my $pid = $opts{p}
 if ($pid !~ /^\d+$/) {
     die "Bad -p option value \"$pid\": not look like a pid\n";
 }
+
+my $check_pools = $opts{m};
 
 my $stap_args = $opts{a} || '';
 
@@ -60,13 +62,119 @@ probe begin {
 }
 _EOC_
 
+my ($check_pool_init_code, $check_pool_code, $fin_code);
+
+if ($check_pools) {
+    $check_pool_init_code = <<_EOC_;
+        ngx_pool_t_size = &\@cast(0, "ngx_pool_t")[1]
+        size_t_size = &\@cast(0, "size_t")[1]
+
+        total_mem_for_reqs = 0
+_EOC_
+    chop $check_pool_init_code;
+
+    $check_pool_code = <<_EOC_;
+            pool = \@cast(r, "ngx_http_request_t")->pool
+
+            if (!pool) {
+                printf("    pool is null\\n\\n")
+                continue
+            }
+
+            end = \@cast(pool, "ngx_pool_t")->d->end
+
+            printf("    pool chunk size: %d\\n", end - pool)
+
+            lim = \@cast(pool, "ngx_pool_t")->max + 1
+
+            /* analyze small blocks */
+
+            used = 0
+            unused = 0
+
+            p = pool
+            n = \@cast(pool, "ngx_pool_t")->d->next
+
+            for ( ;; ) {
+
+                last = \@cast(p, "ngx_pool_t")->d->last
+                end = \@cast(p, "ngx_pool_t")->d->end
+
+                used += last - p - ngx_pool_t_size
+                unused += end - last
+
+                /* printf("used: %d, unused %d\\n", last - p - ngx_pool_t_size, end - last) */
+
+                if (n == 0) {
+                    break
+                }
+
+                p = n
+                n = \@cast(n, "ngx_pool_t")->d->next
+            }
+
+            printf("    small blocks (< %d): %d bytes used, %d bytes unused\\n",
+                   lim, used, unused)
+
+            /* analyze large blocks */
+
+            total = 0
+            blocks = 0
+
+            for (l = \@cast(pool, "ngx_pool_t")->large;
+                 l;
+                 l = \@cast(l, "ngx_pool_large_t")->next)
+            {
+                ptr = \@cast(l, "ngx_pool_large_t")->alloc
+                if (ptr) {
+                    blocks++
+
+                    /* XXX specific to glibc malloc implementation */
+                    ptr -= size_t_size
+                    block_size = \@cast(ptr, "size_t")[0] & ~(size_t_size - 1)
+                    /* printf("large block size: %d %d\\n",
+                              \@cast(ptr, "size_t")[0], block_size) */
+
+                    total += block_size
+                }
+            }
+
+            printf("    large blocks (>= %d): %d blocks, %d bytes (used)\\n",
+                   lim, blocks, total)
+
+            /* total summary */
+
+            printf("    total used: %d bytes\\n\\n", total + used)
+
+            total_mem_for_reqs += total + used
+_EOC_
+    chop $check_pool_code;
+
+    $fin_code = <<_EOC_;
+        printf("total memory used for all %d active requests: %d bytes\\n",
+               nreqs, total_mem_for_reqs)
+_EOC_
+    chop $fin_code;
+
+} else {
+    $check_pool_init_code = '';
+    $check_pool_code = '';
+    $fin_code = <<_EOC_;
+        printf("\\nfound %d active requests.\\n", nreqs)
+_EOC_
+    chop $fin_code;
+}
+
 $stap_src = <<_EOC_;
 $preamble
 probe process("$nginx_path").function("ngx_process_events_and_timers"),
     process("$nginx_path").function("ngx_http_handler")
 {
     if (pid() == target()) {
+
         begin = local_clock_us()
+
+$check_pool_init_code
 
         cached_sec = \@var("ngx_cached_time")->sec
         cached_msec = \@var("ngx_cached_time")->msec
@@ -74,7 +182,7 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
         conns = \@var("ngx_cycle\@ngx_cycle.c")->connections
         conn_n = \@var("ngx_cycle\@ngx_cycle.c")->connection_n
 
-        n = 0
+        nreqs = 0
         for (i = 0; i < conn_n; i++) {
             c = &\@cast(conns, "ngx_connection_t")[i]
 
@@ -84,7 +192,7 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
             destroyed = \@cast(c, "ngx_connection_t")->destroyed
 
             if (reqs && fd != -1 && read && !destroyed) {
-                n++;
+                nreqs++;
 
                 r = \@cast(c, "ngx_connection_t")->data
 
@@ -133,10 +241,12 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
                        user_string_n(uri_data, uri_len), args_str,
                        ms / 1000, ms % 1000,
                        reqs, fd)
+
+$check_pool_code
             }
         }
 
-        printf("\\nFound %d downstream active connections.\\n", n)
+$fin_code
 
         elapsed = local_clock_us() - begin
         printf("%d microseconds elapsed in the probe handler.\\n", elapsed)
@@ -163,14 +273,16 @@ Usage:
     ngx-active-reqs [optoins]
 
 Options:
-    -a <args>           extra arguments to the stap utility.
+    -a <args>           Pass extra arguments to the stap utility.
     -d                  Dump out the systemtap script source.
     -h                  Print this usage.
     -p <pid>            Specify the nginx (worker) process pid.
+    -m                  Gather the information about request memory pools.
 
 Examples:
     ngx-active-reqs -p 12345
-    ngx-active-reqs -p 12345 -a '-DMAXACTION=100000'
+    ngx-active-reqs -p 12345 -m
+    ngx-active-reqs -p 12345 -m -a '-DMAXACTION=100000'
 _EOC_
 }
 

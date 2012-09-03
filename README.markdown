@@ -15,7 +15,8 @@ Prerequisites
 
 You need at least SystemTap 1.8+ and perl 5.6.1+ on your Linux system.
 
-Also, you should install the debuginfo for your Nginx installation.
+Also, you should ensure the debuginfo for your Nginx is already installed
+if you did not compile your Nginx from source.
 
 Permissions
 ===========
@@ -52,12 +53,24 @@ are currently being processed by the specified Nginx (worker) process.
     req "GET /t?", time 0.276 sec, conn reqs 18, fd 15
     req "GET /t?", time 0.276 sec, conn reqs 18, fd 16
 
-    Found 10 downstream active connections.
+    found 10 active requests.
     212 microseconds elapsed in the probe handler.
 
 The `time` field is the elapsed time (in seconds) since the current request started.
 The `conn reqs` field lists the requests that have been processed on the current (keep-alive) downstream connection.
 The `fd` field is the file descriptor ID for the current downstream connection.
+
+The `-m` option will tell this tool to analyze the request memory pools for each active request:
+
+    $ ./ngx-active-reqs -p 7065 -m
+    Tracing 7065 (/home/agentzh/git/lua-nginx-module2/work/nginx/sbin/nginx)...
+
+    req "GET /t?", time 0.301 sec, conn reqs 6829, fd 9
+    req "GET /t?", time 0.301 sec, conn reqs 6829, fd 10
+    req "GET /t?", time 0.301 sec, conn reqs 6829, fd 7
+
+    found 3 active requests.
+    303 microseconds elapsed in the probe handler.
 
 ngx-req-distr
 -------------
