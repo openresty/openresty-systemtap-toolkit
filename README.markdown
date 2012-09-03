@@ -34,9 +34,6 @@ ngx-active-reqs
 This tool lists detailed information about all the active requests that
 are currently being processed by the specified Nginx (worker) process.
 
-    # you should ensure the worker is handling requests
-    # or the timer_resoluation is set in your nginx.conf
-
     # assuming the nginx worker pid is 32027
 
     $ ./ngx-active-reqs -p 32027
@@ -100,8 +97,8 @@ ngx-shm
 
 This tool analyzes all the shared memory zones in the specified running nginx process.
 
-    # you should ensure the worker is handling requests
-    # or the timer_resoluation is set in your nginx.conf
+    # you should ensure the worker is still handling requests
+    # otherwise the timer_resoluation must be set in your nginx.conf
 
     # assuming the nginx worker pid is 15218
 
