@@ -75,6 +75,12 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
         /* printf("size_t size: %d\\n", size_t_size) */
 
         pool = \@var("ngx_cycle\@ngx_cycle.c")->pool
+
+        if (!pool) {
+            error("The Nginx cycle pool is null.")
+            exit()
+        }
+
         end = \@cast(pool, "ngx_pool_t")->d->end
 
         printf("pool chunk size: %d\\n", end - pool)
@@ -97,7 +103,8 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
             used += last - p - ngx_pool_t_size
             unused += end - last
 
-            /* printf("used: %d, unused %d\\n", last - p - ngx_pool_t_size, end - last) */
+            /* printf("used: %d, unused %d\\n",
+                      last - p - ngx_pool_t_size, end - last) */
 
             if (n == 0) {
                 break
@@ -107,7 +114,8 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
             n = \@cast(n, "ngx_pool_t")->d->next
         }
 
-        printf("small blocks (< %d): %d bytes used, %d bytes unused\\n", lim, used, unused)
+        printf("small blocks (< %d): %d bytes used, %d bytes unused\\n",
+               lim, used, unused)
 
         /* analyze large blocks */
 
@@ -125,14 +133,15 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
                 /* XXX specific to glibc malloc implementation */
                 ptr -= size_t_size
                 block_size = \@cast(ptr, "size_t")[0] & ~(size_t_size - 1)
-                /* printf("large block size: %d %d\\n", \@cast(ptr, "size_t")[0],
-                   block_size) */
+                /* printf("large block size: %d %d\\n",
+                          \@cast(ptr, "size_t")[0], block_size) */
 
                 total += block_size
             }
         }
 
-        printf("large blocks (>= %d): %d blocks, %d bytes (used)\\n", lim, blocks, total)
+        printf("large blocks (>= %d): %d blocks, %d bytes (used)\\n",
+               lim, blocks, total)
 
         /* total summary */
 
@@ -163,7 +172,7 @@ Usage:
     ngx-cycle-pool [optoins]
 
 Options:
-    -a <args>           extra arguments to the stap utility.
+    -a <args>           Pass extra arguments to the stap utility.
     -d                  Dump out the systemtap script source.
     -h                  Print this usage.
     -p <pid>            Specify the nginx (worker) process pid.
