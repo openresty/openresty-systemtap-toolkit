@@ -62,15 +62,29 @@ The `fd` field is the file descriptor ID for the current downstream connection.
 
 The `-m` option will tell this tool to analyze the request memory pools for each active request:
 
-    $ ./ngx-active-reqs -p 7065 -m
-    Tracing 7065 (/home/agentzh/git/lua-nginx-module2/work/nginx/sbin/nginx)...
+    $ ./ngx-active-reqs -p 12141 -m
+    Tracing 12141 (/opt/nginx/sbin/nginx)...
 
-    req "GET /t?", time 0.301 sec, conn reqs 6829, fd 9
-    req "GET /t?", time 0.301 sec, conn reqs 6829, fd 10
-    req "GET /t?", time 0.301 sec, conn reqs 6829, fd 7
+    req "GET /t?", time 0.100 sec, conn reqs 11, fd 8
+        pool chunk size: 4096
+        small blocks (< 4017): 3104 bytes used, 912 bytes unused
+        large blocks (>= 4017): 0 blocks, 0 bytes (used)
+        total used: 3104 bytes
 
-    found 3 active requests.
-    303 microseconds elapsed in the probe handler.
+    req "GET /t?", time 0.100 sec, conn reqs 11, fd 7
+        pool chunk size: 4096
+        small blocks (< 4017): 3104 bytes used, 912 bytes unused
+        large blocks (>= 4017): 0 blocks, 0 bytes (used)
+        total used: 3104 bytes
+
+    req "GET /t?", time 0.100 sec, conn reqs 11, fd 9
+        pool chunk size: 4096
+        small blocks (< 4017): 3104 bytes used, 912 bytes unused
+        large blocks (>= 4017): 0 blocks, 0 bytes (used)
+        total used: 3104 bytes
+
+    total memory used for all 3 active requests: 9312 bytes
+    274 microseconds elapsed in the probe handler.
 
 ngx-req-distr
 -------------
