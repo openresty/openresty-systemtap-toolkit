@@ -1,7 +1,7 @@
 NAME
 ====
 
-nginx-systemtap-toolkit - Real-time analyzing and diagnosing tools for Nginx based on SystemTap
+nginx-systemtap-toolkit - Real-time analyzing and diagnosing tools for Nginx based on [SystemTap](http://sourceware.org/systemtap/wiki)
 
 Status
 ======
@@ -257,4 +257,9 @@ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
 LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+See Also
+========
+* SystemTap Wiki Home: http://sourceware.org/systemtap/wiki
+* Nginx home: http://nginx.org
 
