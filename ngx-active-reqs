@@ -160,7 +160,7 @@ close $in;
 sub usage {
     return <<'_EOC_';
 Usage:
-    ngx-req-pool [optoins]
+    ngx-active-reqs [optoins]
 
 Options:
     -a <args>           extra arguments to the stap utility.
@@ -169,8 +169,8 @@ Options:
     -p <pid>            Specify the nginx (worker) process pid.
 
 Examples:
-    ngx-req-pool -p 12345
-    ngx-req-pool -p 12345 -a '-DMAXACTION=100000'
+    ngx-active-reqs -p 12345
+    ngx-active-reqs -p 12345 -a '-DMAXACTION=100000'
 _EOC_
 }
 
