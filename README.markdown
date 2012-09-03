@@ -124,8 +124,8 @@ data blocks with a lifetime as long as the nginx server configuration (like the 
     Tracing 15004 (/usr/local/nginx/sbin/nginx)...
 
     pool chunk size: 16384
-    large blocks (>= 4096): 6 blocks, 26352 bytes (used)
     small blocks (< 4096): 96416 bytes used, 1408 bytes unused
+    large blocks (>= 4096): 6 blocks, 26352 bytes (used)
     total used: 122768 bytes
 
     12 microseconds elapsed in the probe handler.

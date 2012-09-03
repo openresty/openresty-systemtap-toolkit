@@ -81,28 +81,7 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
 
         lim = \@cast(pool, "ngx_pool_t")->max + 1
 
-        total = 0
-        blocks = 0
-
-        for (l = \@cast(pool, "ngx_pool_t")->large;
-             l;
-             l = \@cast(l, "ngx_pool_large_t")->next)
-        {
-            ptr = \@cast(l, "ngx_pool_large_t")->alloc
-            if (ptr) {
-                blocks++
-
-                /* XXX specific to glibc malloc implementation */
-                ptr -= size_t_size
-                block_size = \@cast(ptr, "size_t")[0] & ~(size_t_size - 1)
-                /* printf("large block size: %d %d\\n", \@cast(ptr, "size_t")[0],
-                   block_size) */
-
-                total += block_size
-            }
-        }
-
-        printf("large blocks (>= %d): %d blocks, %d bytes (used)\\n", lim, blocks, total)
+        /* analyze small blocks */
 
         used = 0
         unused = 0
@@ -129,6 +108,33 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
         }
 
         printf("small blocks (< %d): %d bytes used, %d bytes unused\\n", lim, used, unused)
+
+        /* analyze large blocks */
+
+        total = 0
+        blocks = 0
+
+        for (l = \@cast(pool, "ngx_pool_t")->large;
+             l;
+             l = \@cast(l, "ngx_pool_large_t")->next)
+        {
+            ptr = \@cast(l, "ngx_pool_large_t")->alloc
+            if (ptr) {
+                blocks++
+
+                /* XXX specific to glibc malloc implementation */
+                ptr -= size_t_size
+                block_size = \@cast(ptr, "size_t")[0] & ~(size_t_size - 1)
+                /* printf("large block size: %d %d\\n", \@cast(ptr, "size_t")[0],
+                   block_size) */
+
+                total += block_size
+            }
+        }
+
+        printf("large blocks (>= %d): %d blocks, %d bytes (used)\\n", lim, blocks, total)
+
+        /* total summary */
 
         printf("total used: %d bytes\\n", total + used)
 
