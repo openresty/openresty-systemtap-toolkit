@@ -1,0 +1,176 @@
+#!/usr/bin/env perl
+
+use 5.006001;
+use strict;
+use warnings;
+
+use Getopt::Std qw( getopts );
+
+my %opts;
+
+getopts("a:dhp:", \%opts)
+    or die usage();
+
+if ($opts{h}) {
+    print usage();
+    exit;
+}
+
+my $pid = $opts{p}
+    or die "No nginx process pid specified by the -p option\n";
+
+if ($pid !~ /^\d+$/) {
+    die "Bad -p option value \"$pid\": not look like a pid\n";
+}
+
+my $stap_args = $opts{a} || '';
+
+if ($^O ne 'linux') {
+    die "Only linux is supported but I am on $^O.\n";
+}
+
+my $exec_file = "/proc/$pid/exe";
+if (!-f $exec_file) {
+    die "Nginx process $pid is not running.\n";
+}
+
+my $nginx_path = readlink $exec_file;
+
+my $ver = `stap --version 2>&1`;
+if (!defined $ver) {
+    die "Systemtap not installed or its \"stap\" utility is not visible to the PATH environment: $!\n";
+}
+
+if ($ver =~ /version\s+(\d+\.\d+)/i) {
+    my $v = $1;
+    if ($v < 1.8) {
+        die "ERROR: at least systemtap 1.8 is required but found $v\n";
+    }
+
+} else {
+    die "ERROR: unknown version of systemtap:\n$ver\n";
+}
+
+my $stap_src;
+
+my $preamble = <<_EOC_;
+
+probe begin {
+    printf("Tracing $pid ($nginx_path)...\\n\\n")
+}
+_EOC_
+
+$stap_src = <<_EOC_;
+$preamble
+probe process("$nginx_path").function("ngx_process_events_and_timers"),
+    process("$nginx_path").function("ngx_http_handler")
+{
+    if (pid() == target()) {
+        begin = local_clock_us()
+
+        cached_sec = \@var("ngx_cached_time")->sec
+        cached_msec = \@var("ngx_cached_time")->msec
+
+        conns = \@var("ngx_cycle\@ngx_cycle.c")->connections
+        conn_n = \@var("ngx_cycle\@ngx_cycle.c")->connection_n
+
+        n = 0
+        for (i = 0; i < conn_n; i++) {
+            c = &\@cast(conns, "ngx_connection_t")[i]
+
+            fd = \@cast(c, "ngx_connection_t")->fd
+            read = \@cast(c, "ngx_connection_t")->read
+            reqs = \@cast(c, "ngx_connection_t")->requests
+            destroyed = \@cast(c, "ngx_connection_t")->destroyed
+
+            if (reqs && fd != -1 && read && !destroyed) {
+                n++;
+
+                r = \@cast(c, "ngx_connection_t")->data
+
+                /* get uri */
+
+                uri = &\@cast(r, "ngx_http_request_t")->uri
+                uri_data = \@cast(uri, "ngx_str_t")->data
+                uri_len = \@cast(uri, "ngx_str_t")->len
+
+                /* get uri args */
+
+                args = &\@cast(r, "ngx_http_request_t")->args
+                args_data = \@cast(args, "ngx_str_t")->data
+                args_len = \@cast(args, "ngx_str_t")->len
+
+                if (args_len == 0) {
+                    args_str = ""
+
+                } else {
+                    args_str = user_string_n(args_data, args_len)
+                }
+
+                /* get request time */
+
+                start_sec = \@cast(r, "ngx_http_request_t")->start_sec
+                start_msec = \@cast(r, "ngx_http_request_t")->start_msec
+
+                ms = (cached_sec - start_sec) * 1000 + (cached_msec - start_msec)
+                if (ms < 0) {
+                    ms = 0
+                }
+
+                /* get method name */
+
+                method = &\@cast(r, "ngx_http_request_t")->method_name
+                method_data = \@cast(method, "ngx_str_t")->data
+                method_len = \@cast(method, "ngx_str_t")->len
+
+                /* get main request */
+
+                main = \@cast(r, "ngx_http_request_t")->main
+
+                printf("%s \\"%s %s\?%s\\", time %d.%03d sec, conn reqs %d, fd %d\\n",
+                       main == r ? "req" : "subreq",
+                       user_string_n(method_data, method_len),
+                       user_string_n(uri_data, uri_len), args_str,
+                       ms / 1000, ms % 1000,
+                       reqs, fd)
+            }
+        }
+
+        printf("\\nFound %d downstream active connections.\\n", n)
+
+        elapsed = local_clock_us() - begin
+        printf("\\n%d microseconds elapsed in the probe handler.\\n", elapsed)
+        exit()
+    } /* pid() == target() */
+}
+_EOC_
+
+if ($opts{d}) {
+    print $stap_src;
+    exit;
+}
+
+open my $in, "|stap -x $pid $stap_args -"
+    or die "Cannot run stap: $!\n";
+
+print $in $stap_src;
+
+close $in;
+
+sub usage {
+    return <<'_EOC_';
+Usage:
+    ngx-req-pool [optoins]
+
+Options:
+    -a <args>           extra arguments to the stap utility.
+    -d                  Dump out the systemtap script source.
+    -h                  Print this usage.
+    -p <pid>            Specify the nginx (worker) process pid.
+
+Examples:
+    ngx-req-pool -p 12345
+    ngx-req-pool -p 12345 -a '-DMAXACTION=100000'
+_EOC_
+}
+
