@@ -8,6 +8,8 @@ Status
 
 These scripts are still highly experimental and are not yet considered to be production safe.
 
+Tested with Nginx 1.2.x on Fedora 17.
+
 Prerequisites
 =============
 
@@ -19,8 +21,8 @@ Permissions
 ===========
 
 Running systemtap-based tools requires special user permissions. To prevent running
-these tools with the root user,
-you can add your own (non-root) user name to the `stapusr` and `staprun` user groups.
+these tools with the root account,
+you can add your own (non-root) account name to the `stapusr` and `staprun` user groups.
 But if the user account running the Nginx process is different from your current
 user account, then you will still be required to run "sudo" or other means to run these tools
 with root access.
@@ -167,6 +169,30 @@ the intermal implementation of glibc's `malloc` on Linux. If you have replaced t
 then this tool is very likely to quit with memory access errors
 or to give meaningless numbers for the "large blocks" total size
 (but even in such bad cases, SystemTap should not affect the nginx process being analyzed at all).
+
+Community
+=========
+
+English Mailing List
+--------------------
+
+The [openresty-en](https://groups.google.com/group/openresty-en) mailing list is for English speakers.
+
+Chinese Mailing List
+--------------------
+
+The [openresty](https://groups.google.com/group/openresty) mailing list is for Chinese speakers.
+
+Bugs and Patches
+================
+
+Please submit bug reports, wishlists, or patches by
+
+1. creating a ticket on the [GitHub Issue Tracker](http://github.com/agentzh/nginx-systemtap-toolkit/issues),
+1. or posting to the [OpenResty community](http://wiki.nginx.org/HttpLuaModule#Community).
+
+TODO
+====
 
 Author
 ======
