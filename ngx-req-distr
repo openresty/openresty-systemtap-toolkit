@@ -148,7 +148,7 @@ Usage:
     ngx-req-distr [optoins]
 
 Options:
-    -a <args>           extra arguments to the stap utility.
+    -a <args>           Pass extra arguments to the stap utility.
     -c                  analyze connections at the same time.
     -d                  Dump out the systemtap script source.
     -h                  Print this usage.
