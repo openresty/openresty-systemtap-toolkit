@@ -22,7 +22,7 @@ Running systemtap-based tools requires special user permissions. To prevent runn
 these tools with the root user,
 you can add your own (non-root) user name to the `stapusr` and `staprun` user groups.
 But if the user account running the Nginx process is different from your current
-user account, then you will often still be required to run "sudo" or other means to run these tools
+user account, then you will still be required to run "sudo" or other means to run these tools
 with root access.
 
 Tools
@@ -162,11 +162,11 @@ data blocks with a lifetime as long as the nginx server configuration (like the 
 
     12 microseconds elapsed in the probe handler.
 
-The memory block size for the "large blocks" are approximated based on
-the intermal implementation of Gnu libc `malloc` on Linux. If you have replaced the `malloc` with other allocator,
+The memory block size for the "large blocks" is approximated based on
+the intermal implementation of glibc's `malloc` on Linux. If you have replaced the `malloc` with other allocator,
 then this tool is very likely to quit with memory access errors
-or to give meaningless number for the "large blocks" total size
-(but should not affect the nginx process being analyzed).
+or to give meaningless numbers for the "large blocks" total size
+(but even in such bad cases, SystemTap should not affect the nginx process being analyzed at all).
 
 Author
 ======
