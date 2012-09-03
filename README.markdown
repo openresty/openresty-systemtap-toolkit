@@ -31,7 +31,7 @@ Tools
 ngx-active-reqs
 ---------------
 
-This tool lists detailed information about all the current active requests that
+This tool lists detailed information about all the active requests that
 are currently being processed by the specified Nginx (worker) process.
 
     # you should ensure the worker is handling requests
@@ -55,6 +55,10 @@ are currently being processed by the specified Nginx (worker) process.
 
     Found 10 downstream active connections.
     212 microseconds elapsed in the probe handler.
+
+The `time` field is the elapsed time (in seconds) since the current request started.
+The `conn reqs` field lists the requests that have been processed on the current (keep-alive) downstream connection.
+The `fd` field is the file descriptor ID for the current downstream connection.
 
 ngx-req-distr
 -------------
