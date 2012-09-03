@@ -10,3 +10,5 @@ genmobi.sh
 *.mobi
 *.stp
 go
+ctags
+nginx

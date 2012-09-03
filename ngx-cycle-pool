@@ -1,0 +1,170 @@
+#!/usr/bin/env perl
+
+use 5.006001;
+use strict;
+use warnings;
+
+use Getopt::Std qw( getopts );
+
+my %opts;
+
+getopts("a:dhp:", \%opts)
+    or die usage();
+
+if ($opts{h}) {
+    print usage();
+    exit;
+}
+
+my $pid = $opts{p}
+    or die "No nginx process pid specified by the -p option\n";
+
+if ($pid !~ /^\d+$/) {
+    die "Bad -p option value \"$pid\": not look like a pid\n";
+}
+
+my $stap_args = $opts{a} || '';
+
+if ($^O ne 'linux') {
+    die "Only linux is supported but I am on $^O.\n";
+}
+
+my $exec_file = "/proc/$pid/exe";
+if (!-f $exec_file) {
+    die "Nginx process $pid is not running.\n";
+}
+
+my $nginx_path = readlink $exec_file;
+
+my $ver = `stap --version 2>&1`;
+if (!defined $ver) {
+    die "Systemtap not installed or its \"stap\" utility is not visible to the PATH environment: $!\n";
+}
+
+if ($ver =~ /version\s+(\d+\.\d+)/i) {
+    my $v = $1;
+    if ($v < 1.8) {
+        die "ERROR: at least systemtap 1.8 is required but found $v\n";
+    }
+
+} else {
+    die "ERROR: unknown version of systemtap:\n$ver\n";
+}
+
+my $stap_src;
+
+my $preamble = <<_EOC_;
+
+probe begin {
+    printf("Tracing $pid ($nginx_path)...\\n\\n")
+}
+_EOC_
+
+$stap_src = <<_EOC_;
+$preamble
+probe process("$nginx_path").function("ngx_process_events_and_timers"),
+    process("$nginx_path").function("ngx_http_handler")
+{
+    if (pid() == target()) {
+        begin = local_clock_us()
+
+        ngx_pool_t_size = &\@cast(0, "ngx_pool_t")[1]
+        /* printf("pool t size: %d\\n", ngx_pool_t_size) */
+
+        size_t_size = &\@cast(0, "size_t")[1]
+        /* printf("size_t size: %d\\n", size_t_size) */
+
+        pool = \@var("ngx_cycle\@ngx_cycle.c")->pool
+        end = \@cast(pool, "ngx_pool_t")->d->end
+
+        printf("pool chunk size: %d\\n", end - pool)
+
+        lim = \@cast(pool, "ngx_pool_t")->max + 1
+
+        total = 0
+        blocks = 0
+
+        for (l = \@cast(pool, "ngx_pool_t")->large;
+             l;
+             l = \@cast(l, "ngx_pool_large_t")->next)
+        {
+            ptr = \@cast(l, "ngx_pool_large_t")->alloc
+            if (ptr) {
+                blocks++
+
+                /* XXX specific to glibc malloc implementation */
+                ptr -= size_t_size
+                block_size = \@cast(ptr, "size_t")[0] & ~(size_t_size - 1)
+                /* printf("large block size: %d %d\\n", \@cast(ptr, "size_t")[0],
+                   block_size) */
+
+                total += block_size
+            }
+        }
+
+        printf("large blocks (>= %d): %d blocks, %d bytes (used)\\n", lim, blocks, total)
+
+        used = 0
+        unused = 0
+
+        p = pool
+        n = \@cast(pool, "ngx_pool_t")->d->next
+
+        for ( ;; ) {
+
+            last = \@cast(p, "ngx_pool_t")->d->last
+            end = \@cast(p, "ngx_pool_t")->d->end
+
+            used += last - p - ngx_pool_t_size
+            unused += end - last
+
+            /* printf("used: %d, unused %d\\n", last - p - ngx_pool_t_size, end - last) */
+
+            if (n == 0) {
+                break
+            }
+
+            p = n
+            n = \@cast(n, "ngx_pool_t")->d->next
+        }
+
+        printf("small blocks (< %d): %d bytes used, %d bytes unused\\n", lim, used, unused)
+
+        printf("total used: %d bytes\\n", total + used)
+
+        elapsed = local_clock_us() - begin
+        printf("\\n%d microseconds elapsed in the probe handler.\\n", elapsed)
+        exit()
+    } /* pid() == target() */
+}
+_EOC_
+
+if ($opts{d}) {
+    print $stap_src;
+    exit;
+}
+
+open my $in, "|stap -x $pid $stap_args -"
+    or die "Cannot run stap: $!\n";
+
+print $in $stap_src;
+
+close $in;
+
+sub usage {
+    return <<'_EOC_';
+Usage:
+    ngx-cycle-pool [optoins]
+
+Options:
+    -a <args>           extra arguments to the stap utility.
+    -d                  Dump out the systemtap script source.
+    -h                  Print this usage.
+    -p <pid>            Specify the nginx (worker) process pid.
+
+Examples:
+    ngx-cycle-pool -p 12345
+    ngx-cycle-pool -p 12345 -a '-DMAXACTION=100000'
+_EOC_
+}
+

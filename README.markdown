@@ -65,9 +65,6 @@ ngx-shm
 
 This tool analyzes all the shared memory zones in the specified running nginx process.
 
-    # find the nginx worker pid
-    $ ps aux|grep nginx
-
     # you should ensure the worker is handling requests
     # or the timer_resoluation is set in your nginx.conf
 
@@ -108,6 +105,36 @@ This tool analyzes all the shared memory zones in the specified running nginx pr
         free pages: 88 KB (22 pages, 1 blocks)
 
     22 microseconds elapsed in the probe.
+
+ngx-cycle-pool
+--------------
+
+This tool computes the real-time memory usage of the nginx global "cycle pool"
+in the specified nginx (worker) process.
+
+The "cycle pool" is mainly for configuration related data block allocation and other long-lived
+data blocks with a lifetime as long as the nginx server configuration (like the compiled PCRE data stored in the regex cache for the ngx_lua module).
+
+    # you should ensure the worker is handling requests
+    # or the timer_resoluation is set in your nginx.conf
+
+    # assuming the nginx worker pid is 15004
+
+    $ ./ngx-cycle-pool -p 15004
+    Tracing 15004 (/usr/local/nginx/sbin/nginx)...
+
+    pool chunk size: 16384
+    large blocks (>= 4096): 6 blocks, 26352 bytes (used)
+    small blocks (< 4096): 96416 bytes used, 1408 bytes unused
+    total used: 122768 bytes
+
+    12 microseconds elapsed in the probe handler.
+
+The memory block size for the "large blocks" are approximated based on
+the intermal implementation of Gnu libc `malloc` on Linux. If you have replaced the `malloc` with other allocator,
+then this tool is very likely to quit with memory access errors
+or to give meaningless number for the "large blocks" total size
+(but should not affect the nginx process being analyzed).
 
 Author
 ======
