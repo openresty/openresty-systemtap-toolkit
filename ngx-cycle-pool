@@ -131,7 +131,7 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
             if (ptr) {
                 blocks++
 
-                /* XXX specific to glibc malloc implementation */
+                /* XXX specific to the glibc malloc implementation */
                 ptr -= size_t_size
                 block_size = \@cast(ptr, "size_t")[0] & ~(size_t_size - 1)
                 /* printf("large block size: %d %d\\n",
