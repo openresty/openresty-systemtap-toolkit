@@ -54,14 +54,15 @@ if ($ver =~ /version\s+(\d+\.\d+)/i) {
 my $stap_src;
 
 my $preamble = <<_EOC_;
-
 probe begin {
-    printf("Tracing $pid ($nginx_path)...\\n\\n")
+    printf("Tracing %d ($nginx_path)...\\n\\n", target())
 }
 _EOC_
+chop $preamble;
 
 $stap_src = <<_EOC_;
 $preamble
+
 probe process("$nginx_path").function("ngx_process_events_and_timers"),
     process("$nginx_path").function("ngx_http_handler")
 {

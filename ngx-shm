@@ -57,9 +57,10 @@ my $zone = $opts{n};
 
 my $preamble = <<_EOC_;
 probe begin {
-    printf("Tracing $pid ($nginx_path)...\\n\\n")
+    printf("Tracing %d ($nginx_path)...\\n\\n", target())
 }
 _EOC_
+chop $preamble;
 
 if ($zone) {
     my $quoted_zone = quote_str($zone);
