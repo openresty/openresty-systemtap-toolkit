@@ -28,6 +28,34 @@ with root access.
 Tools
 =====
 
+ngx-active-reqs
+---------------
+
+This tool lists detailed information about all the current active requests that
+are currently being processed by the specified Nginx (worker) process.
+
+    # you should ensure the worker is handling requests
+    # or the timer_resoluation is set in your nginx.conf
+
+    # assuming the nginx worker pid is 32027
+
+    $ ./ngx-active-reqs -p 32027
+    Tracing 32027 (/opt/nginx/sbin/nginx)...
+
+    req "GET /t?", time 0.300 sec, conn reqs 18, fd 8
+    req "GET /t?", time 0.276 sec, conn reqs 18, fd 7
+    req "GET /t?", time 0.300 sec, conn reqs 18, fd 9
+    req "GET /t?", time 0.300 sec, conn reqs 18, fd 10
+    req "GET /t?", time 0.300 sec, conn reqs 18, fd 11
+    req "GET /t?", time 0.300 sec, conn reqs 18, fd 12
+    req "GET /t?", time 0.300 sec, conn reqs 18, fd 13
+    req "GET /t?", time 0.300 sec, conn reqs 18, fd 14
+    req "GET /t?", time 0.276 sec, conn reqs 18, fd 15
+    req "GET /t?", time 0.276 sec, conn reqs 18, fd 16
+
+    Found 10 downstream active connections.
+    212 microseconds elapsed in the probe handler.
+
 ngx-req-distr
 -------------
 

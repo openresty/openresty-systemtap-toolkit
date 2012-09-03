@@ -139,7 +139,7 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
         printf("\\nFound %d downstream active connections.\\n", n)
 
         elapsed = local_clock_us() - begin
-        printf("\\n%d microseconds elapsed in the probe handler.\\n", elapsed)
+        printf("%d microseconds elapsed in the probe handler.\\n", elapsed)
         exit()
     } /* pid() == target() */
 }
