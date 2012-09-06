@@ -103,7 +103,7 @@ probe process("$nginx_path").function("ngx_destroy_pool")
 probe end {
     printf("\\n")
     hits = 0
-    foreach (bt in btcount+ limit 5) {
+    foreach (bt in btcount- limit 10) {
         printf("%d pools leaked at backtrace %s\\n", btcount[bt], bt)
         hits++
     }
