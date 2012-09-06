@@ -122,7 +122,7 @@ if ($opts{d}) {
     exit;
 }
 
-open my $in, "|stap -x $pid $stap_args -"
+open my $in, "|stap -x $pid --ldd $stap_args -"
     or die "Cannot run stap: $!\n";
 
 print $in $stap_src;
