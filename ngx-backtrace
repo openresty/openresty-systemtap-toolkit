@@ -1,0 +1,52 @@
+#!/usr/bin/env perl
+
+use 5.006001;
+use strict;
+use warnings;
+
+use Getopt::Std qw( getopts );
+
+my %opts;
+
+getopts("hp:", \%opts)
+    or die usage();
+
+if ($opts{h}) {
+    print usage();
+    exit;
+}
+
+my $pid = $opts{p}
+    or die "No nginx master process pid specified by the -p option\n";
+
+if ($pid !~ /^\d+$/) {
+    die "Bad -p option value \"$pid\": not look like a pid\n";
+}
+
+if ($^O ne 'linux') {
+    die "Only linux is supported but I am on $^O.\n";
+}
+
+my $exec_file = "/proc/$pid/exe";
+if (!-f $exec_file) {
+    die "Nginx process $pid is not running.\n";
+}
+
+my $nginx_path = readlink $exec_file;
+
+exec 'addr2line', '-e', $exec_file, '-f', @ARGV;
+
+sub usage {
+    return <<'_EOC_';
+Usage:
+    ngx-leaked-pools [optoins]
+
+Options:
+    -h                  Print this usage.
+    -p <pid>            Specify the nginx (worker) process pid.
+
+Examples:
+    ngx-backtrace -p 12345
+_EOC_
+}
+

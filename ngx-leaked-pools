@@ -1,0 +1,148 @@
+#!/usr/bin/env perl
+
+use 5.006001;
+use strict;
+use warnings;
+
+use Getopt::Std qw( getopts );
+
+my %opts;
+
+getopts("a:dhp:", \%opts)
+    or die usage();
+
+if ($opts{h}) {
+    print usage();
+    exit;
+}
+
+my $pid = $opts{p}
+    or die "No nginx master process pid specified by the -p option.\n";
+
+if ($pid !~ /^\d+$/) {
+    die "Bad -p option value \"$pid\": not look like a pid.\n";
+}
+
+my $stap_args = $opts{a} || '';
+
+if ($^O ne 'linux') {
+    die "Only linux is supported but I am on $^O.\n";
+}
+
+my $exec_file = "/proc/$pid/exe";
+if (!-f $exec_file) {
+    die "Nginx process $pid is not running.\n";
+}
+
+my $nginx_path = readlink $exec_file;
+
+my $ver = `stap --version 2>&1`;
+if (!defined $ver) {
+    die "Systemtap not installed or its \"stap\" utility is not visible to the PATH environment: $!\n";
+}
+
+if ($ver =~ /version\s+(\d+\.\d+)/i) {
+    my $v = $1;
+    if ($v < 1.8) {
+        die "ERROR: at least systemtap 1.8 is required but found $v\n";
+    }
+
+} else {
+    die "ERROR: unknown version of systemtap:\n$ver\n";
+}
+
+#warn "Nginx worker processes: @$child_pids\n";
+
+my $stap_src;
+
+my $preamble = <<_EOC_;
+probe begin {
+    printf("Tracing %d ($nginx_path)...\\nHit Ctrl-C to end.\\n", target())
+}
+_EOC_
+
+$stap_src = <<_EOC_;
+$preamble
+global pools
+global btcount
+global total_count
+
+probe process("$nginx_path").provider("nginx").mark("create-pool-done")
+{
+    if (pid() == target()) {
+        key = sprintf("%p", \$arg1)
+
+        pools[key] = ubacktrace()
+        btcount[ubacktrace()]++
+
+        key = sprintf("%x", \$arg1)
+        #printf("create pool: %s (bt: %s)\\n", key, ubacktrace())
+
+        total_count++
+    }
+}
+
+probe process("$nginx_path").function("ngx_destroy_pool")
+{
+    if (pid() == target()) {
+        key = sprintf("%p", \$pool)
+        bt = pools[key]
+        if (bt != "") {
+            #printf("destroy pool: %s\\n", key)
+            if (--btcount[bt] == 0) {
+                delete btcount[bt]
+            }
+            delete pools[key]
+
+        } else {
+            #printf("destroy pool: %s (bt: %s)\\n", key, bt)
+        }
+    }
+}
+
+probe end {
+    printf("\\n")
+    hits = 0
+    foreach (bt in btcount+ limit 5) {
+        printf("%d pools leaked at backtrace %s\\n", btcount[bt], bt)
+        hits++
+    }
+    if (hits) {
+        printf("\\nRun the command \\"./ngx-backtrace -p %d <backtrace>\\" to get details.\\n",
+               target())
+    } else {
+        println("\\nNo leaked pools found.")
+    }
+    printf("For total %d pools allocated.\\n", total_count)
+}
+_EOC_
+
+if ($opts{d}) {
+    print $stap_src;
+    exit;
+}
+
+open my $in, "|stap -x $pid $stap_args -"
+    or die "Cannot run stap: $!\n";
+
+print $in $stap_src;
+
+close $in;
+
+sub usage {
+    return <<'_EOC_';
+Usage:
+    ngx-leaked-pools [optoins]
+
+Options:
+    -a <args>           Pass extra arguments to the stap utility.
+    -d                  Dump out the systemtap script source.
+    -h                  Print this usage.
+    -p <pid>            Specify the nginx (worker) process pid.
+
+Examples:
+    ngx-leaked-pools -p 12345
+    ngx-leaked-pools -p 12345 -a '-DMAXACTION=100000'
+_EOC_
+}
+
