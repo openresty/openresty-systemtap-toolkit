@@ -198,17 +198,19 @@ then this tool is very likely to quit with memory access errors
 or to give meaningless numbers for the "large blocks" total size
 (but even in such bad cases, SystemTap should not affect the nginx process being analyzed at all).
 
-ngx-leaked-pool
----------------
+ngx-leaked-pools
+----------------
 
 Tracks creations and destructions of Nginx memory pools and report the top 10 leaked pools'
 backtraces.
 
-The backtraces are in the raw form of hexidecimal addresses. You can use the ngx-backtrace script to print out the source code file names, source line numbers, as well as function names.
+The backtraces are in the raw form of hexidecimal addresses.
+You can use the `ngx-backtrace` tool to print out the source
+code file names, source line numbers, as well as function names.
 
     # assuming the nginx worker pid is 5043
 
-    $ ./ngx-leaked-pool -p 5043
+    $ ./ngx-leaked-pools -p 5043
     Tracing 5043 (/opt/nginx/sbin/nginx)...
     Hit Ctrl-C to end.
     ^C
