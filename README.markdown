@@ -239,6 +239,10 @@ code file names, source line numbers, as well as function names.
     ngx_http_handler
     src/http/ngx_http_core_module.c:872
 
+This script requires Nginx instances that have applied the latest dtrace patch. See the [dtrace-nginx](https://github.com/agentzh/nginx-dtrace) project for more details.
+
+The upcoming 1.2.3.3 release of the [ngx_openresty](http://openresty.org/) will include the right dtrace patch by default. And you just need to build it with the `--with-dtrace-probes` configure option.
+
 ngx-backtrace
 -------------
 
