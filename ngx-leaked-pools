@@ -43,8 +43,8 @@ if (!defined $ver) {
 
 if ($ver =~ /version\s+(\d+\.\d+)/i) {
     my $v = $1;
-    if ($v < 1.8) {
-        die "ERROR: at least systemtap 1.8 is required but found $v\n";
+    if ($v < 2.0) {
+        die "ERROR: at least systemtap 2.0 is required but found $v\n";
     }
 
 } else {
@@ -70,12 +70,13 @@ global total_count
 probe process("$nginx_path").provider("nginx").mark("create-pool-done")
 {
     if (pid() == target()) {
-        key = sprintf("%p", \$arg1)
+        bt = ubacktrace()
 
-        pools[key] = ubacktrace()
-        btcount[ubacktrace()]++
+        pools[\$arg1] = bt
+        btcount[bt]++
 
-        key = sprintf("%x", \$arg1)
+        #printf("bt: %s, key: %s\\n", bt, key)
+        #key = sprintf("%x", \$arg1)
         #printf("create pool: %s (bt: %s)\\n", key, ubacktrace())
 
         total_count++
@@ -85,14 +86,13 @@ probe process("$nginx_path").provider("nginx").mark("create-pool-done")
 probe process("$nginx_path").function("ngx_destroy_pool")
 {
     if (pid() == target()) {
-        key = sprintf("%p", \$pool)
-        bt = pools[key]
+        bt = pools[\$pool]
         if (bt != "") {
             #printf("destroy pool: %s\\n", key)
             if (--btcount[bt] == 0) {
                 delete btcount[bt]
             }
-            delete pools[key]
+            delete pools[\$pool]
 
         } else {
             #printf("destroy pool: %s (bt: %s)\\n", key, bt)
@@ -102,17 +102,20 @@ probe process("$nginx_path").function("ngx_destroy_pool")
 
 probe end {
     printf("\\n")
+
     hits = 0
     foreach (bt in btcount- limit 10) {
         printf("%d pools leaked at backtrace %s\\n", btcount[bt], bt)
         hits++
     }
+
     if (hits) {
         printf("\\nRun the command \\"./ngx-backtrace -p %d <backtrace>\\" to get details.\\n",
                target())
     } else {
         println("\\nNo leaked pools found.")
     }
+
     printf("For total %d pools allocated.\\n", total_count)
 }
 _EOC_
