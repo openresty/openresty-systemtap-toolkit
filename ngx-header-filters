@@ -1,0 +1,146 @@
+#!/usr/bin/env perl
+
+use 5.006001;
+use strict;
+use warnings;
+
+use Getopt::Std qw( getopts );
+
+my %opts;
+
+getopts("a:dhp:n:", \%opts)
+    or die usage();
+
+if ($opts{h}) {
+    print usage();
+    exit;
+}
+
+my $pid = $opts{p}
+    or die "No nginx process pid specified by the -p option\n";
+
+if ($pid !~ /^\d+$/) {
+    die "Bad -p option value \"$pid\": not look like a pid\n";
+}
+
+my $stap_args = $opts{a} || '';
+
+if ($^O ne 'linux') {
+    die "Only linux is supported but I am on $^O.\n";
+}
+
+my $exec_file = "/proc/$pid/exe";
+if (!-f $exec_file) {
+    die "Nginx process $pid is not running.\n";
+}
+
+my $nginx_path = readlink $exec_file;
+
+my $ver = `stap --version 2>&1`;
+if (!defined $ver) {
+    die "Systemtap not installed or its \"stap\" utility is not visible to the PATH environment: $!\n";
+}
+
+if ($ver =~ /version\s+(\d+\.\d+)/i) {
+    my $v = $1;
+    if ($v < 1.8) {
+        die "ERROR: at least systemtap 1.8 is required but found $v\n";
+    }
+
+} else {
+    die "ERROR: unknown version of systemtap:\n$ver\n";
+}
+
+my $stap_src;
+
+my $zone = $opts{n};
+
+my $preamble = <<_EOC_;
+probe begin {
+    printf("Tracing %d ($nginx_path)...\\n\\n", target())
+}
+_EOC_
+chop $preamble;
+
+$stap_src = <<_EOC_;
+$preamble
+
+probe process("$nginx_path").function("ngx_http_header_filter")
+{
+    if (pid() == target()) {
+        #println("=============================")
+
+        begin = local_clock_us()
+        res = ""
+        top_filter = usymname(\@var("ngx_http_top_header_filter"))
+        #printf("top filter: %s\\n", top_filter)
+
+        b = ubacktrace();
+        token = tokenize(b, " ");
+        if (token != "") {
+            found = 0
+            for ( ;; ) {
+                token = tokenize("", " ");
+                if (token == "") {
+                    break;
+                }
+
+                addr = strtol(token, 16)
+                sym = usymname(addr)
+
+                #printf("found sym: %s (%p)\\n", sym, addr)
+
+                res = sym . "\\n" . res
+
+                if (sym == top_filter) {
+                    #println("found top filter!")
+                    found = 1
+                    break
+                }
+            }
+
+            if (!found) {
+                res = ""
+            }
+        }
+
+        if (res != "") {
+            print(res)
+            println("ngx_http_header_filter")
+
+            elapsed = local_clock_us() - begin
+            printf("\\n%d microseconds elapsed in the probe handler.\\n", elapsed)
+            exit()
+        }
+    }
+}
+_EOC_
+
+if ($opts{d}) {
+    print $stap_src;
+    exit;
+}
+
+open my $in, "|stap $stap_args -x $pid -"
+    or die "Cannot run stap: $!\n";
+
+print $in $stap_src;
+
+close $in;
+
+sub usage {
+    return <<'_EOC_';
+Usage:
+    ngx-header-filters [optoins]
+
+Options:
+    -a <args>           Pass extra arguments to the stap utility.
+    -d                  Dump out the systemtap script source.
+    -h                  Print this usage.
+    -p <pid>            Specify the nginx worker process pid.
+
+Examples:
+    ngx-header-filters -p 12345
+_EOC_
+}
+

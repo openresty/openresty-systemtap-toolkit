@@ -293,6 +293,28 @@ Print out all the output body filters in the order that they actually run.
 
     113 microseconds elapsed in the probe handler.
 
+ngx-header-filters
+------------------
+
+Print out all the output header filters in the order that they actually run.
+
+    $ ./ngx-header-filters -p 30132
+    Tracing 30132 (/home/agentzh/git/lua-nginx-module/work/nginx/sbin/nginx)...
+
+    WARNING: Missing unwind data for module, rerun with 'stap -d /usr/local/openresty-debug/luajit/lib/libluajit-5.1.so.2.0.0'
+    ngx_http_not_modified_header_filter
+    ngx_http_lua_capture_header_filter
+    ngx_http_headers_filter
+    ngx_http_image_header_filter
+    ngx_http_charset_header_filter
+    ngx_http_ssi_header_filter
+    ngx_http_gzip_header_filter
+    ngx_http_range_header_filter
+    ngx_http_chunked_header_filter
+    ngx_http_header_filter
+
+    137 microseconds elapsed in the probe handler.
+
 Community
 =========
 
