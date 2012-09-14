@@ -250,7 +250,7 @@ Prints out a human readable form for the raw backtraces consisting of hexidecima
 
     # assuming the nginx worker process pid is 5043
 
-    $ ./ngx-backtrace -p 5043  -p 5043 0x4121aa 0x44d7bd 0x44e425 0x44fcc1 0x47996d 0x43908a 0x4342c3 0x4343bd
+    $ ./ngx-backtrace -p 5043 0x4121aa 0x44d7bd 0x44e425 0x44fcc1 0x47996d 0x43908a 0x4342c3 0x4343bd
     ngx_create_pool
     src/core/ngx_palloc.c:44
     ngx_http_upstream_connect
@@ -267,6 +267,30 @@ Prints out a human readable form for the raw backtraces consisting of hexidecima
     src/http/ngx_http_core_module.c:890
     ngx_http_handler
     src/http/ngx_http_core_module.c:872
+
+ngx-body-filters
+----------------
+
+Print out all the output body filters in the order that they actually run.
+
+    # assuming the nginx worker process pid is 30132
+
+    $ ./ngx-body-filters -p 30132
+    Tracing 30132 (/home/agentzh/git/lua-nginx-module/work/nginx/sbin/nginx)...
+
+    WARNING: Missing unwind data for module, rerun with 'stap -d ...'
+    ngx_http_range_body_filter
+    ngx_http_copy_filter
+    ngx_output_chain
+    ngx_http_lua_capture_body_filter
+    ngx_http_image_body_filter
+    ngx_http_charset_body_filter
+    ngx_http_ssi_body_filter
+    ngx_http_postpone_filter
+    ngx_http_gzip_body_filter
+    ngx_http_chunked_body_filter
+
+    113 microseconds elapsed in the probe handler.
 
 Community
 =========
