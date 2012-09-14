@@ -301,7 +301,7 @@ Print out all the output header filters in the order that they actually run.
     $ ./ngx-header-filters -p 30132
     Tracing 30132 (/home/agentzh/git/lua-nginx-module/work/nginx/sbin/nginx)...
 
-    WARNING: Missing unwind data for module, rerun with 'stap -d /usr/local/openresty-debug/luajit/lib/libluajit-5.1.so.2.0.0'
+    WARNING: Missing unwind data for module, rerun with 'stap -d ...'
     ngx_http_not_modified_header_filter
     ngx_http_lua_capture_header_filter
     ngx_http_headers_filter
