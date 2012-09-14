@@ -111,6 +111,7 @@ probe process("$nginx_path").function("ngx_http_write_filter")
 
         if (res != "") {
             print(res)
+            println("ngx_http_write_filter")
 
             elapsed = local_clock_us() - begin
             printf("\\n%d microseconds elapsed in the probe handler.\\n", elapsed)

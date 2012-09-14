@@ -289,6 +289,7 @@ Print out all the output body filters in the order that they actually run.
     ngx_http_postpone_filter
     ngx_http_gzip_body_filter
     ngx_http_chunked_body_filter
+    ngx_http_write_filter
 
     113 microseconds elapsed in the probe handler.
 
