@@ -318,7 +318,8 @@ Print out all the output header filters in the order that they actually run.
 ngx-pcrejit
 -----------
 
-This script tracks the `pcre_exec` calls in the specified Nginx worker process,
+This script tracks the PCRE compiled regex execution (i.e., the `pcre_exec` calls)
+in the specified Nginx worker process,
 and checks whether the compiled regexes being executed is JIT'd or not.
 
     # assuming the Nginx worker process handling the traffic is 31360.
