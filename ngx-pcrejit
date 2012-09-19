@@ -1,0 +1,145 @@
+#!/usr/bin/env perl
+
+use 5.006001;
+use strict;
+use warnings;
+
+use Getopt::Std qw( getopts );
+
+my %opts;
+
+getopts("a:dhp:", \%opts)
+    or die usage();
+
+if ($opts{h}) {
+    print usage();
+    exit;
+}
+
+my $pid = $opts{p}
+    or die "No nginx process pid specified by the -p option\n";
+
+if ($pid !~ /^\d+$/) {
+    die "Bad -p option value \"$pid\": not look like a pid\n";
+}
+
+my $stap_args = $opts{a} || '';
+
+if ($^O ne 'linux') {
+    die "Only linux is supported but I am on $^O.\n";
+}
+
+my $verbose = $opts{v};
+
+my $exec_file = "/proc/$pid/exe";
+if (!-f $exec_file) {
+    die "Nginx process $pid is not running.\n";
+}
+
+my $nginx_path = readlink $exec_file;
+
+my $maps_file = "/proc/$pid/maps";
+if (!-f $maps_file) {
+    die "Nginx process $pid is not running.\n";
+}
+
+open my $in, $maps_file or
+    die "Cannot open $maps_file for reading: $!\n";
+
+my $pcre_path;
+while (<$in>) {
+    if (m{\s+(/\S*libpcre\.so\S*)}) {
+        $pcre_path = $1;
+    }
+}
+close $in;
+
+#warn "pcre path: $pcre_path\n";
+
+my $ver = `stap --version 2>&1`;
+if (!defined $ver) {
+    die "Systemtap not installed or its \"stap\" utility is not visible to the PATH environment: $!\n";
+}
+
+if ($ver =~ /version\s+(\d+\.\d+)/i) {
+    my $v = $1;
+    if ($v < 1.8) {
+        die "ERROR: at least systemtap 1.8 is required but found $v\n";
+    }
+
+} else {
+    die "ERROR: unknown version of systemtap:\n$ver\n";
+}
+
+my $stap_src;
+
+my $preamble = <<_EOC_;
+probe begin
+{
+    printf("Tracing %d ($nginx_path)...\\nHit Ctrl-C to end.\\n\\n", target())
+}
+_EOC_
+chop $preamble;
+
+my $process_path = $pcre_path || $nginx_path;
+
+$stap_src = <<_EOC_;
+$preamble
+
+global jits
+
+probe process("$process_path").function("pcre_exec")
+{
+    if (target() == pid()) {
+        /* PCRE_EXTRA_EXECUTABLE_JIT = 0x0040 */
+        jit = (\$extra_data != 0 && (\$extra_data->flags & 0x0040)
+                                 && \$extra_data->executable_jit != 0)
+        caller = usymname(ustack(1))
+        jits[caller] <<< jit
+    }
+}
+
+probe end {
+    found = 0
+    printf("\\n")
+    foreach (caller in jits- limit 10) {
+        if (!found) {
+            found = 1
+        }
+        printf("%s: %d of %d are PCRE JIT'd.\\n", caller,
+               \@sum(jits[caller]), \@count(jits[caller]))
+    }
+    if (!found) {
+        println("No pcre_exec() invocations found.")
+    }
+}
+_EOC_
+
+if ($opts{d}) {
+    print $stap_src;
+    exit;
+}
+
+open $in, "|stap -d $nginx_path --ldd $stap_args -x $pid -"
+    or die "Cannot run stap: $!\n";
+
+print $in $stap_src;
+
+close $in;
+
+sub usage {
+    return <<'_EOC_';
+Usage:
+    ngx-pcrejit [optoins]
+
+Options:
+    -a <args>           Pass extra arguments to the stap utility.
+    -d                  Dump out the systemtap script source.
+    -h                  Print this usage.
+    -p <pid>            Specify the nginx worker process pid.
+
+Examples:
+    ngx-pcrejit -p 12345
+_EOC_
+}
+

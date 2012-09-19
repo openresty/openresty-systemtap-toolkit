@@ -315,6 +315,22 @@ Print out all the output header filters in the order that they actually run.
 
     137 microseconds elapsed in the probe handler.
 
+ngx-pcrejit
+-----------
+
+This script tracks the `pcre_exec` calls in the specified Nginx worker process,
+and checks whether the compiled regexes being executed is JIT'd or not.
+
+    # assuming the Nginx worker process handling the traffic is 31360.
+
+    $ ./ngx-pcrejit -p 31360
+    Tracing 31360 (/opt/nginx/sbin/nginx)...
+    Hit Ctrl-C to end.
+
+    ^C
+    ngx_http_lua_ngx_re_match: 1000 of 2000 are PCRE JIT'd.
+    ngx_http_regex_exec: 0 of 1000 are PCRE JIT'd.
+
 Community
 =========
 
