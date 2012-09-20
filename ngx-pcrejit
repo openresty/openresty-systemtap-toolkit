@@ -92,7 +92,10 @@ probe process("$process_path").function("pcre_exec")
 {
     if (target() == pid()) {
         /* PCRE_EXTRA_EXECUTABLE_JIT = 0x0040 */
-        if (\@defined(\$extra_data->executable_jit)) {
+        if (\@defined(\$extra_data->executable_jit)
+            && (\@defined(\@var("ucp_typerange\@pcre_tables.c"))
+                || \@defined(\@var("_pcre_ucp_typerange\@pcre_tables.c"))))
+        {
             jit = (\$extra_data && (\$extra_data->flags & 0x0040)
                                 && \$extra_data->executable_jit)
 
