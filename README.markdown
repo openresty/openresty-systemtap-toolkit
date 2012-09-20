@@ -327,7 +327,6 @@ and checks whether the compiled regexes being executed is JIT'd or not.
     $ ./ngx-pcrejit -p 31360
     Tracing 31360 (/opt/nginx/sbin/nginx)...
     Hit Ctrl-C to end.
-
     ^C
     ngx_http_lua_ngx_re_match: 1000 of 2000 are PCRE JIT'd.
     ngx_http_regex_exec: 0 of 1000 are PCRE JIT'd.

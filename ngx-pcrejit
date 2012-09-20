@@ -76,7 +76,7 @@ my $stap_src;
 my $preamble = <<_EOC_;
 probe begin
 {
-    printf("Tracing %d ($nginx_path)...\\nHit Ctrl-C to end.\\n\\n", target())
+    printf("Tracing %d ($nginx_path)...\\nHit Ctrl-C to end.\\n", target())
 }
 _EOC_
 chop $preamble;
@@ -87,6 +87,7 @@ $stap_src = <<_EOC_;
 $preamble
 
 global jits
+global jit_disabled = 0
 
 probe process("$process_path").function("pcre_exec")
 {
@@ -100,6 +101,7 @@ probe process("$process_path").function("pcre_exec")
                                 && \$extra_data->executable_jit)
 
         } else {
+            jit_disabled = 1
             jit = 0
         }
 
@@ -121,6 +123,9 @@ probe end {
     if (!found) {
         println("No pcre_exec() invocations found.")
     }
+    if (jit_disabled) {
+        println("\\nLooks like JIT support is missing in your PCRE build.")
+    }
 }
 _EOC_
 
@@ -129,7 +134,7 @@ if ($opts{d}) {
     exit;
 }
 
-open $in, "|stap -d $nginx_path --ldd $stap_args -x $pid -"
+open $in, "|stap -d $nginx_path $stap_args -x $pid -"
     or die "Cannot run stap: $!\n";
 
 print $in $stap_src;
