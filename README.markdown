@@ -345,7 +345,8 @@ in your PCRE compilation. That is, you should build your Nginx and PCRE like thi
 
 Otherwise SystemTap will get confused.
 
-For dynamically-linked PCRE, you are safe to use `-O2` or above but you still need
+For dynamically-linked PCRE, you are still recommended to use `-O1` or below. And
+you still need
 to install the debug symbols for your PCRE (or the debuginfo RPM package for Yum-based systems).
 
 Community
