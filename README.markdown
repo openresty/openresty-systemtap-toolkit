@@ -332,6 +332,22 @@ and checks whether the compiled regexes being executed is JIT'd or not.
     ngx_http_lua_ngx_re_match: 1000 of 2000 are PCRE JIT'd.
     ngx_http_regex_exec: 0 of 1000 are PCRE JIT'd.
 
+When statically linking PCRE with your Nginx, it is important to enable
+debug symbols *and* avoid `-O2` or above
+in your PCRE compilation. That is, you should build your Nginx and PCRE like this:
+
+    ./configure --with-pcre=/path/to/my/pcre-8.31 \
+        --with-pcre-jit \
+        --prefix=/opt/nginx \
+        -opt="-g -O1"
+    make -j8
+    make install
+
+Otherwise SystemTap will get confused.
+
+For dynamically-linked PCRE, you are safe to use `-O2` or above but you still need
+to install the debug symbols for your PCRE (or the debuginfo RPM package for Yum-based systems).
+
 Community
 =========
 
