@@ -92,8 +92,14 @@ probe process("$process_path").function("pcre_exec")
 {
     if (target() == pid()) {
         /* PCRE_EXTRA_EXECUTABLE_JIT = 0x0040 */
-        jit = (\$extra_data != 0 && (\$extra_data->flags & 0x0040)
-                                 && \$extra_data->executable_jit != 0)
+        if (\@defined(\$extra_data->executable_jit)) {
+            jit = (\$extra_data && (\$extra_data->flags & 0x0040)
+                                && \$extra_data->executable_jit)
+
+        } else {
+            jit = 0
+        }
+
         caller = usymname(ustack(1))
         jits[caller] <<< jit
     }
