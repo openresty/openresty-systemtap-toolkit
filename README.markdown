@@ -14,7 +14,7 @@ Tested with Nginx 1.2.x on Fedora 17.
 Prerequisites
 =============
 
-You need at least SystemTap 1.8+ and perl 5.6.1+ on your Linux system.
+You need at least SystemTap 2.0+ and perl 5.6.1+ on your Linux system.
 
 Also, you should ensure the debuginfo for your Nginx is already installed
 if you did not compile your Nginx from source.

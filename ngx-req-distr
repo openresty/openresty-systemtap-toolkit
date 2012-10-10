@@ -45,8 +45,8 @@ if (!defined $ver) {
 
 if ($ver =~ /version\s+(\d+\.\d+)/i) {
     my $v = $1;
-    if ($v < 1.8) {
-        die "ERROR: at least systemtap 1.8 is required but found $v\n";
+    if ($v < 2.0) {
+        die "ERROR: at least systemtap 2.0 is required but found $v\n";
     }
 
 } else {
