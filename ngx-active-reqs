@@ -8,7 +8,7 @@ use Getopt::Std qw( getopts );
 
 my %opts;
 
-getopts("a:dhp:m", \%opts)
+getopts("ua:dhp:m", \%opts)
     or die usage();
 
 if ($opts{h}) {
@@ -24,6 +24,8 @@ if ($pid !~ /^\d+$/) {
 }
 
 my $check_pools = $opts{m};
+
+my $check_upstreams = $opts{u};
 
 my $stap_args = $opts{a} || '';
 
@@ -62,7 +64,26 @@ probe begin {
 _EOC_
 chop $preamble;
 
-my ($check_pool_init_code, $check_pool_code, $fin_code);
+my ($check_upstream_code, $check_pool_init_code, $check_pool_code, $fin_code);
+
+if ($check_upstreams) {
+    my $c = '@cast(c, "ngx_connection_t")';
+    $check_upstream_code = <<_EOC_;
+        u = \@cast(r, "ngx_http_request_t")->upstream
+        if (u) {
+            c = \@cast(u, "ngx_http_upstream_t")->peer->connection
+            if (c) {
+                printf("    upstream: fd=%d, action=%s\\n\\n", $c->fd, user_string($c->log->action))
+
+            } else {
+                printf("    no upstream connection found\\n\\n")
+            }
+
+        } else {
+            printf("    no upstream found\\n\\n")
+        }
+_EOC_
+}
 
 if ($check_pools) {
     $check_pool_init_code = <<_EOC_;
@@ -165,6 +186,7 @@ _EOC_
     chop $fin_code;
 }
 
+my $c = '@cast(c, "ngx_connection_t")';
 $stap_src = <<_EOC_;
 $preamble
 
@@ -236,14 +258,15 @@ $check_pool_init_code
 
                 main = \@cast(r, "ngx_http_request_t")->main
 
-                printf("%s \\"%s %s\?%s\\", time %d.%03d sec, conn reqs %d, fd %d\\n",
+                printf("%s \\"%s %s\?%s\\", time %d.%03d sec, conn reqs %d, fd %d, %s\\n",
                        main == r ? "req" : "subreq",
                        user_string_n(method_data, method_len),
                        user_string_n(uri_data, uri_len), args_str,
                        ms / 1000, ms % 1000,
-                       reqs, fd)
+                       reqs, fd, user_string($c->log->action))
 
 $check_pool_code
+$check_upstream_code
             }
         }
 
@@ -261,7 +284,7 @@ if ($opts{d}) {
     exit;
 }
 
-open my $in, "|stap -x $pid $stap_args -"
+open my $in, "|stap --skip-badvars -x $pid $stap_args -"
     or die "Cannot run stap: $!\n";
 
 print $in $stap_src;
