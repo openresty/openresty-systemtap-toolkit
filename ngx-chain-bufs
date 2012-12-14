@@ -90,12 +90,18 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
             exit()
         }
 
+        total_size = 0
+        nlinks = 0
         cl = $chain_ptr
         while (cl) {
+            nlinks++;
+
             buf = $cl->buf
 
             if ($buf->temporary || $buf->memory || $buf->mmap) {
-                printf("[%s]", text_str(user_string_n($buf->pos, $buf->last - $buf->pos)))
+                size = $buf->last - $buf->pos
+                printf("[%s]", text_str(user_string_n($buf->pos, size)))
+                total_size += size
 
             } else {
                 printf("\\"\\"")
@@ -119,7 +125,8 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
             }
         }
 
-        printf("\\n\\n")
+        printf("\\n\\nFor total %d chain links and %d bytes data found.\\n\\n",
+               nlinks, total_size)
 
         elapsed = local_clock_us() - begin
         printf("%d microseconds elapsed in the probe handler.\\n", elapsed)
