@@ -342,12 +342,13 @@ $check_pool_init_code
 
                 main = $r->main
 
-                printf("%s \\"%s %s\?%s\\", host=%s, time=%d.%03ds, conn: reqs=%d, err=%d, fd=%d, %s\\n",
+                printf("%s \\"%s %s\?%s\\", host=%s, status=%d, time=%d.%03ds, conn: from=%s, reqs=%d, err=%d, fd=%d, %s\\n",
                        main == r ? "req" : "subreq",
                        user_string_n(method_data, method_len),
                        user_string_n(uri_data, uri_len), args_str,
-                       host_name,
+                       host_name, $r->headers_out->status,
                        ms / 1000, ms % 1000,
+                       user_string_n($c->addr_text->data, $c->addr_text->len),
                        reqs, $c->error, fd, user_string($c->log->action))
 
 $check_pool_code
