@@ -322,6 +322,16 @@ $check_pool_init_code
                     ms = 0
                 }
 
+                /* get host */
+
+                host = $r->headers_in->host
+                if (host) {
+                    host_name = user_string_n($r->headers_in->host->value->data, $r->headers_in->host->value->len)
+
+                } else {
+                    host_name = ""
+                }
+
                 /* get method name */
 
                 method = &$r->method_name
@@ -332,10 +342,11 @@ $check_pool_init_code
 
                 main = $r->main
 
-                printf("%s \\"%s %s\?%s\\", time=%d.%03ds, conn: reqs=%d, err=%d, fd=%d, %s\\n",
+                printf("%s \\"%s %s\?%s\\", host=%s, time=%d.%03ds, conn: reqs=%d, err=%d, fd=%d, %s\\n",
                        main == r ? "req" : "subreq",
                        user_string_n(method_data, method_len),
                        user_string_n(uri_data, uri_len), args_str,
+                       host_name,
                        ms / 1000, ms % 1000,
                        reqs, $c->error, fd, user_string($c->log->action))
 
