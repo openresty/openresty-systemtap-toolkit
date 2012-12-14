@@ -137,7 +137,12 @@ _EOC_
                     data = user_string_n(pos, size)
                 }
 
-                printf("    upstream buffer: len=%d, data=\\"%s\\"\\n", size, text_str(data))
+                printf("    upstream buffer: len=%d, data=\\"%s\\", free=%d\\n",
+                       size, text_str(data), $u->buffer->end - last)
+            }
+
+            if ($u->state) {
+                printf("    upstream state: resp_len=%d\\n", $u->state->response_length)
             }
 
         } else {
