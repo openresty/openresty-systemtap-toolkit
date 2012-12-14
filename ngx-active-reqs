@@ -90,13 +90,11 @@ _EOC_
                 printf("    upstream conn: fd=%d, err=%d, action=%s\\n", $c->fd,
                        $c->error, user_string($c->log->action))
 
-                if ($c->read->timedout) {
-                    printf("    upstream read ev timed out\\n")
-                }
+                printf("    upstream read: ready=%d, active=%d, timer_set=%d, timedout=%d\\n",
+                       $c->read->ready, $c->read->active, $c->read->timer_set, $c->read->timedout)
 
-                if ($c->write->timedout) {
-                    printf("    upstream write ev timed out\\n")
-                }
+                printf("    upstream write: ready=%d, active=%d, timer_set=%d, timedout=%d\\n",
+                       $c->write->ready, $c->write->active, $c->write->timer_set, $c->write->timedout)
 
             } else {
                 printf("    no upstream conn found\\n")
