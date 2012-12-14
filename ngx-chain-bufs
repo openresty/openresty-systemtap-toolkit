@@ -1,0 +1,159 @@
+#!/usr/bin/env perl
+
+use 5.006001;
+use strict;
+use warnings;
+
+use Getopt::Std qw( getopts );
+
+my %opts;
+
+getopts("a:dhp:", \%opts)
+    or die usage();
+
+if ($opts{h}) {
+    print usage();
+    exit;
+}
+
+my $pid = $opts{p}
+    or die "No nginx process pid specified by the -p option\n";
+
+if ($pid !~ /^\d+$/) {
+    die "Bad -p option value \"$pid\": not look like a pid\n";
+}
+
+my $stap_args = $opts{a} || '';
+
+my $chain_ptr = shift
+    or die "No chain pointer specified.\n";
+
+if ($^O ne 'linux') {
+    die "Only linux is supported but I am on $^O.\n";
+}
+
+my $exec_file = "/proc/$pid/exe";
+if (!-f $exec_file) {
+    die "Nginx process $pid is not running.\n";
+}
+
+my $nginx_path = readlink $exec_file;
+
+my $ver = `stap --version 2>&1`;
+if (!defined $ver) {
+    die "Systemtap not installed or its \"stap\" utility is not visible to the PATH environment: $!\n";
+}
+
+if ($ver =~ /version\s+(\d+\.\d+)/i) {
+    my $v = $1;
+    if ($v < 2.0) {
+        die "ERROR: at least systemtap 2.0 is required but found $v\n";
+    }
+
+} else {
+    die "ERROR: unknown version of systemtap:\n$ver\n";
+}
+
+my $preamble = <<_EOC_;
+probe begin {
+    printf("Tracing %d ($nginx_path)...\\n\\n", target())
+}
+_EOC_
+chop $preamble;
+
+my $c = '@cast(c, "ngx_connection_t")';
+my $r = '@cast(r, "ngx_http_request_t")';
+my $u = '@cast(u, "ngx_http_upstream_t")';
+my $p = '@cast(p, "ngx_event_pipe_t")';
+
+my $need_blank_line;
+
+my ($check_upstream_code, $check_pool_init_code, $check_pool_code);
+
+my $fin_code = '';
+
+my $cl = '@cast(cl, "ngx_chain_t")';
+my $buf = '@cast(buf, "ngx_buf_t")';
+
+my $stap_src = <<_EOC_;
+$preamble
+
+probe process("$nginx_path").function("ngx_process_events_and_timers"),
+    process("$nginx_path").function("ngx_http_handler")
+{
+    if (pid() == target()) {
+
+        begin = local_clock_us()
+
+        if (!$chain_ptr) {
+            printf("NULL\\n")
+            exit()
+        }
+
+        cl = $chain_ptr
+        while (cl) {
+            buf = $cl->buf
+
+            if ($buf->temporary || $buf->memory || $buf->mmap) {
+                printf("[%s]", text_str(user_string_n($buf->pos, $buf->last - $buf->pos)))
+
+            } else {
+                printf("\\"\\"")
+            }
+
+            if ($buf->last_buf || $buf->last_in_chain) {
+                printf("<eof>")
+            }
+
+            if ($buf->sync) {
+                printf("<sync>")
+            }
+
+            if ($buf->flush) {
+                printf("<flush>")
+            }
+
+            cl = $cl->next
+            if (cl) {
+                printf(" ")
+            }
+        }
+
+        printf("\\n\\n")
+
+        elapsed = local_clock_us() - begin
+        printf("%d microseconds elapsed in the probe handler.\\n", elapsed)
+        exit()
+    } /* pid() == target() */
+}
+_EOC_
+
+if ($opts{d}) {
+    print $stap_src;
+    exit;
+}
+
+open my $in, "|stap --skip-badvars -x $pid $stap_args -"
+    or die "Cannot run stap: $!\n";
+
+print $in $stap_src;
+
+close $in;
+
+sub usage {
+    return <<'_EOC_';
+Usage:
+    ngx-chain-bufs [optoins] <chain-link-pointer>
+
+Options:
+    -a <args>           Pass extra arguments to the stap utility.
+    -d                  Dump out the systemtap script source.
+    -h                  Print this usage.
+    -p <pid>            Specify the nginx (worker) process pid.
+
+Examples:
+    ngx-chain-bufs -p 12345 0x6789a
+    ngx-chain-bufs -p 12345 -a '-DMAXACTION=100000' 0x6789a
+_EOC_
+}
+
