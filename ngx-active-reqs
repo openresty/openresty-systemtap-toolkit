@@ -90,11 +90,13 @@ _EOC_
                 printf("    upstream conn: ssl=%d, fd=%d, err=%d, action=%s\\n", \@defined($c->ssl) ? $c->ssl : 0, $c->fd,
                        $c->error, user_string($c->log->action))
 
-                printf("    upstream read: ready=%d, active=%d, timer_set=%d, timedout=%d\\n",
-                       $c->read->ready, $c->read->active, $c->read->timer_set, $c->read->timedout)
+                printf("    upstream read: ready=%d, active=%d, timer_set=%d, timedout=%d, eof=%d, error=%d\\n",
+                       $c->read->ready, $c->read->active, $c->read->timer_set,
+                       $c->read->timedout, $c->read->eof, $c->read->error)
 
-                printf("    upstream write: ready=%d, active=%d, timer_set=%d, timedout=%d\\n",
-                       $c->write->ready, $c->write->active, $c->write->timer_set, $c->write->timedout)
+                printf("    upstream write: ready=%d, active=%d, timer_set=%d, timedout=%d, eof=%d, error=%d\\n",
+                       $c->write->ready, $c->write->active, $c->write->timer_set,
+                       $c->write->timedout, $c->write->eof, $c->write->error)
 
             } else {
                 printf("    no upstream conn found\\n")
@@ -144,6 +146,9 @@ _EOC_
             if ($u->state) {
                 printf("    upstream state: resp_len=%d\\n", $u->state->response_length)
             }
+
+            printf("    upstream: length=%d, busy_bufs=%d, out_bufs=%d\\n", $u->length,
+                   $u->busy_bufs != 0, $u->out_bufs != 0)
 
         } else {
             printf("    no upstream found\\n")
