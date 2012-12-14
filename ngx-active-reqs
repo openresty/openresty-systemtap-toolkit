@@ -149,8 +149,8 @@ _EOC_
                 printf("    upstream state: resp_len=%d\\n", $u->state->response_length)
             }
 
-            printf("    upstream: length=%d, busy_bufs=%d, out_bufs=%d\\n", $u->length,
-                   $u->busy_bufs != 0, $u->out_bufs != 0)
+            printf("    upstream: length=%d, busy_bufs=%p, out_bufs=%p\\n", $u->length,
+                   $u->busy_bufs, $u->out_bufs)
 
         } else {
             printf("    no upstream found\\n")
