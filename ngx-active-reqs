@@ -64,28 +64,98 @@ probe begin {
 _EOC_
 chop $preamble;
 
-my ($check_upstream_code, $check_pool_init_code, $check_pool_code, $fin_code);
+my $c = '@cast(c, "ngx_connection_t")';
+my $r = '@cast(r, "ngx_http_request_t")';
+my $u = '@cast(u, "ngx_http_upstream_t")';
+my $p = '@cast(p, "ngx_event_pipe_t")';
+
+my $need_blank_line;
+
+my ($check_upstream_code, $check_pool_init_code, $check_pool_code);
+
+my $fin_code = '';
 
 if ($check_upstreams) {
-    my $c = '@cast(c, "ngx_connection_t")';
+    $need_blank_line = 1;
+
+    $preamble .= <<'_EOC_';
+global funcs
+_EOC_
+
     $check_upstream_code = <<_EOC_;
-        u = \@cast(r, "ngx_http_request_t")->upstream
+        u = $r->upstream
         if (u) {
-            c = \@cast(u, "ngx_http_upstream_t")->peer->connection
+            c = $u->peer->connection
             if (c) {
-                printf("    upstream: fd=%d, action=%s\\n\\n", $c->fd, user_string($c->log->action))
+                printf("    upstream conn: fd=%d, err=%d, action=%s\\n", $c->fd,
+                       $c->error, user_string($c->log->action))
+
+                if ($c->read->timedout) {
+                    printf("    upstream read ev timed out\\n")
+                }
+
+                if ($c->write->timedout) {
+                    printf("    upstream write ev timed out\\n")
+                }
 
             } else {
-                printf("    no upstream connection found\\n\\n")
+                printf("    no upstream conn found\\n")
+            }
+
+            rev_handler = $u->read_event_handler
+            if (rev_handler) {
+                rev_handler_name = usymname(rev_handler)
+                funcs[rev_handler] = rev_handler_name
+            }
+
+            wev_handler = $u->write_event_handler
+            if (wev_handler) {
+                wev_handler_name = usymname(wev_handler)
+                funcs[wev_handler] = wev_handler_name
+            }
+
+            printf("    upstream read/write ev handlers: %s %s\\n", rev_handler_name, wev_handler_name)
+
+            p = $u->pipe
+            if (p) {
+                printf("    upstream pipe: done=%d, eof=%d, err=%d\\n",
+                       $p->upstream_done, $p->upstream_eof, $p->upstream_error)
+            }
+
+            printf("    upstream headers in: status=%d, content_length=%d, conn_close=%d, chunked=%d\\n",
+                   $u->headers_in->status_n,
+                   $u->headers_in->content_length_n,
+                   $u->headers_in->connection_close,
+                   $u->headers_in->chunked)
+
+            pos = $u->buffer->pos
+            last = $u->buffer->last
+            size = last - pos
+            if (size) {
+                if (size > 20) {
+                    data = user_string_n(pos, 10) . "..." . user_string_n(last - 10 , 10)
+
+                } else {
+                    data = user_string_n(pos, size)
+                }
+
+                printf("    upstream buffer: len=%d, data=\\"%s\\"\\n", size, text_str(data))
             }
 
         } else {
-            printf("    no upstream found\\n\\n")
+            printf("    no upstream found\\n")
         }
 _EOC_
+
+    $fin_code .= "    delete funcs\n";
+
+} else {
+    $check_upstream_code = '';
 }
 
 if ($check_pools) {
+    $need_blank_line = 1;
+
     $check_pool_init_code = <<_EOC_;
         ngx_pool_t_size = &\@cast(0, "ngx_pool_t")[1]
         size_t_size = &\@cast(0, "size_t")[1]
@@ -98,7 +168,7 @@ _EOC_
             pool = \@cast(r, "ngx_http_request_t")->pool
 
             if (!pool) {
-                printf("    pool is null\\n\\n")
+                printf("    pool is null\\n")
                 continue
             }
 
@@ -165,13 +235,13 @@ _EOC_
 
             /* total summary */
 
-            printf("    total used: %d bytes\\n\\n", total + used)
+            printf("    total used: %d bytes\\n", total + used)
 
             total_mem_for_reqs += total + used
 _EOC_
     chop $check_pool_code;
 
-    $fin_code = <<_EOC_;
+    $fin_code .= <<_EOC_;
         printf("total memory used for all %d active requests: %d bytes\\n",
                nreqs, total_mem_for_reqs)
 _EOC_
@@ -180,13 +250,17 @@ _EOC_
 } else {
     $check_pool_init_code = '';
     $check_pool_code = '';
-    $fin_code = <<_EOC_;
+    $fin_code .= <<_EOC_;
         printf("\\nfound %d active requests.\\n", nreqs)
 _EOC_
     chop $fin_code;
 }
 
-my $c = '@cast(c, "ngx_connection_t")';
+my $formatting_code = '';
+if ($need_blank_line) {
+    $formatting_code = qq{    printf("\\n")\n};
+}
+
 $stap_src = <<_EOC_;
 $preamble
 
@@ -209,25 +283,25 @@ $check_pool_init_code
         for (i = 0; i < conn_n; i++) {
             c = &\@cast(conns, "ngx_connection_t")[i]
 
-            fd = \@cast(c, "ngx_connection_t")->fd
-            read = \@cast(c, "ngx_connection_t")->read
-            reqs = \@cast(c, "ngx_connection_t")->requests
-            destroyed = \@cast(c, "ngx_connection_t")->destroyed
+            fd = $c->fd
+            read = $c->read
+            reqs = $c->requests
+            destroyed = $c->destroyed
 
             if (reqs && fd != -1 && read && !destroyed) {
                 nreqs++;
 
-                r = \@cast(c, "ngx_connection_t")->data
+                r = $c->data
 
                 /* get uri */
 
-                uri = &\@cast(r, "ngx_http_request_t")->uri
+                uri = &$r->uri
                 uri_data = \@cast(uri, "ngx_str_t")->data
                 uri_len = \@cast(uri, "ngx_str_t")->len
 
                 /* get uri args */
 
-                args = &\@cast(r, "ngx_http_request_t")->args
+                args = &$r->args
                 args_data = \@cast(args, "ngx_str_t")->data
                 args_len = \@cast(args, "ngx_str_t")->len
 
@@ -240,8 +314,8 @@ $check_pool_init_code
 
                 /* get request time */
 
-                start_sec = \@cast(r, "ngx_http_request_t")->start_sec
-                start_msec = \@cast(r, "ngx_http_request_t")->start_msec
+                start_sec = $r->start_sec
+                start_msec = $r->start_msec
 
                 ms = (cached_sec - start_sec) * 1000 + (cached_msec - start_msec)
                 if (ms < 0) {
@@ -250,23 +324,24 @@ $check_pool_init_code
 
                 /* get method name */
 
-                method = &\@cast(r, "ngx_http_request_t")->method_name
+                method = &$r->method_name
                 method_data = \@cast(method, "ngx_str_t")->data
                 method_len = \@cast(method, "ngx_str_t")->len
 
                 /* get main request */
 
-                main = \@cast(r, "ngx_http_request_t")->main
+                main = $r->main
 
-                printf("%s \\"%s %s\?%s\\", time %d.%03d sec, conn reqs %d, fd %d, %s\\n",
+                printf("%s \\"%s %s\?%s\\", time=%d.%03ds, conn: reqs=%d, err=%d, fd=%d, %s\\n",
                        main == r ? "req" : "subreq",
                        user_string_n(method_data, method_len),
                        user_string_n(uri_data, uri_len), args_str,
                        ms / 1000, ms % 1000,
-                       reqs, fd, user_string($c->log->action))
+                       reqs, $c->error, fd, user_string($c->log->action))
 
 $check_pool_code
 $check_upstream_code
+$formatting_code
             }
         }
 
@@ -300,13 +375,15 @@ Options:
     -a <args>           Pass extra arguments to the stap utility.
     -d                  Dump out the systemtap script source.
     -h                  Print this usage.
-    -p <pid>            Specify the nginx (worker) process pid.
     -m                  Gather the information about request memory pools.
+    -p <pid>            Specify the nginx (worker) process pid.
+    -u                  Enable upstream information dump.
 
 Examples:
     ngx-active-reqs -p 12345
     ngx-active-reqs -p 12345 -m
     ngx-active-reqs -p 12345 -m -a '-DMAXACTION=100000'
+    ngx-active-reqs -p 12345 -u
 _EOC_
 }
 
