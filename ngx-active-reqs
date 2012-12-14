@@ -8,7 +8,7 @@ use Getopt::Std qw( getopts );
 
 my %opts;
 
-getopts("ua:dhp:m", \%opts)
+getopts("c:ua:dhp:m", \%opts)
     or die usage();
 
 if ($opts{h}) {
@@ -28,6 +28,8 @@ my $check_pools = $opts{m};
 my $check_upstreams = $opts{u};
 
 my $stap_args = $opts{a} || '';
+
+my $conn_fd = $opts{c} || 0;
 
 if ($^O ne 'linux') {
     die "Only linux is supported but I am on $^O.\n";
@@ -294,14 +296,30 @@ $check_pool_init_code
             c = &\@cast(conns, "ngx_connection_t")[i]
 
             fd = $c->fd
+
             read = $c->read
             reqs = $c->requests
             destroyed = $c->destroyed
 
             if (reqs && fd != -1 && read && !destroyed) {
-                nreqs++;
-
                 r = $c->data
+
+                if ($conn_fd && $conn_fd != fd) {
+                    if (!$r->upstream) {
+                        continue
+                    }
+
+                    c = $r->upstream->peer->connection
+                    if (!c) {
+                        continue
+                    }
+
+                    if ($c->fd != $conn_fd) {
+                        continue
+                    }
+                }
+
+                nreqs++
 
                 /* get uri */
 
@@ -369,6 +387,10 @@ $check_pool_init_code
 $check_pool_code
 $check_upstream_code
 $formatting_code
+
+                if ($conn_fd) {
+                    break
+                }
             }
         }
 
@@ -400,6 +422,8 @@ Usage:
 
 Options:
     -a <args>           Pass extra arguments to the stap utility.
+    -c <fd>             Specify the file descriptor number of a downstream
+                        or upstream connection to filter the requests.
     -d                  Dump out the systemtap script source.
     -h                  Print this usage.
     -m                  Gather the information about request memory pools.
