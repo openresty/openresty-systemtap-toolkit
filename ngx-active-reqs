@@ -132,8 +132,8 @@ _EOC_
             last = $u->buffer->last
             size = last - pos
             if (size) {
-                if (size > 20) {
-                    data = user_string_n(pos, 10) . "..." . user_string_n(last - 10 , 10)
+                if (size > 40) {
+                    data = user_string_n(pos, 20) . "..." . user_string_n(last - 20 , 20)
 
                 } else {
                     data = user_string_n(pos, size)
