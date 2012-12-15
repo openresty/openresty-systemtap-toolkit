@@ -370,10 +370,11 @@ $check_pool_init_code
 
                 main = $r->main
 
-                printf("%s \\"%s %s\?%s\\", spdy=%d, host=%s, status=%d, time=%d.%03ds, buffered=%x, conn: ssl=%d, from=%s, reqs=%d, err=%d, fd=%d, buffered=%x, %s\\n",
+                printf("%s \\"%s %s\?%s\\", r=%p, spdy=%d, host=%s, status=%d, time=%d.%03ds, buffered=%x, conn: ssl=%d, from=%s, reqs=%d, err=%d, fd=%d, buffered=%x, %s\\n",
                        main == r ? "req" : "subreq",
                        user_string_n(method_data, method_len),
                        user_string_n(uri_data, uri_len), args_str,
+                       r,
                        \@defined($r->spdy_stream) ? $r->spdy_stream != 0 : 0,
                        host_name, $r->headers_out->status,
                        ms / 1000, ms % 1000,
