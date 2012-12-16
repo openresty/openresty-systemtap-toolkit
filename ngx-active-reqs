@@ -134,18 +134,22 @@ _EOC_
 
             pos = $u->buffer->pos
             last = $u->buffer->last
+            end = $u->buffer->end
             size = last - pos
             if (size) {
                 if (size > 40) {
-                    data = user_string_n(pos, 20) . "..." . user_string_n(last - 20 , 20)
+                    data = text_str(user_string_n(pos, 20) . "..." . user_string_n(last - 20 , 20))
 
                 } else {
-                    data = user_string_n(pos, size)
+                    data = text_str(user_string_n(pos, size))
                 }
 
-                printf("    upstream buffer: len=%d, data=\\"%s\\", free=%d\\n",
-                       size, text_str(data), $u->buffer->end - last)
+            } else {
+                data = ""
             }
+
+            printf("    upstream buffer: len=%d, data=\\"%s\\", free=%d, size=%d\\n",
+                   size, data, end - last, end - $u->buffer->start)
 
             if ($u->state) {
                 printf("    upstream state: resp_len=%d\\n", $u->state->response_length)
