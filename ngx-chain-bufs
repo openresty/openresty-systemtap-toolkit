@@ -107,8 +107,12 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
                 printf("\\"\\"")
             }
 
-            if ($buf->last_buf || $buf->last_in_chain) {
-                printf("<eof>")
+            if ($buf->last_buf) {
+                printf("<last_buf>")
+            }
+
+            if ($buf->last_in_chain) {
+                printf("<last_in_chain>")
             }
 
             if ($buf->sync) {
@@ -117,6 +121,10 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
 
             if ($buf->flush) {
                 printf("<flush>")
+            }
+
+            if ($buf->in_file) {
+                printf("<in_file>")
             }
 
             cl = $cl->next
