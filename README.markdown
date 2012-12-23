@@ -6,8 +6,7 @@ nginx-systemtap-toolkit - Real-time analyzing and diagnosing tools for Nginx bas
 Status
 ======
 
-These scripts are still experimental and are not yet considered production-ready.
-But you're very welcome to try them out and report any issues that you find.
+These scripts are considered production-ready.
 
 Tested with Nginx 1.2.x on Fedora 17.
 
