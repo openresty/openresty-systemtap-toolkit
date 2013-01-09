@@ -1,0 +1,237 @@
+#!/usr/bin/env perl
+
+use 5.006001;
+use strict;
+use warnings;
+
+use Getopt::Std qw( getopts );
+
+my %opts;
+
+getopts("a:dhl:p:t:uk", \%opts)
+    or die usage();
+
+if ($opts{h}) {
+    print usage();
+    exit;
+}
+
+my $pid = $opts{p}
+    or die "No nginx master process pid specified by the -p option.\n";
+
+if ($pid !~ /^\d+$/) {
+    die "Bad -p option value \"$pid\": not look like a pid.\n";
+}
+
+my $time = $opts{t}
+    or die "No -t <seconds> option specified.\n";
+
+my $limit = $opts{l} || 1024;
+
+my $user_space = $opts{u};
+my $kernel_space = $opts{k};
+
+if (!$user_space && !$kernel_space) {
+    die "Neither -u nor -k is specified.\n",
+        "(You should choose to sample in the user space or ",
+        "in the kernel space or in both.)\n";
+}
+
+if ($time !~ /^\d+$/) {
+    die "Bad time value specified in the -t option: $time\n";
+}
+
+my $stap_args = $opts{a} || '';
+
+if ($stap_args !~ /\b-D\s*MAXACTION=/) {
+    $stap_args .= " -DMAXACTION=100000"
+}
+
+if ($stap_args !~ /\b-D\s*MAXMAPENTRIES=/) {
+    $stap_args .= " -DMAXMAPENTRIES=5000"
+}
+
+if ($stap_args !~ /\b-D\s*MAXBACKTRACE=/) {
+    $stap_args .= " -DMAXBACKTRACE=200"
+}
+
+if ($stap_args !~ /\b-D\s*MAXSTRINGLEN=2048/) {
+    $stap_args .= " -DMAXSTRINGLEN=2048"
+}
+
+if ($^O ne 'linux') {
+    die "Only linux is supported but I am on $^O.\n";
+}
+
+my $exec_file = "/proc/$pid/exe";
+if (!-f $exec_file) {
+    die "Nginx process $pid is not running.\n";
+}
+
+my $nginx_path = readlink $exec_file;
+
+my $ver = `stap --version 2>&1`;
+if (!defined $ver) {
+    die "Systemtap not installed or its \"stap\" utility is not visible to the PATH environment: $!\n";
+}
+
+if ($ver =~ /version\s+(\d+\.\d+)/i) {
+    my $v = $1;
+    if ($v < 2.0) {
+        die "ERROR: at least systemtap 2.0 is required but found $v\n";
+    }
+
+} else {
+    die "ERROR: unknown version of systemtap:\n$ver\n";
+}
+
+#warn "Nginx worker processes: @$child_pids\n";
+
+my $context;
+if ($user_space) {
+    if ($kernel_space) {
+        $context = 'both user-space and kernel-space';
+
+    } else {
+        $context = 'user-space only';
+    }
+
+} else {
+    $context = 'kernel-space only';
+}
+
+my $preamble = <<_EOC_;
+probe begin {
+    warn(sprintf("Tracing %d ($nginx_path) in $context...\\n", target()))
+}
+_EOC_
+
+my $stap_src;
+
+my $postamble = <<_EOC_;
+probe timer.s($time) {
+    warn("Time's up. Quitting now...(it may take a while)\\n")
+    quit = 1
+}
+_EOC_
+
+if ($user_space) {
+    if ($kernel_space) {
+        # in both user-space and kernel-space
+        $stap_src = <<_EOC_;
+$preamble
+
+global bts;
+global quit = 0
+
+probe timer.profile {
+    if (pid() == target()) {
+        if (!quit) {
+            bts[backtrace(), ubacktrace()] <<< 1
+
+        } else {
+
+            foreach ([sys, usr] in bts- limit $limit) {
+                print_stack(sys)
+                print_ustack(usr)
+                printf("\\t%d\\n", \@count(bts[sys, usr]))
+            }
+
+            exit()
+        }
+    }
+}
+
+$postamble
+_EOC_
+
+    } else {
+        # in user-space only
+        $stap_src = <<_EOC_;
+$preamble
+
+global bts;
+global quit = 0;
+
+probe timer.profile {
+    if (pid() == target()) {
+        if (!quit) {
+            bts[ubacktrace()] <<< 1;
+
+        } else {
+
+            foreach (bt in bts- limit $limit) {
+                print_ustack(bt);
+                printf("\\t%d\\n", \@count(bts[bt]));
+            }
+
+            exit()
+        }
+    }
+}
+
+$postamble
+_EOC_
+    }
+
+} else {
+    # in kernel-space only
+    $stap_src = <<_EOC_;
+$preamble
+
+global bts;
+
+probe timer.profile {
+    if (pid() == target() && !user_mode()) {
+        bts[backtrace()] <<< 1
+    }
+}
+
+probe end {
+    foreach (bt in bts- limit $limit) {
+        print_stack(bt)
+        printf("\\t%d\\n", \@count(bts[bt]))
+    }
+}
+
+probe timer.s($time) {
+    warn("Time's up. Quitting now...(it may take a while)\\n")
+    exit()
+}
+_EOC_
+}
+
+if ($opts{d}) {
+    print $stap_src;
+    exit;
+}
+
+open my $in, "|stap --all-modules -d $nginx_path --ldd -x $pid $stap_args -"
+    or die "Cannot run stap: $!\n";
+
+print $in $stap_src;
+
+close $in;
+
+sub usage {
+    return <<'_EOC_';
+Usage:
+    ngx-sample-bt [optoins]
+
+Options:
+    -a <args>           Pass extra arguments to the stap utility.
+    -d                  Dump out the systemtap script source.
+    -h                  Print this usage.
+    -l <count>          Only output <count> most frenquent backtrace samples.
+                        (Default to 1024)
+    -p <pid>            Specify the user process pid.
+    -t <seconds>        Specify the number of seconds for sampling.
+    -u                  Sample in the user-space.
+    -k                  Sample in the kernel-space.
+
+Examples:
+    ngx-sample-bt -p 12345 -t 10
+    ngx-sample-bt -p 12345 -a '-DMAXACTION=100000'
+_EOC_
+}
+

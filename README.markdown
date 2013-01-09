@@ -347,6 +347,65 @@ For dynamically-linked PCRE, you are still recommended to use `-O1` or below. An
 you still need
 to install the debug symbols for your PCRE (or the debuginfo RPM package for Yum-based systems).
 
+ngx-sample-bt
+-------------
+
+This script can be used to sample backtraces in either user space or kernel space
+or both for a specific Nginx worker process. It outputs the aggregated backgraces (by count). For example,
+to sample a running Nginx worker process (whose pid is 8736) in user space only for total 5 seconds:
+
+    $ ./ngx-sample-bt -p 8736 -t 5 -u > a.bt
+    WARNING: Tracing 8736 (/opt/nginx/sbin/nginx) in user-space only...
+    WARNING: Missing unwind data for module, rerun with 'stap -d stap_df60590ce8827444bfebaf5ea938b5a_11577'
+    WARNING: Time's up. Quitting now...(it may take a while)
+    WARNING: Number of errors: 0, skipped probes: 24
+
+The resulting output file `a.bt` can then be used to generate a Flame Graph by using Brendan Gregg's [FlameGraph tools](https://github.com/brendangregg/FlameGraph):
+
+    stackcollapse-stap.pl a.bt > a.cbt
+    flamegraph.pl a.cbt > a.svg
+
+where both the `stackcollapse-stap.pl` and `flamegraph.pl` are from the FlameGraph toolkit.
+If everything goes right, you can now use your web browser to open the `a.svg` file.
+
+A sample flame graph for user-space-only sampling can be seen here (please open the link with a modern web browser that supports SVG rendering):
+
+http://agentzh.org/misc/nginx/user-flamegraph.svg
+
+For more information on the Flame Graph thing, please check out Brendan Gregg's blog posts below:
+
+* [Flame Graphs](http://dtrace.org/blogs/brendan/2011/12/16/flame-graphs/)
+* [Linux Kernel Performance: Flame Graphs](http://dtrace.org/blogs/brendan/2012/03/17/linux-kernel-performance-flame-graphs/)
+
+You can also sample the backtraces in the kernel-space by specifying the `-k` option, as in
+
+    $ ./ngx-sample-bt -p 8736 -t 5 -k > a.bt
+    WARNING: Tracing 8736 (/opt/nginx/sbin/nginx) in kernel-space only...
+    WARNING: Missing unwind data for module, rerun with 'stap -d stap_bf5516bdbf2beba886507025110994e_11738'
+    WARNING: Time's up. Quitting now...(it may take a while)
+
+Only the kernel-space code in the context of the specified nginx worker process
+will be sampled.
+
+A sample flame graph for kernel-space-only sample can be seen here:
+
+http://agentzh.org/misc/nginx/kernel-flamegraph.svg
+
+You can also sample in both the user space and kernel space by specifying the `-k` and `-u` options at the same time, as in
+
+    $ ./ngx-sample-bt -p 8736 -t 5 -uk > a.bt
+    WARNING: Tracing 8736 (/opt/nginx/sbin/nginx) in both user-space and kernel-space...
+    WARNING: Missing unwind data for module, rerun with 'stap -d stap_90327f3a19b0e42dffdef38d53a5860_11799'
+    WARNING: Time's up. Quitting now...(it may take a while)
+    WARNING: Number of errors: 0, skipped probes: 38
+    WARNING: There were 73 transport failures.
+
+A sample flame graph for kenerl-and-user-space sampling can be seen here:
+
+http://agentzh.org/misc/nginx/user-kernel-flamegraph.svg
+
+In fact, this script is general enough and can be used to sample user processes other than Nginx.
+
 Community
 =========
 
