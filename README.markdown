@@ -433,14 +433,14 @@ TODO
 Author
 ======
 
-Yichun "agentzh" Zhang (章亦春)
+Yichun "agentzh" Zhang (章亦春), CloudFlare Inc.
 
 Copyright & License
 ===================
 
 This module is licenced under the BSD license.
 
-Copyright (C) 2012 by Yichun "agentzh" Zhang (章亦春) <agentzh@gmail.com>.
+Copyright (C) 2012 by Yichun Zhang (agentzh) <agentzh@gmail.com>, CloudFlare Inc.
 
 All rights reserved.
 
