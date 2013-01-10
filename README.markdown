@@ -430,6 +430,8 @@ Please submit bug reports, wishlists, or patches by
 TODO
 ====
 
+* ngx-sample-bt: added new options `--lang=lua51` and `--lang=luajit20` to allow sample Lua-land backtraces directly.
+
 Author
 ======
 
