@@ -170,8 +170,7 @@ sub get_child_processes {
             next;
         }
 
-        open my $in, $file or
-            die "Cannot open $file for reading: $!\n";
+        open my $in, $file or next;
         my $line = <$in>;
         close $in;
         if ($line =~ /^(\d+) \S+ \S+ (\d+)/) {
