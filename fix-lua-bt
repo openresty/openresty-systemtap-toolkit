@@ -1,0 +1,75 @@
+#!/usr/bin/env perl
+
+use 5.006001;
+use strict;
+use warnings;
+
+my $infile = shift or
+    die "No input file specified.\n";
+
+my %funcs;
+
+open my $in, $infile
+    or die "Cannot open $infile for reading: $!\n";
+
+while (<$in>) {
+    if (/\@(.*):(\d+)/) {
+        my ($path, $ln) = ($1, $2);
+        my $key = "$path:$ln";
+        my $func = $funcs{$key};
+        if (defined $func) {
+            #warn "Found $key\n";
+            print "$func\n";
+            next;
+        }
+
+        #print "looking for $path:$ln\n";
+
+        my $file;
+        if ($path =~ m{lib((?:\/[-\w]+)+)\.lua}) {
+           $file = $1; 
+           $file =~ s/^\///g;
+           $file =~ s/\//\./g;
+           $file =~ s/-/_/g;
+
+        } elsif ($path =~ m{[-\w]+\.lua}) {
+            $file = $&;
+
+        } else {
+            $file = $path;
+        }
+
+        open my $in, $path
+            or die "failed to open $path for reading: $!\n";
+        while (<$in>) {
+            if ($. == $ln) {
+                if (/function\s+(\w+)\s*\(/) {
+                    $func = $1;
+
+                } elsif (/(\S+)\s*=\s*function\s*\(/) {
+                    $func = $1;
+
+                } else {
+                    $func = $ln;
+                }
+
+                last;
+            }
+        }
+
+        close $in;
+
+        if (!defined $func) {
+            die "$path:$ln not found.\n";
+        }
+
+        $funcs{$key} = "$file:$func";
+
+        print "$file:$func\n";
+
+    } else {
+        print $_;
+    }
+}
+
+close $in;

@@ -1,0 +1,456 @@
+#!/usr/bin/env perl
+
+use 5.006001;
+use strict;
+use warnings;
+
+use Getopt::Long qw( GetOptions );
+
+my %opts;
+
+GetOptions("a=s",       \(my $stap_args),
+           "d",         \(my $dump_src),
+           "h",         \(my $help),
+           "p=i",       \(my $pid),
+           "l=i",       \(my $limit),
+           "t=i",       \(my $time),
+           "lua51",     \(my $lua51),
+           "luajit20",  \(my $luajit20))
+    or die usage();
+
+if ($help) {
+    print usage();
+    exit;
+}
+
+if (!$luajit20 && !$lua51) {
+    die "You have to specify either the --lua51 or --luajit20 options.\n";
+}
+
+if ($luajit20) {
+    die "LuaJIT 2.0 is not yet supported.\n";
+}
+
+if (!defined $pid) {
+    die "No nginx master process pid specified by the -p option.\n";
+}
+
+if (!defined $time) {
+    die "No -t <seconds> option specified.\n";
+}
+
+if (!defined $limit) {
+    $limit = 1024;
+}
+
+if (!defined $stap_args) {
+    $stap_args = '';
+}
+
+if ($stap_args !~ /\b-D\s*MAXACTION=/) {
+    $stap_args .= " -DMAXACTION=100000"
+}
+
+if ($stap_args !~ /\b-D\s*MAXMAPENTRIES=/) {
+    $stap_args .= " -DMAXMAPENTRIES=5000"
+}
+
+if ($stap_args !~ /\b-D\s*MAXBACKTRACE=/) {
+    $stap_args .= " -DMAXBACKTRACE=200"
+}
+
+if ($stap_args !~ /\b-D\s*MAXSTRINGLEN=2048/) {
+    $stap_args .= " -DMAXSTRINGLEN=2048"
+}
+
+if ($^O ne 'linux') {
+    die "Only linux is supported but I am on $^O.\n";
+}
+
+my $exec_file = "/proc/$pid/exe";
+if (!-f $exec_file) {
+    die "Nginx process $pid is not running.\n";
+}
+
+my $nginx_path = readlink $exec_file;
+
+my $child_pids = get_child_processes($pid);
+push @$child_pids, $pid;
+
+my $condition = gen_pid_test_condition($child_pids);
+
+my $ver = `stap --version 2>&1`;
+if (!defined $ver) {
+    die "Systemtap not installed or its \"stap\" utility is not visible to the PATH environment: $!\n";
+}
+
+if ($ver =~ /version\s+(\d+\.\d+)/i) {
+    my $v = $1;
+    if ($v < 2.0) {
+        die "ERROR: at least systemtap 2.0 is required but found $v\n";
+    }
+
+} else {
+    die "ERROR: unknown version of systemtap:\n$ver\n";
+}
+
+#warn "Nginx worker processes: @$child_pids\n";
+
+my $context;
+if ($lua51) {
+    $context = "standard Lua 5.1";
+
+} elsif ($luajit20) {
+    $context = "LuaJIT 2.0";
+}
+
+my $preamble = <<_EOC_;
+probe begin {
+    warn("Tracing @$child_pids ($nginx_path) for $context...\\n")
+}
+_EOC_
+
+my $stap_src;
+
+my $postamble = <<_EOC_;
+probe timer.s($time) {
+    warn("Time's up. Quitting now...(it may take a while)\\n")
+    quit = 1
+}
+_EOC_
+
+my $lua_path;
+
+{
+    my $maps_file = "/proc/$pid/maps";
+    open my $in, $maps_file
+        or die "Cannot open $maps_file for reading: $!\n";
+
+    while (<$in>) {
+        if (m{\S+\bliblua-(\d+\.\d+)\.so(?:\.\d+)*$}) {
+            my ($path, $ver) = ($&, $1);
+
+            if ($luajit20) {
+                die "The --luajit20 option is specified but seen standard Lua library: $path\n";
+            }
+
+            if ($ver ne '5.1') {
+                die "Nginx server $pid uses a Lua $ver library ",
+                    "but only Lua 5.1 is supported.\n";
+            }
+
+            $lua_path = $path;
+            last;
+
+        } elsif (m{\S+\bliblua\.so(?:\.\d+)*$}) {
+            my $path = $&;
+
+            if ($luajit20) {
+                die "The --luajit20 option is specified but seen standard Lua library: $path\n";
+            }
+
+            $lua_path = $path;
+            last;
+
+        } elsif (m{\S+\blibluajit-(\d+\.\d+)\.so(?:\.\d+)*$}) {
+            my ($path, $ver) = ($&, $1);
+
+            if ($lua51) {
+                die "The --lua51 option is specified but seen the LuaJIT library: $path\n";
+            }
+
+            if ($ver ne '5.1') {
+                die "Nginx server $pid uses a Lua $ver compatible LuaJIT library ",
+                    "but only Lua 5.1 is supported.\n";
+            }
+
+            $lua_path = $path;
+            last;
+        }
+    }
+
+    close $in;
+
+    if (!defined $lua_path) {
+        #warn "FALL BACK TO NGINX PATH";
+        $lua_path = $nginx_path;
+    }
+}
+
+if ($lua51) {
+    $stap_src = <<_EOC_;
+$preamble
+
+global bts
+global quit = 0
+global L = 0
+global ci_offset = 0
+global cfuncs
+
+
+probe process("$lua_path").function("lua_resume") {
+    //printf("L = %p\\n", \$L)
+    my_pid = pid()
+    if ($condition) {
+        L = \$L
+    }
+}
+
+
+probe process("$lua_path").function("lua_yield") {
+    //printf("L = %p\\n", \$L)
+    my_pid = pid()
+    if ($condition) {
+        L = 0
+    }
+}
+
+
+probe process("$nginx_path").function("ngx_http_lua_del_thread") {
+    my_pid = pid()
+    if ($condition) {
+        L = 0
+    }
+}
+
+
+probe process("$nginx_path").function("ngx_http_lua_pcre_malloc_done") {
+    my_pid = pid()
+    if ($condition) {
+        L = 0
+    }
+}
+
+
+function clvalue(o) {
+    return &\@cast(o, "TValue", "$lua_path")->value->gc->cl;
+}
+
+
+function ci_func(ci) {
+    return clvalue(\@cast(ci, "CallInfo", "$lua_path")->func)
+}
+
+
+function f_isLua(ci) {
+    f = ci_func(ci)
+    if (f == 0) {
+        return 0;
+    }
+
+    //printf("f_isLua: ci=%x, f=%x, c=%p\\n", ci, f, &\@cast(f, "Closure", "$lua_path")->c)
+    //print_ubacktrace()
+    return !\@cast(f, "Closure", "$lua_path")->c->isC
+}
+
+
+function getstr(ts) {
+    return user_string(&\@cast(ts, "TString", "$lua_path")[1])
+}
+
+
+function funcinfo(cl) {
+    //printf("funcinfo: cl: %x\\n", cl)
+    if (\@cast(cl, "Closure", "$lua_path")->c->isC) {
+        cfunc = \@cast(cl, "Closure", "$lua_path")->c->f
+        sym = cfuncs[cfunc]
+        if (sym != "") {
+            info = sym
+
+        } else {
+            sym = "C:" . usymname(cfunc)
+            cfuncs[cfunc] = sym
+            info = sym
+        }
+
+    } else {
+        src = \@cast(cl, "Closure", "$lua_path")->l->p->source
+        info = sprintf("%s:%d", getstr(src), \@cast(cl, "Closure", "$lua_path")->l->p->linedefined);
+    }
+
+    return info
+}
+
+
+function lua_getinfo(L, i_ci) {
+    ci = 0  /* CallInfo *ci */
+    f = 0   /* Closure *f */
+
+    if (i_ci != 0) {
+        base_ci = \@cast(L, "lua_State", "$lua_path")->base_ci
+        ci = base_ci + i_ci;
+        f = ci_func(ci)
+        //printf("lua_getinfo: ci=%x, f=%x, isLua=%d\\n", ci, f, f_isLua(ci));
+    }
+
+    if (f == 0) {
+        /* info_tailcall() */
+        return "[tailcall]"
+    }
+
+    /* f != 0 */
+    finfo = funcinfo(f)
+
+    //fname = getfuncname(L, ci)
+
+    return finfo
+}
+
+
+function lua_getstack(L, level) {
+    ci = \@cast(L, "lua_State", "$lua_path")->ci
+    base_ci = \@cast(L, "lua_State", "$lua_path")->base_ci
+
+    //printf("L=%x, ci=%x, base_ci=%x\\n", L, ci, base_ci)
+    if (ci_offset == 0) {
+        ci_offset = &\@cast(0, "CallInfo", "$lua_path")[1]
+    }
+
+    //printf("ci offset: %d\\n", ci_offset)
+
+    for (; level > 0 && ci > base_ci; ci -= ci_offset) {
+        level--;
+
+        //tt = \@cast(ci, "CallInfo", "$lua_path")->func->tt
+        //printf("ci tt: %d\\n", tt)
+
+        if (f_isLua(ci)) { /* Lua function? */
+            tailcalls = \@cast(ci, "CallInfo", "$lua_path")->tailcalls
+            //printf("it is a lua func! tailcalls=%d\\n", tailcalls)
+            level -= tailcalls;  /* skip lost tail calls */
+        }
+    }
+
+    if (level == 0 && ci > base_ci) {  /* level found? */
+        //printf("lua_getstack: ci=%x\\n", ci);
+
+        //tt = \@cast(ci, "CallInfo", "$lua_path")->func->tt
+        //printf("ci tt: %d\\n", tt)
+
+        //ff = &\@cast(ci, "CallInfo", "$lua_path")->func->value->gc->cl
+
+        //isC = \@cast(ci, "CallInfo", "$lua_path")->func->value->gc->cl->c->isC
+        //printf("isC: %d, %d ff=%x\\n", isC, \@cast(ff, "Closure", "$lua_path")->c->isC, ff)
+
+        //f = ci_func(ci)
+        //printf("lua_getstack: ci=%x, f=%x, isLua=%d\\n", ci, f, f_isLua(ci));
+
+        return ci - base_ci;
+    }
+
+    if (level < 0) {  /* level is of a lost tail call? */
+        return 0;
+    }
+
+    return -1;
+}
+
+
+probe timer.profile {
+    my_pid = pid()
+    if ($condition) {
+        if (quit) {
+            foreach (bt in bts- limit $limit) {
+                print(bt)
+                printf("\\t%d\\n", \@count(bts[bt]))
+            }
+
+            exit()
+
+        } else {
+            //printf("HERE: %d\\n", L)
+            if (L) {
+                //println("===============")
+                stack = ""
+                level = 0
+                while (1) {
+                    //printf("--- begin: l=%d, u=%d\\n", level, user_mode())
+                    i_ci = lua_getstack(L, level++)
+
+                    //printf("lua_getstack returned: %d\\n", i_ci)
+
+                    if (i_ci < 0) {
+                        break
+                    }
+
+                    //printf("%d: i_ci: %s\\n", level, lua_getinfo(L, i_ci))
+                    stack .= lua_getinfo(L, i_ci) . "\\n"
+                }
+
+                if (stack != "") {
+                    bts[stack] <<< 1
+                }
+            }
+        }
+    }
+}
+
+$postamble
+_EOC_
+}
+
+if ($dump_src) {
+    print $stap_src;
+    exit;
+}
+
+open my $in, "|stap --skip-badvars --all-modules -d $nginx_path --ldd $stap_args -"
+    or die "Cannot run stap: $!\n";
+
+print $in $stap_src;
+
+close $in;
+
+sub usage {
+    return <<'_EOC_';
+Usage:
+    ngx-sample-lua-bt [optoins]
+
+Options:
+    -a <args>           Pass extra arguments to the stap utility.
+    -d                  Dump out the systemtap script source.
+    -h                  Print this usage.
+    -l <count>          Only output <count> most frenquent backtrace samples.
+                        (Default to 1024)
+    -p <pid>            Specify the user process pid.
+    -t <seconds>        Specify the number of seconds for sampling.
+
+Examples:
+    ngx-sample-bt -p 12345 -t 10
+    ngx-sample-bt -p 12345 -a '-DMAXACTION=100000'
+_EOC_
+}
+
+sub get_child_processes {
+    my $pid = shift;
+    my @files = glob "/proc/[0-9]*/stat";
+    my @children;
+    for my $file (@files) {
+        #print "file: $file\n";
+        if ($file =~ m{^/proc/$pid/}) {
+            next;
+        }
+
+        open my $in, $file or next;
+        my $line = <$in>;
+        close $in;
+        if ($line =~ /^(\d+) \S+ \S+ (\d+)/) {
+            my ($child, $parent) = ($1, $2);
+            if ($parent eq $pid) {
+                push @children, $child;
+            }
+        }
+    }
+
+    @children = sort { $a <=> $b } @children;
+    return \@children;
+}
+
+sub gen_pid_test_condition {
+    my $pids = shift;
+    my @c;
+    for my $pid (@$pids) {
+        push @c, "my_pid == $pid";
+    }
+    return join " || ", @c;
+}

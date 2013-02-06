@@ -12,3 +12,6 @@ genmobi.sh
 go
 ctags
 nginx
+*.svg
+*.bt
+*.cbt
