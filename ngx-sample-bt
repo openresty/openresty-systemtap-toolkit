@@ -17,16 +17,13 @@ if ($opts{h}) {
 }
 
 my $pid = $opts{p}
-    or die "No nginx master process pid specified by the -p option.\n";
+    or die "No process pid specified by the -p option.\n";
 
 if ($pid !~ /^\d+$/) {
     die "Bad -p option value \"$pid\": not look like a pid.\n";
 }
 
-my $child_pids = get_child_processes($pid);
-push @$child_pids, $pid;
-
-my $condition = gen_pid_test_condition($child_pids);
+my $condition = "pid() == target()";
 
 my $time = $opts{t}
     or die "No -t <seconds> option specified.\n";
@@ -90,8 +87,6 @@ if ($ver =~ /version\s+(\d+\.\d+)/i) {
     die "ERROR: unknown version of systemtap:\n$ver\n";
 }
 
-#warn "Nginx worker processes: @$child_pids\n";
-
 my $context;
 if ($user_space) {
     if ($kernel_space) {
@@ -107,7 +102,7 @@ if ($user_space) {
 
 my $preamble = <<_EOC_;
 probe begin {
-    warn("Tracing @$child_pids ($nginx_path) in $context...\\n")
+    warn(sprintf("Tracing %d ($nginx_path) in $context...\\n", target()))
 }
 _EOC_
 
@@ -130,7 +125,6 @@ global bts;
 global quit = 0
 
 probe timer.profile {
-    my_pid = pid()
     if ($condition) {
         if (!quit) {
             bts[backtrace(), ubacktrace()] <<< 1
@@ -160,7 +154,6 @@ global bts;
 global quit = 0;
 
 probe timer.profile {
-    my_pid = pid()
     if ($condition) {
         if (!quit) {
             bts[ubacktrace()] <<< 1;
@@ -189,7 +182,6 @@ $preamble
 global bts;
 
 probe timer.profile {
-    my_pid = pid()
     if ($condition && !user_mode()) {
         bts[backtrace()] <<< 1
     }
@@ -214,7 +206,7 @@ if ($opts{d}) {
     exit;
 }
 
-open my $in, "|stap --skip-badvars --all-modules -d $nginx_path --ldd $stap_args -"
+open my $in, "|stap --skip-badvars --all-modules -x $pid -d $nginx_path --ldd $stap_args -"
     or die "Cannot run stap: $!\n";
 
 print $in $stap_src;
@@ -242,38 +234,3 @@ Examples:
     ngx-sample-bt -p 12345 -a '-DMAXACTION=100000'
 _EOC_
 }
-
-sub get_child_processes {
-    my $pid = shift;
-    my @files = glob "/proc/[0-9]*/stat";
-    my @children;
-    for my $file (@files) {
-        #print "file: $file\n";
-        if ($file =~ m{^/proc/$pid/}) {
-            next;
-        }
-
-        open my $in, $file or next;
-        my $line = <$in>;
-        close $in;
-        if ($line =~ /^(\d+) \S+ \S+ (\d+)/) {
-            my ($child, $parent) = ($1, $2);
-            if ($parent eq $pid) {
-                push @children, $child;
-            }
-        }
-    }
-
-    @children = sort { $a <=> $b } @children;
-    return \@children;
-}
-
-sub gen_pid_test_condition {
-    my $pids = shift;
-    my @c;
-    for my $pid (@$pids) {
-        push @c, "my_pid == $pid";
-    }
-    return join " || ", @c;
-}
-
