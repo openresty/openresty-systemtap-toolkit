@@ -121,7 +121,7 @@ if ($opts{d}) {
     exit;
 }
 
-open my $in, "|stap $stap_args -x $pid -"
+open my $in, "|stap --skip-badvars $stap_args -x $pid -"
     or die "Cannot run stap: $!\n";
 
 print $in $stap_src;

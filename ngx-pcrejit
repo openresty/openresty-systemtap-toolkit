@@ -134,7 +134,7 @@ if ($opts{d}) {
     exit;
 }
 
-open $in, "|stap -d $nginx_path $stap_args -x $pid -"
+open $in, "|stap --skip-badvars -d $nginx_path $stap_args -x $pid -"
     or die "Cannot run stap: $!\n";
 
 print $in $stap_src;
