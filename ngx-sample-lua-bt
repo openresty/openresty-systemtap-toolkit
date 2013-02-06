@@ -63,6 +63,10 @@ if ($stap_args !~ /\b-D\s*MAXSTRINGLEN=2048/) {
     $stap_args .= " -DMAXSTRINGLEN=2048"
 }
 
+if ($stap_args !~ /\b-D\s*MAXSKIPPED=1024/) {
+    $stap_args .= " -DMAXSKIPPED=1024"
+}
+
 if ($^O ne 'linux') {
     die "Only linux is supported but I am on $^O.\n";
 }
@@ -75,7 +79,9 @@ if (!-f $exec_file) {
 my $nginx_path = readlink $exec_file;
 
 my $child_pids = get_child_processes($pid);
-push @$child_pids, $pid;
+if (@$child_pids == 0) {
+    push @$child_pids, $pid;
+}
 
 my $condition = gen_pid_test_condition($child_pids);
 
@@ -114,8 +120,11 @@ my $stap_src;
 
 my $postamble = <<_EOC_;
 probe timer.s($time) {
-    warn("Time's up. Quitting now...(it may take a while)\\n")
-    quit = 1
+    warn("Time's up. Quitting now...\\n")
+    foreach (bt in bts- limit $limit) {
+        printf("%s\\t%d\\n", bt, \@count(bts[bt]))
+    }
+    exit()
 }
 _EOC_
 
@@ -182,8 +191,7 @@ if ($lua51) {
 $preamble
 
 global bts
-global quit = 0
-global L = 0
+global lua_states
 global ci_offset = 0
 global cfuncs
 
@@ -192,7 +200,7 @@ probe process("$lua_path").function("lua_resume") {
     //printf("L = %p\\n", \$L)
     my_pid = pid()
     if ($condition) {
-        L = \$L
+        lua_states[my_pid] = \$L
     }
 }
 
@@ -201,7 +209,7 @@ probe process("$lua_path").function("lua_yield") {
     //printf("L = %p\\n", \$L)
     my_pid = pid()
     if ($condition) {
-        L = 0
+        lua_states[my_pid] = 0
     }
 }
 
@@ -209,7 +217,7 @@ probe process("$lua_path").function("lua_yield") {
 probe process("$nginx_path").function("ngx_http_lua_del_thread") {
     my_pid = pid()
     if ($condition) {
-        L = 0
+        lua_states[my_pid] = 0
     }
 }
 
@@ -217,7 +225,7 @@ probe process("$nginx_path").function("ngx_http_lua_del_thread") {
 probe process("$nginx_path").function("ngx_http_lua_pcre_malloc_done") {
     my_pid = pid()
     if ($condition) {
-        L = 0
+        lua_states[my_pid] = 0
     }
 }
 
@@ -285,7 +293,7 @@ function lua_getinfo(L, i_ci) {
 
     if (f == 0) {
         /* info_tailcall() */
-        return "[tailcall]"
+        return "[tail]"
     }
 
     /* f != 0 */
@@ -349,37 +357,41 @@ function lua_getstack(L, level) {
 probe timer.profile {
     my_pid = pid()
     if ($condition) {
-        if (quit) {
-            foreach (bt in bts- limit $limit) {
-                print(bt)
-                printf("\\t%d\\n", \@count(bts[bt]))
-            }
+        L = lua_states[my_pid]
+        //printf("HERE: %d\\n", L)
+        if (L) {
+            //println("===============")
+            stack = ""
+            level = 0
+            prev_is_tail = 0
+            while (1) {
+                //printf("--- begin: l=%d, u=%d\\n", level, user_mode())
+                i_ci = lua_getstack(L, level++)
 
-            exit()
+                //printf("lua_getstack returned: %d\\n", i_ci)
 
-        } else {
-            //printf("HERE: %d\\n", L)
-            if (L) {
-                //println("===============")
-                stack = ""
-                level = 0
-                while (1) {
-                    //printf("--- begin: l=%d, u=%d\\n", level, user_mode())
-                    i_ci = lua_getstack(L, level++)
+                if (i_ci < 0 || level > 200) {
+                    break
+                }
 
-                    //printf("lua_getstack returned: %d\\n", i_ci)
-
-                    if (i_ci < 0) {
-                        break
+                //printf("%d: i_ci: %s\\n", level, lua_getinfo(L, i_ci))
+                frame = lua_getinfo(L, i_ci)
+                if (frame == "[tail]") {
+                    if (prev_is_tail) {
+                        continue
                     }
 
-                    //printf("%d: i_ci: %s\\n", level, lua_getinfo(L, i_ci))
-                    stack .= lua_getinfo(L, i_ci) . "\\n"
+                    prev_is_tail = 1
+
+                } else {
+                    prev_is_tail = 0
                 }
 
-                if (stack != "") {
-                    bts[stack] <<< 1
-                }
+                stack .= frame . "\\n"
+            }
+
+            if (stack != "") {
+                bts[stack] <<< 1
             }
         }
     }
