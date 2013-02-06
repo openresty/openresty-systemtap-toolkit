@@ -108,13 +108,6 @@ _EOC_
 
 my $stap_src;
 
-my $postamble = <<_EOC_;
-probe timer.s($time) {
-    warn("Time's up. Quitting now...(it may take a while)\\n")
-    quit = 1
-}
-_EOC_
-
 if ($user_space) {
     if ($kernel_space) {
         # in both user-space and kernel-space
@@ -142,7 +135,21 @@ probe timer.profile {
     }
 }
 
-$postamble
+probe timer.s($time) {
+    nstacks = 0
+    foreach ([a, b] in bts limit 10) {
+        nstacks++
+    }
+
+    if (nstacks < 10) {
+        warn(sprintf("Too few backtraces (%d) found. Quitting now...\\n", nstacks))
+        exit()
+
+    } else {
+        warn("Time's up. Quitting now...(it may take a while)\\n")
+        quit = 1
+    }
+}
 _EOC_
 
     } else {
@@ -170,7 +177,21 @@ probe timer.profile {
     }
 }
 
-$postamble
+probe timer.s($time) {
+    nstacks = 0
+    foreach (bt in bts limit 10) {
+        nstacks++
+    }
+
+    if (nstacks < 10) {
+        warn(sprintf("Too few backtraces (%d) found. Quitting now...\\n", nstacks))
+        exit()
+
+    } else {
+        warn("Time's up. Quitting now...(it may take a while)\\n")
+        quit = 1
+    }
+}
 _EOC_
     }
 
