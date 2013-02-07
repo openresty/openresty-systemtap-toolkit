@@ -275,7 +275,7 @@ Print out all the output body filters in the order that they actually run.
     # assuming the nginx worker process pid is 30132
 
     $ ./ngx-body-filters -p 30132
-    Tracing 30132 (/home/agentzh/git/lua-nginx-module/work/nginx/sbin/nginx)...
+    Tracing 30132 (/opt/nginx/sbin/nginx)...
 
     WARNING: Missing unwind data for module, rerun with 'stap -d ...'
     ngx_http_range_body_filter
@@ -298,7 +298,7 @@ ngx-header-filters
 Print out all the output header filters in the order that they actually run.
 
     $ ./ngx-header-filters -p 30132
-    Tracing 30132 (/home/agentzh/git/lua-nginx-module/work/nginx/sbin/nginx)...
+    Tracing 30132 (/opt/nginx/sbin/nginx)...
 
     WARNING: Missing unwind data for module, rerun with 'stap -d ...'
     ngx_http_not_modified_header_filter
@@ -428,7 +428,7 @@ Here is an example for standard Lua 5.1 interpreter embedded Nginx:
     # sample at 1K Hz for 5 seconds, assuming the Nginx worker
     #   or master process pid is 9766.
     $ ./ngx.sample-lua-bt -p 9766 --lua51 -t 5 > tmp.bt
-    WARNING: Tracing 9766 (/home/agentzh/git/lua-nginx-module/work/nginx/sbin/nginx) for standard Lua 5.1...
+    WARNING: Tracing 9766 (/opt/nginx/sbin/nginx) for standard Lua 5.1...
     WARNING: Time's up. Quitting now...(it may take a while)
 
     $ ./fix-lua-bt tmp.bt > a.bt
@@ -438,7 +438,7 @@ Or if LuaJIT 2.0 is used:
     # sample at 1K Hz for 5 seconds, assuming the Nginx worker
     #   or master process pid is 9768.
     $ ./ngx.sample-lua-bt -p 9768 --luajit20 -t 5 > tmp.bt
-    WARNING: Tracing 9766 (/home/agentzh/git/lua-nginx-module/work/nginx/sbin/nginx) for LuaJIT 2.0...
+    WARNING: Tracing 9766 (/opt/nginx/sbin/nginx) for LuaJIT 2.0...
     WARNING: Time's up. Quitting now...(it may take a while)
 
     $ ./fix-lua-bt tmp.bt > a.bt
