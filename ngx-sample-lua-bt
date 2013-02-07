@@ -27,8 +27,8 @@ if (!$luajit20 && !$lua51) {
     die "You have to specify either the --lua51 or --luajit20 options.\n";
 }
 
-if ($luajit20) {
-    die "LuaJIT 2.0 is not yet supported.\n";
+if ($luajit20 && $lua51) {
+    die "You cannot specify --lua51 and --luajit20 at the same time.\n";
 }
 
 if (!defined $pid) {
@@ -399,6 +399,343 @@ probe timer.profile {
 
 $postamble
 _EOC_
+
+} else {
+    # LuaJIT 2.0
+    my $L = qq{\@cast(L, "lua_State", "$lua_path")};
+    my $mref = qq{\@cast(mref, "MRef", "$lua_path")};
+    my $tvalue = qq{\@cast(tvalue, "TValue", "$lua_path")};
+    my $gcr = qq{\@cast(gcr, "GCRef", "$lua_path")};
+    #my $pc = qq{\@cast(pc, "uint32_t", "$lua_path")}; # BCins is uint32_t
+    my $sizeof_TValue = qq{\&\@cast(0, "TValue", "$lua_path")[1]};
+    my $fn = qq{\@cast(fn, "GCfunc", "$lua_path")};
+    my $pt = qq{\@cast(pt, "GCproto", "$lua_path")};
+    my $gcobj = qq{\@cast(gcobj, "GCobj", "$lua_path")};
+    my $sizeof_GCproto = qq{\&\@cast(0, "GCproto", "$lua_path")[1]};
+    my $sizeof_GCstr = qq{\&\@cast(0, "GCstr", "$lua_path")[1]};
+
+    $stap_src = <<_EOC_;
+$preamble
+
+global bts
+global lua_states
+global cfuncs
+
+
+probe process("$lua_path").function("lua_resume") {
+    //printf("L = %p\\n", \$L)
+    my_pid = pid()
+    if ($condition) {
+        lua_states[my_pid] = \$L
+    }
+}
+
+
+probe process("$lua_path").function("lua_yield") {
+    //printf("L = %p\\n", \$L)
+    my_pid = pid()
+    if ($condition) {
+        lua_states[my_pid] = 0
+    }
+}
+
+
+probe process("$nginx_path").function("ngx_http_lua_del_thread") {
+    my_pid = pid()
+    if ($condition) {
+        lua_states[my_pid] = 0
+    }
+}
+
+
+probe process("$nginx_path").function("ngx_http_lua_pcre_malloc_done") {
+    my_pid = pid()
+    if ($condition) {
+        lua_states[my_pid] = 0
+    }
+}
+
+
+/*
+function dd(s) {
+    //printf("--- %s\\n", s)
+}
+*/
+
+
+function tvref(mref) {
+    return $mref->ptr32
+}
+
+
+function gcref(gcr) {
+    return $gcr->gcptr32
+}
+
+
+function frame_gc(tvalue) {
+    return gcref(\&$tvalue->fr->func)
+}
+
+
+function frame_ftsz(tvalue) {
+    return $tvalue->fr->tp->ftsz
+}
+
+
+function frame_type(f) {
+    /* FRAME_TYPE == 3 */
+    return frame_ftsz(f) & 3
+}
+
+
+function frame_typep(f) {
+    /* FRAME_TYPEP == 7 */
+    return frame_ftsz(f) & 7
+}
+
+
+function frame_islua(f) {
+    /* FRAME_LUA == 0 */
+    return frame_type(f) == 0
+}
+
+
+function frame_pc(tvalue) {
+    return $tvalue->fr->tp->pcr->ptr32
+}
+
+
+function bc_a(i) {
+    //dd(sprintf("instruction %d", i))
+    return (i >> 8) & 0xff
+}
+
+
+function frame_prevl(f) {
+    pc = frame_pc(f)
+    return f - (1 + bc_a(user_uint32(pc - 4))) * $sizeof_TValue
+}
+
+
+function frame_isvarg(f) {
+    /* FRAME_VARG == 3 */
+    return frame_typep(f) == 3
+}
+
+
+function frame_sized(f) {
+    /*
+     * FRAME_TYPE == 3
+     * FRAME_P    == 4
+     * FRAME_TYPEP == (FRAME_TYPE | FRAME_P)
+     */
+
+    return frame_ftsz(f) & ~(3|4)
+}
+
+
+function frame_prevd(f) {
+    return f - frame_sized(f)
+}
+
+
+function lua_getstack(L, level) {
+    /* code from function lj_debug_frame in LuaJIT 2.0 */
+
+    /* TValue *frame, *nextframe, *bot; */
+    bot = tvref(\&$L->stack)  // TValue *
+    found_frame = 0
+
+    for (nextframe = frame = $L->base - $sizeof_TValue; frame > bot; ) {
+        //dd(sprintf("checking frame: %d, level: %d", frame, level))
+
+        /* Traverse frames backwards */
+        if (frame_gc(frame) == L) {
+            //dd("Skip dummy frames. See lj_meta_call")
+            level++
+        }
+
+        if (level-- == 0) {
+            //dd(sprintf("Level found, frame=%p, nextframe=%p", frame, nextframe))
+            size = (nextframe - frame) / $sizeof_TValue
+            found_frame = 1
+            break
+        }
+
+        nextframe = frame
+        if (frame_islua(frame)) {
+            frame = frame_prevl(frame)
+
+        } else {
+            if (frame_isvarg(frame)) {
+                //dd("Skip vararg pseudo-frame")
+                level++
+            }
+
+            frame = frame_prevd(frame)
+        }
+    }
+
+    if (!found_frame) {
+        //dd("Level not found")
+        size = level
+        frame = 0
+    }
+
+    /* code from function lua_getstatck in LuaJIT 2.0 */
+
+    if (frame) {
+        i_ci = (size << 16) + (frame - bot) / $sizeof_TValue
+        return i_ci
+    }
+
+    return -1
+}
+
+
+function frame_func(f) {
+    gcobj = frame_gc(f)
+    return \&$gcobj->fn
+}
+
+
+function isluafunc(fn) {
+    /* FF_LUA == 0 */
+    return $fn->c->ffid == 0
+}
+
+
+function funcproto(fn) {
+    return $fn->l->pc->ptr32 - $sizeof_GCproto
+}
+
+
+function strref(r) {
+    gcobj = gcref(r)
+    return \&$gcobj->str
+}
+
+
+function proto_chunkname(pt) {
+    return strref(\&$pt->chunkname)
+}
+
+
+function strdata(s) {
+    return s + $sizeof_GCstr
+}
+
+
+function lua_getinfo(L, i_ci) {
+    /* code from function lj_debug_getinfo in LuaJIT 2.0 */
+
+    offset = (i_ci & 0xffff)
+    if (offset == 0) {
+        //dd(sprintf("assertion failed: offset == 0: i_ci=%x", i_ci))
+        return ""
+    }
+
+    frame = tvref(\&$L->stack) + offset * $sizeof_TValue
+
+    size = (i_ci >> 16)
+    if (size) {
+        nextframe = frame + size
+
+    } else {
+        nextframe = 0
+    }
+
+    //dd(sprintf("getinfo: frame=%p nextframe=%p", frame, nextframe))
+
+    maxstack = tvref(\&$L->maxstack)
+    if (!(frame <= maxstack && (!nextframe || nextframe <= maxstack))) {
+        //dd("assertion failed: frame <= maxstack && (!nextframe || nextframe <= maxstack)")
+        return ""
+    }
+
+    fn = frame_func(frame)
+
+    /* LJ_TFUNC == ~8u */
+    if (!($fn->c->gct == 8)) {
+        //dd(sprintf("assertion failed: fn->c.gct == ~LJ_TFUNC: %d", $fn->c->gct))
+        return ""
+    }
+
+    if (isluafunc(fn)) {
+        pt = funcproto(fn)
+        firstline = $pt->firstline
+        name = proto_chunkname(pt)  /* GCstr *name */
+        src = strdata(name)
+        return sprintf("%s:%d", user_string(src), firstline)
+    }
+
+    /* being a C function */
+
+    cfunc = $fn->c->f
+    sym = cfuncs[cfunc]
+    if (sym != "") {
+        return sym
+    }
+
+    sym = "C:" . usymname(cfunc)
+    cfuncs[cfunc] = sym
+    return sym
+}
+
+
+probe timer.profile {
+    my_pid = pid()
+    if ($condition) {
+        L = lua_states[my_pid]
+        //printf("HERE: %d\\n", L)
+        if (L) {
+            //println("===============")
+            stack = ""
+            level = 0
+            prev_is_tail = 0
+            while (1) {
+                //dd(sprintf("begin: l=%d, u=%d", level, user_mode()))
+                i_ci = lua_getstack(L, level++)
+
+                //printf("lua_getstack returned: %d\\n", i_ci)
+
+                if (i_ci < 0 || level > 100) {
+                    break
+                }
+
+                //printf("%d: i_ci: %s\\n", level, lua_getinfo(L, i_ci))
+                frame = lua_getinfo(L, i_ci)
+                if (frame == "") {
+                    stack = ""
+                    break
+                }
+
+                //dd(sprintf("got frame: %s", frame))
+
+                if (frame == "[tail]") {
+                    if (prev_is_tail) {
+                        continue
+                    }
+
+                    prev_is_tail = 1
+
+                } else {
+                    prev_is_tail = 0
+                }
+
+                stack .= frame . "\\n"
+            }
+
+            if (stack != "") {
+                bts[stack] <<< 1
+            }
+        }
+    }
+}
+
+$postamble
+_EOC_
 }
 
 if ($dump_src) {
@@ -424,12 +761,15 @@ Options:
     -h                  Print this usage.
     -l <count>          Only output <count> most frenquent backtrace samples.
                         (Default to 1024)
+    --lua51             Specify that the Nginx is using the standard Lua 5.1.
+                        interpreter.
+    --luajit20          Specify that the Nginx is using LuaJIT 2.0.
     -p <pid>            Specify the user process pid.
     -t <seconds>        Specify the number of seconds for sampling.
 
 Examples:
-    ngx-sample-bt -p 12345 -t 10
-    ngx-sample-bt -p 12345 -a '-DMAXACTION=100000'
+    ngx-sample-lua-bt --lua51 -p 12345 -t 10
+    ngx-sample-lua-bt --luajit20 -p 12345 -t 5 -a '-DMAXACTION=100000'
 _EOC_
 }
 
