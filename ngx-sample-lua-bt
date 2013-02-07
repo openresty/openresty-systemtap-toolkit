@@ -222,14 +222,6 @@ probe process("$nginx_path").function("ngx_http_lua_del_thread") {
 }
 
 
-probe process("$nginx_path").function("ngx_http_lua_pcre_malloc_done") {
-    my_pid = pid()
-    if ($condition) {
-        lua_states[my_pid] = 0
-    }
-}
-
-
 function clvalue(o) {
     return &\@cast(o, "TValue", "$lua_path")->value->gc->cl;
 }
@@ -441,14 +433,6 @@ probe process("$lua_path").function("lua_yield") {
 
 
 probe process("$nginx_path").function("ngx_http_lua_del_thread") {
-    my_pid = pid()
-    if ($condition) {
-        lua_states[my_pid] = 0
-    }
-}
-
-
-probe process("$nginx_path").function("ngx_http_lua_pcre_malloc_done") {
     my_pid = pid()
     if ($condition) {
         lua_states[my_pid] = 0
