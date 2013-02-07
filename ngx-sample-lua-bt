@@ -196,7 +196,9 @@ global ci_offset = 0
 global cfuncs
 
 
-probe process("$lua_path").function("lua_resume") {
+probe process("$lua_path").function("lua_resume"),
+      process("$lua_path").function("lua_pcall")
+{
     //printf("L = %p\\n", \$L)
     my_pid = pid()
     if ($condition) {
@@ -414,7 +416,9 @@ global lua_states
 global cfuncs
 
 
-probe process("$lua_path").function("lua_resume") {
+probe process("$lua_path").function("lua_resume"),
+    process("$lua_path").function("lua_pcall")
+{
     //printf("L = %p\\n", \$L)
     my_pid = pid()
     if ($condition) {
