@@ -11,10 +11,15 @@ These scripts are considered production-ready.
 Prerequisites
 =============
 
-You need at least SystemTap 2.1+ and perl 5.6.1+ on your Linux system.
+You need at least systemtap 2.1+ and perl 5.6.1+ on your Linux system.
 
-Also, you should ensure the debuginfo for your Nginx is already installed
+Also, you should ensure the (DWARF) debuginfo for your Nginx (and other dependencies) is already enabled (or installed separately)
 if you did not compile your Nginx from source.
+
+If you are on Linux kernels older than 3.5, then you may have to apply the [utrace patch](http://sourceware.org/systemtap/wiki/utrace) (if not yet) to your kernel to get
+user-space tracing support for your systemtap installation. But if you are using Linux distributions in the RedHat family (like RHEL, CentOS, and Fedora), then your old kernel should already has the utrace patch applied.
+
+The mainstream Linux kernel 3.5+ does have support for the uprobes API for userspace tracing.
 
 Permissions
 ===========
