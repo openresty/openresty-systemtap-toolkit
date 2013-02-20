@@ -38,7 +38,9 @@ ngx-active-reqs
 ---------------
 
 This tool lists detailed information about all the active requests that
-are currently being processed by the specified Nginx (worker) process.
+are currently being processed by the specified Nginx worker or master process. When the mater process pid is specified, all its worker processes will be monitored.
+
+Here is an example:
 
     # assuming the nginx worker pid is 32027
 

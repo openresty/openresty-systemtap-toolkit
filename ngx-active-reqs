@@ -23,6 +23,13 @@ if ($pid !~ /^\d+$/) {
     die "Bad -p option value \"$pid\": not look like a pid\n";
 }
 
+my $child_pids = get_child_processes($pid);
+if (!@$child_pids) {
+    push @$child_pids, $pid;
+}
+
+my $condition = gen_pid_test_condition($child_pids);
+
 my $check_pools = $opts{m};
 
 my $check_upstreams = $opts{u};
@@ -59,12 +66,23 @@ if ($ver =~ /version\s+(\d+\.\d+)/i) {
 
 my $stap_src;
 
-my $preamble = <<_EOC_;
+my $preamble;
+if (@$child_pids == 1) {
+    $preamble = <<_EOC_;
 probe begin {
     printf("Tracing %d ($nginx_path)...\\n\\n", target())
 }
 _EOC_
-chop $preamble;
+
+} else {
+    $preamble = <<_EOC_;
+probe begin {
+    printf("Tracing @$child_pids ($nginx_path)...\\n\\n")
+}
+_EOC_
+}
+
+#chop $preamble;
 
 my $c = '@cast(c, "ngx_connection_t")';
 my $r = '@cast(r, "ngx_http_request_t")';
@@ -283,7 +301,8 @@ $preamble
 probe process("$nginx_path").function("ngx_process_events_and_timers"),
     process("$nginx_path").function("ngx_http_handler")
 {
-    if (pid() == target()) {
+    my_pid = pid()
+    if ($condition) {
 
         begin = local_clock_us()
 
@@ -404,7 +423,7 @@ $fin_code
         elapsed = local_clock_us() - begin
         printf("%d microseconds elapsed in the probe handler.\\n", elapsed)
         exit()
-    } /* pid() == target() */
+    } /* $condition */
 }
 _EOC_
 
@@ -413,7 +432,12 @@ if ($opts{d}) {
     exit;
 }
 
-open my $in, "|stap --skip-badvars -x $pid $stap_args -"
+my @opts;
+if (@$child_pids == 1) {
+    push @opts, '-x', $child_pids->[0];
+}
+
+open my $in, "|stap --skip-badvars @opts $stap_args -"
     or die "Cannot run stap: $!\n";
 
 print $in $stap_src;
@@ -432,7 +456,7 @@ Options:
     -d                  Dump out the systemtap script source.
     -h                  Print this usage.
     -m                  Gather the information about request memory pools.
-    -p <pid>            Specify the nginx (worker) process pid.
+    -p <pid>            Specify the nginx worker or master process pid.
     -u                  Enable upstream information dump.
 
 Examples:
@@ -443,3 +467,39 @@ Examples:
 _EOC_
 }
 
+sub get_child_processes {
+    my $pid = shift;
+    my @files = glob "/proc/[0-9]*/stat";
+    my @children;
+    for my $file (@files) {
+        #print "file: $file\n";
+        if ($file =~ m{^/proc/$pid/}) {
+            next;
+        }
+
+        open my $in, $file or next;
+        my $line = <$in>;
+        close $in;
+        if ($line =~ /^(\d+) \S+ \S+ (\d+)/) {
+            my ($child, $parent) = ($1, $2);
+            if ($parent eq $pid) {
+                push @children, $child;
+            }
+        }
+    }
+
+    @children = sort { $a <=> $b } @children;
+    return \@children;
+}
+
+sub gen_pid_test_condition {
+    my $pids = shift;
+    if (@$pids == 1) {
+        return '(my_pid == target())';
+    }
+    my @c;
+    for my $pid (@$pids) {
+        push @c, "my_pid == $pid";
+    }
+    return '(' . join(" || ", @c) . ')';
+}
