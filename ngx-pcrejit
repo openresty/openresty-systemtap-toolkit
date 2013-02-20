@@ -117,7 +117,7 @@ probe end {
         if (!found) {
             found = 1
         }
-        printf("%s: %d of %d are PCRE JIT'd.\\n", caller,
+        printf("%s: %d of %d are PCRE JITted.\\n", caller,
                \@sum(jits[caller]), \@count(jits[caller]))
     }
     if (!found) {
