@@ -91,6 +91,9 @@ The `-m` option will tell this tool to analyze the request memory pools for each
     total memory used for all 3 active requests: 9312 bytes
     274 microseconds elapsed in the probe handler.
 
+For Nginx servers that are not busy enough, it is handy to specify the Nginx master process pid as the `-p` option value.
+Another useful option is `-k`, which will keep probing when there's no active requests found in the current event cycle.
+
 ngx-req-distr
 -------------
 

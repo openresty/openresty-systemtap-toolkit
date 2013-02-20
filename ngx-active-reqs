@@ -8,7 +8,7 @@ use Getopt::Std qw( getopts );
 
 my %opts;
 
-getopts("c:ua:dhp:m", \%opts)
+getopts("c:ua:dhp:mk", \%opts)
     or die usage();
 
 if ($opts{h}) {
@@ -33,6 +33,8 @@ my $condition = gen_pid_test_condition($child_pids);
 my $check_pools = $opts{m};
 
 my $check_upstreams = $opts{u};
+
+my $keep_waiting = $opts{k} || 0;
 
 my $stap_args = $opts{a} || '';
 
@@ -422,7 +424,9 @@ $fin_code
 
         elapsed = local_clock_us() - begin
         printf("%d microseconds elapsed in the probe handler.\\n", elapsed)
-        exit()
+        if (nreqs || !$keep_waiting) {
+            exit()
+        }
     } /* $condition */
 }
 _EOC_
@@ -455,12 +459,16 @@ Options:
                         or upstream connection to filter the requests.
     -d                  Dump out the systemtap script source.
     -h                  Print this usage.
+    -k                  When no active rquests are found in the current
+                        event cycle, this option will keep probing at
+                        subsequent cycles, instead of quitting immediately.
     -m                  Gather the information about request memory pools.
     -p <pid>            Specify the nginx worker or master process pid.
     -u                  Enable upstream information dump.
 
 Examples:
     ngx-active-reqs -p 12345
+    ngx-active-reqs -p 12345 -k
     ngx-active-reqs -p 12345 -m
     ngx-active-reqs -p 12345 -m -a '-DMAXACTION=100000'
     ngx-active-reqs -p 12345 -u
