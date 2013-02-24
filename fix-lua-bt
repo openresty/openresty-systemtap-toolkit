@@ -39,28 +39,33 @@ while (<$in>) {
             $file = $path;
         }
 
-        open my $in, $path
-            or die "failed to open $path for reading: $!\n";
-        while (<$in>) {
-            if ($. == $ln) {
-                if (/function\s+(\w+)\s*\(/) {
-                    $func = $1;
+        if ($ln > 0) {
+            open my $in, $path
+                or die "failed to open $path for reading: $!\n";
+            while (<$in>) {
+                if ($. == $ln) {
+                    if (/function\s+(\w+)\s*\(/) {
+                        $func = $1;
 
-                } elsif (/(\S+)\s*=\s*function\s*\(/) {
-                    $func = $1;
+                    } elsif (/(\S+)\s*=\s*function\s*\(/) {
+                        $func = $1;
 
-                } else {
-                    $func = $ln;
+                    } else {
+                        $func = $ln;
+                    }
+
+                    last;
                 }
-
-                last;
             }
-        }
 
-        close $in;
+            close $in;
 
-        if (!defined $func) {
-            die "$path:$ln not found.\n";
+            if (!defined $func) {
+                die "$path:$ln not found.\n";
+            }
+
+        } else {
+            $func = $ln;
         }
 
         $funcs{$key} = "$file:$func";
