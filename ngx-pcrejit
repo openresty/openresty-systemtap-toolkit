@@ -33,14 +33,16 @@ my $verbose = $opts{v};
 
 my $exec_file = "/proc/$pid/exe";
 if (!-f $exec_file) {
-    die "Nginx process $pid is not running.\n";
+    die "Nginx process $pid is not running or ",
+        "you do not have enough permissions.\n";
 }
 
 my $nginx_path = readlink $exec_file;
 
 my $maps_file = "/proc/$pid/maps";
 if (!-f $maps_file) {
-    die "Nginx process $pid is not running.\n";
+    die "Nginx process $pid is not running or ",
+        "you do not have enough permissions.\n";
 }
 
 open my $in, $maps_file or
