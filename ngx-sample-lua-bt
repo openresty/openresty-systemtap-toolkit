@@ -732,7 +732,7 @@ if ($dump_src) {
     exit;
 }
 
-open my $in, "|stap --skip-badvars --all-modules -d $nginx_path --ldd $stap_args -"
+open my $in, "|stap --skip-badvars --all-modules -d '$nginx_path' --ldd $stap_args -"
     or die "Cannot run stap: $!\n";
 
 print $in $stap_src;
