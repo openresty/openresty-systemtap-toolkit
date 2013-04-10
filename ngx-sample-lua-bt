@@ -6,8 +6,6 @@ use warnings;
 
 use Getopt::Long qw( GetOptions );
 
-my %opts;
-
 GetOptions("a=s",       \(my $stap_args),
            "d",         \(my $dump_src),
            "h",         \(my $help),
