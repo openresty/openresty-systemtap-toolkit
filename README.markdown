@@ -504,7 +504,8 @@ See also `ngx-sample-lua-bt`.
 ngx-pcre-stats
 --------------
 
-Statistical analysis of PCRE regex execution performance.
+This tool can perform various statistical analysis of PCRE regex execution
+performance in a running Nginx worker process.
 
 This tool requires uretprobes support in the Linux kernel.
 
