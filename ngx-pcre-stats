@@ -153,11 +153,11 @@ probe end
 _EOC_
 
 } elsif ($worst_time_top || $total_time_top) {
+    my $lua_path = get_lua_path();
+
     if (!$luajit20) {
         die "Only LuaJIT 2.0 is currently supported.\n";
     }
-
-    my $lua_path = get_lua_path();
 
     my $LJ_TUDATA = "4294967283";
     my $TL_TSTR = "4294967291";
