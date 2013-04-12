@@ -569,6 +569,21 @@ Nginx build, PCRE build, and LuaJIT build.
     4. pattern "ello": 26241us (total data size: 15005)
     5. pattern "a": 26180us (total data size: 36012)
 
+The -t option can be used to specify the time period
+(in seconds) for sampling instead of requiring the user to
+hit Ctrl-C to end sampling:
+
+    $ ./ngx-pcre-stats -p 8701 --total-time-top --luajit20 -t 5
+    Tracing 8701 (/opt/nginx/sbin/nginx)...
+    Please wait for 5 seconds.
+
+    Top N regexes with longest total running time:
+    1. pattern ".": 81us (total data size: 110)
+    2. pattern "elloA": 62us (total data size: 5120)
+    3. pattern "ello": 46us (total data size: 5)
+    4. pattern "b": 19us (total data size: 12)
+    5. pattern "a": 9us (total data size: 12)
+
 Community
 =========
 

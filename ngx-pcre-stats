@@ -12,6 +12,7 @@ GetOptions("a=s",            \(my $stap_args),
            "p=i",            \(my $pid),
            "exec-time-dist", \(my $exec_time_dist),
            "worst-time-top", \(my $worst_time_top),
+           "t=i",            \(my $time),
            "total-time-top", \(my $total_time_top),
            "data-len-dist",  \(my $data_len_dist),
            "luajit20",       \(my $luajit20),
@@ -80,10 +81,18 @@ if ($ver =~ /version\s+(\d+\.\d+)/i) {
 my $limit = 10;
 my $stap_src;
 
+my $guide;
+if (defined $time) {
+    $guide = "Please wait for $time seconds.";
+
+} else {
+    $guide = "Hit Ctrl-C to end.";
+}
+
 my $preamble = <<_EOC_;
 probe begin
 {
-    printf("Tracing %d ($nginx_path)...\\nHit Ctrl-C to end.\\n", target())
+    printf("Tracing %d ($nginx_path)...\\n$guide\\n", target())
 }
 _EOC_
 chop $preamble;
@@ -363,6 +372,14 @@ _EOC_
         ."--total-time-top, and --data-len-dist options.\n";
 }
 
+if (defined $time) {
+    $stap_src .= <<_EOC_;
+probe timer.s($time) {
+    exit()
+}
+_EOC_
+}
+
 if ($dump_src) {
     print $stap_src;
     exit;
@@ -389,6 +406,7 @@ Options:
     --luajit20          The target Nginx is using the LuaJIT 2.0.
     -h                  Print this usage.
     -p <pid>            Specify the nginx worker process pid.
+    -t <seconds>        Specify the time period in seconds for  sampling
     --total-time-top    The top N regexes with longest total running time.
     --worst-time-top    The top N regexes with worst running time.
 
@@ -396,6 +414,8 @@ Examples:
     ngx-pcre-stats -p 12345 --exec-time-dist
     ngx-pcre-stats -p 12345 --data-len-dist
     ngx-pcre-stats -p 12345 --worst-time-top --luajit20
+    ngx-pcre-stats -p 12345 --total-time-top --luajit20
+    ngx-pcre-stats -p 12345 --total-time-top --luajit20 -t 10
 _EOC_
 }
 
