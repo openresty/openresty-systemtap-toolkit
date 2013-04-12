@@ -324,8 +324,8 @@ probe end
         i = 0
         foreach (regex in exectimes- limit $limit) {
             i++
-            printf("%d. pattern \\"%s\\": %dus (data size: %d)\\n",
-                   i, text_str(regex), exectimes[regex], datalens[regex])
+            printf("%d. pattern /%s/: %dus (data size: %d)\\n",
+                   i, regex, exectimes[regex], datalens[regex])
         }
     }
 }
@@ -359,8 +359,8 @@ probe end
         i = 0
         foreach (regex in exectimes- limit $limit) {
             i++
-            printf("%d. pattern \\"%s\\": %dus (total data size: %d)\\n",
-                   i, text_str(regex), exectimes[regex], datalens[regex])
+            printf("%d. pattern /%s/: %dus (total data size: %d)\\n",
+                   i, regex, exectimes[regex], datalens[regex])
         }
     }
 }
