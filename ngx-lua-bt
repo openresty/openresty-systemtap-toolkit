@@ -1,0 +1,731 @@
+#!/usr/bin/env perl
+
+use 5.006001;
+use strict;
+use warnings;
+
+use Getopt::Long qw( GetOptions );
+
+GetOptions("a=s",       \(my $stap_args),
+           "d",         \(my $dump_src),
+           "h",         \(my $help),
+           "p=i",       \(my $pid),
+           "lua51",     \(my $lua51),
+           "luajit20",  \(my $luajit20))
+    or die usage();
+
+if ($help) {
+    print usage();
+    exit;
+}
+
+if (!$luajit20 && !$lua51) {
+    die "You have to specify either the --lua51 or --luajit20 options.\n";
+}
+
+if ($luajit20 && $lua51) {
+    die "You cannot specify --lua51 and --luajit20 at the same time.\n";
+}
+
+if (!defined $pid) {
+    die "No nginx master process pid specified by the -p option.\n";
+}
+
+if (!defined $stap_args) {
+    $stap_args = '';
+}
+
+if ($stap_args !~ /\b-D\s*MAXACTION=/) {
+    $stap_args .= " -DMAXACTION=100000"
+}
+
+if ($stap_args !~ /\b-D\s*MAXMAPENTRIES=/) {
+    $stap_args .= " -DMAXMAPENTRIES=5000"
+}
+
+if ($stap_args !~ /\b-D\s*MAXBACKTRACE=/) {
+    $stap_args .= " -DMAXBACKTRACE=200"
+}
+
+if ($stap_args !~ /\b-D\s*MAXSTRINGLEN=2048/) {
+    $stap_args .= " -DMAXSTRINGLEN=2048"
+}
+
+if ($stap_args !~ /\b-D\s*MAXSKIPPED=1024/) {
+    $stap_args .= " -DMAXSKIPPED=1024"
+}
+
+if ($^O ne 'linux') {
+    die "Only linux is supported but I am on $^O.\n";
+}
+
+my $exec_file = "/proc/$pid/exe";
+if (!-f $exec_file) {
+    die "Nginx process $pid is not running or ",
+        "you do not have enough permissions.\n";
+}
+
+my $nginx_path = readlink $exec_file;
+
+my $child_pids = get_child_processes($pid);
+if (@$child_pids == 0) {
+    push @$child_pids, $pid;
+}
+
+my $condition = gen_pid_test_condition($child_pids);
+
+my $ver = `stap --version 2>&1`;
+if (!defined $ver) {
+    die "Systemtap not installed or its \"stap\" utility is not visible to the PATH environment: $!\n";
+}
+
+if ($ver =~ /version\s+(\d+\.\d+)/i) {
+    my $v = $1;
+    if ($v < 2.1) {
+        die "ERROR: at least systemtap 2.1 is required but found $v\n";
+    }
+
+} else {
+    die "ERROR: unknown version of systemtap:\n$ver\n";
+}
+
+#warn "Nginx worker processes: @$child_pids\n";
+
+my $context;
+if ($lua51) {
+    $context = "standard Lua 5.1";
+
+} elsif ($luajit20) {
+    $context = "LuaJIT 2.0";
+}
+
+my $preamble = <<_EOC_;
+probe begin {
+    warn("Tracing @$child_pids ($nginx_path) for $context...\\n")
+}
+_EOC_
+
+my $stap_src;
+
+my $lua_path;
+
+{
+    my $maps_file = "/proc/$pid/maps";
+    open my $in, $maps_file
+        or die "Cannot open $maps_file for reading: $!\n";
+
+    while (<$in>) {
+        if (m{\S+\bliblua-(\d+\.\d+)\.so(?:\.\d+)*$}) {
+            my ($path, $ver) = ($&, $1);
+
+            if ($luajit20) {
+                die "The --luajit20 option is specified but seen standard Lua library: $path\n";
+            }
+
+            if ($ver ne '5.1') {
+                die "Nginx server $pid uses a Lua $ver library ",
+                    "but only Lua 5.1 is supported.\n";
+            }
+
+            $lua_path = $path;
+            last;
+
+        } elsif (m{\S+\bliblua\.so(?:\.\d+)*$}) {
+            my $path = $&;
+
+            if ($luajit20) {
+                die "The --luajit20 option is specified but seen standard Lua library: $path\n";
+            }
+
+            $lua_path = $path;
+            last;
+
+        } elsif (m{\S+\blibluajit-(\d+\.\d+)\.so(?:\.\d+)*$}) {
+            my ($path, $ver) = ($&, $1);
+
+            if ($lua51) {
+                die "The --lua51 option is specified but seen the LuaJIT library: $path\n";
+            }
+
+            if ($ver ne '5.1') {
+                die "Nginx server $pid uses a Lua $ver compatible LuaJIT library ",
+                    "but only Lua 5.1 is supported.\n";
+            }
+
+            $lua_path = $path;
+            last;
+        }
+    }
+
+    close $in;
+
+    if (!defined $lua_path) {
+        #warn "FALL BACK TO NGINX PATH";
+        $lua_path = $nginx_path;
+    }
+}
+
+my $probes = <<_EOC_;
+      process("$lua_path").function("luaL_checklstring"),
+      process("$lua_path").function("luaL_checknumber"),
+      process("$lua_path").function("luaL_checkinteger"),
+      process("$lua_path").function("luaL_checkoption"),
+      process("$lua_path").function("luaL_checktype"),
+      process("$lua_path").function("luaL_optinteger"),
+      process("$lua_path").function("lua_pushnil"),
+      process("$lua_path").function("lua_toboolean"),
+      process("$lua_path").function("lua_pushlstring"),
+      process("$lua_path").function("lua_resume"),
+      process("$lua_path").function("lua_toboolean"),
+      process("$lua_path").function("lua_gettop"),
+      process("$nginx_path").function("ngx_http_lua_ngx_re_match"),
+      process("$nginx_path").function("ngx_http_lua_ngx_re_gmatch"),
+      process("$nginx_path").function("ngx_http_lua_ngx_re_gmatch_iterator"),
+      process("$nginx_path").function("ngx_http_lua_ngx_re_sub_helper")
+_EOC_
+
+if ($lua51) {
+    $stap_src = <<_EOC_;
+$preamble
+
+global ci_offset = 0
+global cfuncs
+
+
+function clvalue(o) {
+    return &\@cast(o, "TValue", "$lua_path")->value->gc->cl;
+}
+
+
+function ci_func(ci) {
+    return clvalue(\@cast(ci, "CallInfo", "$lua_path")->func)
+}
+
+
+function f_isLua(ci) {
+    f = ci_func(ci)
+    if (f == 0) {
+        return 0;
+    }
+
+    //printf("f_isLua: ci=%x, f=%x, c=%p\\n", ci, f, &\@cast(f, "Closure", "$lua_path")->c)
+    //print_ubacktrace()
+    return !\@cast(f, "Closure", "$lua_path")->c->isC
+}
+
+
+function getstr(ts) {
+    return user_string(&\@cast(ts, "TString", "$lua_path")[1])
+}
+
+
+function funcinfo(cl) {
+    //printf("funcinfo: cl: %x\\n", cl)
+    if (\@cast(cl, "Closure", "$lua_path")->c->isC) {
+        cfunc = \@cast(cl, "Closure", "$lua_path")->c->f
+        sym = cfuncs[cfunc]
+        if (sym != "") {
+            info = sym
+
+        } else {
+            sym = "C:" . usymname(cfunc)
+            cfuncs[cfunc] = sym
+            info = sym
+        }
+
+    } else {
+        src = \@cast(cl, "Closure", "$lua_path")->l->p->source
+        info = sprintf("%s:%d", getstr(src), \@cast(cl, "Closure", "$lua_path")->l->p->linedefined);
+    }
+
+    return info
+}
+
+
+function lua_getinfo(L, i_ci) {
+    ci = 0  /* CallInfo *ci */
+    f = 0   /* Closure *f */
+
+    if (i_ci != 0) {
+        base_ci = \@cast(L, "lua_State", "$lua_path")->base_ci
+        ci = base_ci + i_ci;
+        f = ci_func(ci)
+        //printf("lua_getinfo: ci=%x, f=%x, isLua=%d\\n", ci, f, f_isLua(ci));
+    }
+
+    if (f == 0) {
+        /* info_tailcall() */
+        return "[tail]"
+    }
+
+    /* f != 0 */
+    finfo = funcinfo(f)
+
+    //fname = getfuncname(L, ci)
+
+    return finfo
+}
+
+
+function lua_getstack(L, level) {
+    ci = \@cast(L, "lua_State", "$lua_path")->ci
+    base_ci = \@cast(L, "lua_State", "$lua_path")->base_ci
+
+    //printf("L=%x, ci=%x, base_ci=%x\\n", L, ci, base_ci)
+    if (ci_offset == 0) {
+        ci_offset = &\@cast(0, "CallInfo", "$lua_path")[1]
+    }
+
+    //printf("ci offset: %d\\n", ci_offset)
+
+    for (; level > 0 && ci > base_ci; ci -= ci_offset) {
+        level--;
+
+        //tt = \@cast(ci, "CallInfo", "$lua_path")->func->tt
+        //printf("ci tt: %d\\n", tt)
+
+        if (f_isLua(ci)) { /* Lua function? */
+            tailcalls = \@cast(ci, "CallInfo", "$lua_path")->tailcalls
+            //printf("it is a lua func! tailcalls=%d\\n", tailcalls)
+            level -= tailcalls;  /* skip lost tail calls */
+        }
+    }
+
+    if (level == 0 && ci > base_ci) {  /* level found? */
+        //printf("lua_getstack: ci=%x\\n", ci);
+
+        //tt = \@cast(ci, "CallInfo", "$lua_path")->func->tt
+        //printf("ci tt: %d\\n", tt)
+
+        //ff = &\@cast(ci, "CallInfo", "$lua_path")->func->value->gc->cl
+
+        //isC = \@cast(ci, "CallInfo", "$lua_path")->func->value->gc->cl->c->isC
+        //printf("isC: %d, %d ff=%x\\n", isC, \@cast(ff, "Closure", "$lua_path")->c->isC, ff)
+
+        //f = ci_func(ci)
+        //printf("lua_getstack: ci=%x, f=%x, isLua=%d\\n", ci, f, f_isLua(ci));
+
+        return ci - base_ci;
+    }
+
+    if (level < 0) {  /* level is of a lost tail call? */
+        return 0;
+    }
+
+    return -1;
+}
+
+
+probe
+process("$lua_path").function("str_find"),
+$probes
+{
+    my_pid = pid()
+    if ($condition) {
+        L = \$L
+        //printf("HERE: %d\\n", L)
+        if (L) {
+            //println("===============")
+            stack = ""
+            level = 0
+            prev_is_tail = 0
+            while (1) {
+                //printf("--- begin: l=%d, u=%d\\n", level, user_mode())
+                i_ci = lua_getstack(L, level++)
+
+                //printf("lua_getstack returned: %d\\n", i_ci)
+
+                if (i_ci < 0 || level > 200) {
+                    break
+                }
+
+                //printf("%d: i_ci: %s\\n", level, lua_getinfo(L, i_ci))
+                frame = lua_getinfo(L, i_ci)
+                if (frame == "[tail]") {
+                    if (prev_is_tail) {
+                        continue
+                    }
+
+                    prev_is_tail = 1
+
+                } else {
+                    prev_is_tail = 0
+                }
+
+                stack .= frame . "\\n"
+            }
+
+            print(stack)
+            exit()
+        }
+    }
+}
+_EOC_
+
+} else {
+    # LuaJIT 2.0
+    my $L = qq{\@cast(L, "lua_State", "$lua_path")};
+    my $mref = qq{\@cast(mref, "MRef", "$lua_path")};
+    my $tvalue = qq{\@cast(tvalue, "TValue", "$lua_path")};
+    my $gcr = qq{\@cast(gcr, "GCRef", "$lua_path")};
+    #my $pc = qq{\@cast(pc, "uint32_t", "$lua_path")}; # BCins is uint32_t
+    my $sizeof_TValue = qq{\&\@cast(0, "TValue", "$lua_path")[1]};
+    my $fn = qq{\@cast(fn, "GCfunc", "$lua_path")};
+    my $pt = qq{\@cast(pt, "GCproto", "$lua_path")};
+    my $gcobj = qq{\@cast(gcobj, "GCobj", "$lua_path")};
+    my $sizeof_GCproto = qq{\&\@cast(0, "GCproto", "$lua_path")[1]};
+    my $sizeof_GCstr = qq{\&\@cast(0, "GCstr", "$lua_path")[1]};
+
+    $stap_src = <<_EOC_;
+$preamble
+
+global cfuncs
+
+
+/*
+function dd(s) {
+    //printf("--- %s\\n", s)
+}
+*/
+
+
+function tvref(mref) {
+    return $mref->ptr32
+}
+
+
+function gcref(gcr) {
+    return $gcr->gcptr32
+}
+
+
+function frame_gc(tvalue) {
+    return gcref(\&$tvalue->fr->func)
+}
+
+
+function frame_ftsz(tvalue) {
+    return $tvalue->fr->tp->ftsz
+}
+
+
+function frame_type(f) {
+    /* FRAME_TYPE == 3 */
+    return frame_ftsz(f) & 3
+}
+
+
+function frame_typep(f) {
+    /* FRAME_TYPEP == 7 */
+    return frame_ftsz(f) & 7
+}
+
+
+function frame_islua(f) {
+    /* FRAME_LUA == 0 */
+    return frame_type(f) == 0
+}
+
+
+function frame_pc(tvalue) {
+    return $tvalue->fr->tp->pcr->ptr32
+}
+
+
+function bc_a(i) {
+    //dd(sprintf("instruction %d", i))
+    return (i >> 8) & 0xff
+}
+
+
+function frame_prevl(f) {
+    pc = frame_pc(f)
+    return f - (1 + bc_a(user_uint32(pc - 4))) * $sizeof_TValue
+}
+
+
+function frame_isvarg(f) {
+    /* FRAME_VARG == 3 */
+    return frame_typep(f) == 3
+}
+
+
+function frame_sized(f) {
+    /*
+     * FRAME_TYPE == 3
+     * FRAME_P    == 4
+     * FRAME_TYPEP == (FRAME_TYPE | FRAME_P)
+     */
+
+    return frame_ftsz(f) & ~(3|4)
+}
+
+
+function frame_prevd(f) {
+    return f - frame_sized(f)
+}
+
+
+function lua_getstack(L, level) {
+    /* code from function lj_debug_frame in LuaJIT 2.0 */
+
+    /* TValue *frame, *nextframe, *bot; */
+    bot = tvref(\&$L->stack)  // TValue *
+    found_frame = 0
+
+    for (nextframe = frame = $L->base - $sizeof_TValue; frame > bot; ) {
+        //dd(sprintf("checking frame: %d, level: %d", frame, level))
+
+        /* Traverse frames backwards */
+        if (frame_gc(frame) == L) {
+            //dd("Skip dummy frames. See lj_meta_call")
+            level++
+        }
+
+        if (level-- == 0) {
+            //dd(sprintf("Level found, frame=%p, nextframe=%p", frame, nextframe))
+            size = (nextframe - frame) / $sizeof_TValue
+            found_frame = 1
+            break
+        }
+
+        nextframe = frame
+        if (frame_islua(frame)) {
+            frame = frame_prevl(frame)
+
+        } else {
+            if (frame_isvarg(frame)) {
+                //dd("Skip vararg pseudo-frame")
+                level++
+            }
+
+            frame = frame_prevd(frame)
+        }
+    }
+
+    if (!found_frame) {
+        //dd("Level not found")
+        size = level
+        frame = 0
+    }
+
+    /* code from function lua_getstatck in LuaJIT 2.0 */
+
+    if (frame) {
+        i_ci = (size << 16) + (frame - bot) / $sizeof_TValue
+        return i_ci
+    }
+
+    return -1
+}
+
+
+function frame_func(f) {
+    gcobj = frame_gc(f)
+    return \&$gcobj->fn
+}
+
+
+function isluafunc(fn) {
+    /* FF_LUA == 0 */
+    return $fn->c->ffid == 0
+}
+
+
+function funcproto(fn) {
+    return $fn->l->pc->ptr32 - $sizeof_GCproto
+}
+
+
+function strref(r) {
+    gcobj = gcref(r)
+    return \&$gcobj->str
+}
+
+
+function proto_chunkname(pt) {
+    return strref(\&$pt->chunkname)
+}
+
+
+function strdata(s) {
+    return s + $sizeof_GCstr
+}
+
+
+function lua_getinfo(L, i_ci) {
+    /* code from function lj_debug_getinfo in LuaJIT 2.0 */
+
+    offset = (i_ci & 0xffff)
+    if (offset == 0) {
+        //dd(sprintf("assertion failed: offset == 0: i_ci=%x", i_ci))
+        return ""
+    }
+
+    frame = tvref(\&$L->stack) + offset * $sizeof_TValue
+
+    size = (i_ci >> 16)
+    if (size) {
+        nextframe = frame + size
+
+    } else {
+        nextframe = 0
+    }
+
+    //dd(sprintf("getinfo: frame=%p nextframe=%p", frame, nextframe))
+
+    maxstack = tvref(\&$L->maxstack)
+    if (!(frame <= maxstack && (!nextframe || nextframe <= maxstack))) {
+        //dd("assertion failed: frame <= maxstack && (!nextframe || nextframe <= maxstack)")
+        return ""
+    }
+
+    fn = frame_func(frame)
+
+    /* LJ_TFUNC == ~8u */
+    if (!($fn->c->gct == 8)) {
+        //dd(sprintf("assertion failed: fn->c.gct == ~LJ_TFUNC: %d", $fn->c->gct))
+        return ""
+    }
+
+    if (isluafunc(fn)) {
+        pt = funcproto(fn)
+        firstline = $pt->firstline
+        name = proto_chunkname(pt)  /* GCstr *name */
+        src = strdata(name)
+        return sprintf("%s:%d", user_string(src), firstline)
+    }
+
+    /* being a C function */
+
+    cfunc = $fn->c->f
+    sym = cfuncs[cfunc]
+    if (sym != "") {
+        return sym
+    }
+
+    sym = "C:" . usymname(cfunc)
+    cfuncs[cfunc] = sym
+    return sym
+}
+
+
+probe
+process("$lua_path").function("lj_cf_string_find"),
+$probes
+{
+    my_pid = pid()
+    if ($condition) {
+        L = \$L
+        //printf("HERE: %d\\n", L)
+        if (L) {
+            //println("===============")
+            stack = ""
+            level = 0
+            prev_is_tail = 0
+            while (1) {
+                //dd(sprintf("begin: l=%d, u=%d", level, user_mode()))
+                i_ci = lua_getstack(L, level++)
+
+                //printf("lua_getstack returned: %d\\n", i_ci)
+
+                if (i_ci < 0 || level > 100) {
+                    break
+                }
+
+                //printf("%d: i_ci: %s\\n", level, lua_getinfo(L, i_ci))
+                frame = lua_getinfo(L, i_ci)
+                if (frame == "") {
+                    stack = ""
+                    break
+                }
+
+                //dd(sprintf("got frame: %s", frame))
+
+                if (frame == "[tail]") {
+                    if (prev_is_tail) {
+                        continue
+                    }
+
+                    prev_is_tail = 1
+
+                } else {
+                    prev_is_tail = 0
+                }
+
+                stack .= frame . "\\n"
+            }
+
+            print(stack)
+            exit()
+        }
+    }
+}
+_EOC_
+}
+
+if ($dump_src) {
+    print $stap_src;
+    exit;
+}
+
+open my $in, "|stap --skip-badvars --all-modules -d '$nginx_path' --ldd $stap_args -"
+    or die "Cannot run stap: $!\n";
+
+print $in $stap_src;
+
+close $in;
+
+sub usage {
+    return <<'_EOC_';
+Usage:
+    ngx-lua-bt [optoins]
+
+Options:
+    -a <args>           Pass extra arguments to the stap utility.
+    -d                  Dump out the systemtap script source.
+    -h                  Print this usage.
+    --lua51             Specify that the Nginx is using the standard Lua 5.1.
+                        interpreter.
+    --luajit20          Specify that the Nginx is using LuaJIT 2.0.
+    -p <pid>            Specify the user process pid.
+
+Examples:
+    ngx-lua-bt --lua51 -p 12345
+    ngx-lua-bt --luajit20 -p 12345 -a '-DMAXACTION=100000'
+_EOC_
+}
+
+sub get_child_processes {
+    my $pid = shift;
+    my @files = glob "/proc/[0-9]*/stat";
+    my @children;
+    for my $file (@files) {
+        #print "file: $file\n";
+        if ($file =~ m{^/proc/$pid/}) {
+            next;
+        }
+
+        open my $in, $file or next;
+        my $line = <$in>;
+        close $in;
+        if ($line =~ /^(\d+) \S+ \S+ (\d+)/) {
+            my ($child, $parent) = ($1, $2);
+            if ($parent eq $pid) {
+                push @children, $child;
+            }
+        }
+    }
+
+    @children = sort { $a <=> $b } @children;
+    return \@children;
+}
+
+sub gen_pid_test_condition {
+    my $pids = shift;
+    my @c;
+    for my $pid (@$pids) {
+        push @c, "my_pid == $pid";
+    }
+    return join " || ", @c;
+}
