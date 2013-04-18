@@ -185,6 +185,12 @@ my $probes = <<_EOC_;
 _EOC_
 
 if ($lua51) {
+    my $cl = qq{\@cast(cl, "Closure", "$lua_path")};
+    my $ci = qq{\@cast(ci, "CallInfo", "$lua_path")};
+    my $p = qq{\@cast(p, "Proto", "$lua_path")};
+    my $L = qq{\@cast(L, "lua_State", "$lua_path")};
+    my $sizeof_ptr = qq{\&\@cast(0, "LocVar", "$lua_path")->startpc};
+
     $stap_src = <<_EOC_;
 $preamble
 
@@ -221,8 +227,8 @@ function getstr(ts) {
 
 function funcinfo(cl) {
     //printf("funcinfo: cl: %x\\n", cl)
-    if (\@cast(cl, "Closure", "$lua_path")->c->isC) {
-        cfunc = \@cast(cl, "Closure", "$lua_path")->c->f
+    if ($cl->c->isC) {
+        cfunc = $cl->c->f
         sym = cfuncs[cfunc]
         if (sym != "") {
             info = sym
@@ -234,11 +240,52 @@ function funcinfo(cl) {
         }
 
     } else {
-        src = \@cast(cl, "Closure", "$lua_path")->l->p->source
-        info = sprintf("%s:%d", getstr(src), \@cast(cl, "Closure", "$lua_path")->l->p->linedefined);
+        src = $cl->l->p->source
+        return getstr(src)
     }
 
     return info
+}
+
+
+function pcRel(pc, p) {
+    //printf("sizeof ptr: %d\\n", $sizeof_ptr)
+    return (pc - $p->code) / $sizeof_ptr - 1
+}
+
+
+function currentpc(L, ci) {
+    cl = ci_func(ci)
+    if ($cl->c->isC) {
+        return -1
+    }
+
+    if (ci == $L->ci) {
+        savedpc = $L->savedpc
+
+    } else {
+        savedpc = $ci->savedpc
+    }
+
+    cl = ci_func(ci)
+    return pcRel(savedpc, $cl->l->p)
+}
+
+
+function getline(p, pc) {
+    //printf("p: %p, lineinfo: %p\\n", p, $p->lineinfo)
+    return $p->lineinfo ? $p->lineinfo[pc] : 0
+}
+
+
+function currentline(L, ci) {
+    pc = currentpc(L, ci)
+    if (pc < 0) {
+        return -1
+    }
+    //printf("pc = %d\\n", pc)
+    cl = ci_func(ci)
+    return getline($cl->l->p, pc)
 }
 
 
@@ -247,7 +294,7 @@ function lua_getinfo(L, i_ci) {
     f = 0   /* Closure *f */
 
     if (i_ci != 0) {
-        base_ci = \@cast(L, "lua_State", "$lua_path")->base_ci
+        base_ci = $L->base_ci
         ci = base_ci + i_ci;
         f = ci_func(ci)
         //printf("lua_getinfo: ci=%x, f=%x, isLua=%d\\n", ci, f, f_isLua(ci));
@@ -261,15 +308,21 @@ function lua_getinfo(L, i_ci) {
     /* f != 0 */
     finfo = funcinfo(f)
 
+    lineno = currentline(L, ci)
+
     //fname = getfuncname(L, ci)
 
-    return finfo
+    if (lineno == -1) {
+        return finfo
+    }
+
+    return sprintf("%s:%d", finfo, lineno)
 }
 
 
 function lua_getstack(L, level) {
-    ci = \@cast(L, "lua_State", "$lua_path")->ci
-    base_ci = \@cast(L, "lua_State", "$lua_path")->base_ci
+    ci = $L->ci
+    base_ci = $L->base_ci
 
     //printf("L=%x, ci=%x, base_ci=%x\\n", L, ci, base_ci)
     if (ci_offset == 0) {
