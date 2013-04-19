@@ -627,7 +627,7 @@ function lua_getinfo(L, i_ci) {
 
     size = (i_ci >> 16)
     if (size) {
-        nextframe = frame + size
+        nextframe = frame + size * $sizeof_TValue
 
     } else {
         nextframe = 0
