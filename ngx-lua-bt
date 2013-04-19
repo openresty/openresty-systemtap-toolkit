@@ -428,6 +428,16 @@ _EOC_
     my $gcobj = qq{\@cast(gcobj, "GCobj", "$lua_path")};
     my $sizeof_GCproto = qq{\&\@cast(0, "GCproto", "$lua_path")[1]};
     my $sizeof_GCstr = qq{\&\@cast(0, "GCstr", "$lua_path")[1]};
+    my $sizeof_ptr = qq{\&\@cast(0, "global_State", "$lua_path")->strmask};
+    my $sizeof_BCIns = qq{\&\@cast(0, "BCIns", "$lua_path")[1]};
+    my $NO_BCPOS = "~0";
+    my $FRAME_LUA = '0';
+    my $FRAME_C = '1';
+    my $FRAME_CONT = '2';
+    my $CFRAME_RESUME = 1;
+    my $CFRAME_UNWIND_FF = 2;
+    my $CFRAME_OFS_PREV = 400;
+    my $CFRAME_OFS_PC = 412;
 
     $stap_src = <<_EOC_;
 $preamble
@@ -475,8 +485,7 @@ function frame_typep(f) {
 
 
 function frame_islua(f) {
-    /* FRAME_LUA == 0 */
-    return frame_type(f) == 0
+    return frame_type(f) == $FRAME_LUA
 }
 
 
@@ -605,6 +614,136 @@ function strdata(s) {
     return s + $sizeof_GCstr
 }
 
+//proto_bc(pt)            ((BCIns *)((char *)(pt) + sizeof(GCproto)))
+function proto_bc(pt) {
+    return pt + $sizeof_GCproto;
+}
+
+
+// proto_bcpos(pt, pc)     ((BCPos)((pc) - proto_bc(pt)))
+function proto_bcpos(pt, pc) {
+    //printf("sizeof BCIns: %d\\n", $sizeof_BCIns)
+    //printf("proto_bc(pt): %p\\n", proto_bc(pt))
+    return (pc - proto_bc(pt)) / $sizeof_BCIns
+}
+
+
+function frame_iscont(f) {
+    return frame_typep(f) == $FRAME_CONT
+}
+
+
+function frame_contpc(f) {
+    return frame_pc(f) - 1 * $sizeof_BCIns
+}
+
+
+function frame_isc(f) {
+    return frame_type(f) == $FRAME_C
+}
+
+
+function cframe_raw(cf) {
+    return cf & ~(1|2)
+}
+
+
+// #define cframe_prev(cf)         (*(void **)(((char *)(cf))+CFRAME_OFS_PREV))
+function cframe_prev(cf) {
+    return cf + $CFRAME_OFS_PREV
+}
+
+
+// (mref(*(MRef *)(((char *)(cf))+CFRAME_OFS_PC), const BCIns))
+function cframe_pc(cf) {
+    return cf + $CFRAME_OFS_PC
+}
+
+
+function debug_framepc(L, fn, nextframe) {
+    //printf("debug framepc: L=%p, fn=%p, nextframe = %p\\n", L, fn, nextframe)
+    if (nextframe == 0) {
+        return $NO_BCPOS
+    }
+
+    if (frame_islua(nextframe)) {
+        ins = frame_pc(nextframe);
+        //printf("frame is lua, ins = %p\\n", ins)
+
+    } else if (frame_iscont(nextframe)) {
+        println("frame is cont")
+        ins = frame_contpc(nextframe)
+
+    } else {
+        println("frame is raw cframe")
+        cf = cframe_raw($L->cframe)
+        if (cf == 0) {
+            return $NO_BCPOS
+        }
+        f = $L->base - 1 * $sizeof_TValue /* TValue* */
+        while (f > nextframe) {
+            if (frame_islua(f)) {
+                f = frame_prevl(f);
+
+            } else {
+                if (frame_isc(f)) {
+                    cf = cframe_raw(cframe_prev(cf));
+                }
+                f = frame_prevd(f);
+            }
+        }
+        if (cframe_prev(cf)) {
+            cf = cframe_raw(cframe_prev(cf));
+        }
+        ins = cframe_pc(cf);
+    }
+
+    //printf("debug framepc: ins = %p\\n", ins)
+    pt = funcproto(fn);
+    return proto_bcpos(pt, ins) - 1;
+}
+
+
+function proto_lineinfo(pt) {
+    return $pt->lineinfo->ptr32
+}
+
+
+function lj_debug_line(pt, pc) {
+    lineinfo = proto_lineinfo(pt)
+    //printf("lj_debug_line: lineinfo = %p, %x <= %x\\n", lineinfo,
+           //pc, $pt->sizebc)
+    if (pc <= $pt->sizebc && lineinfo) {
+        first = $pt->firstline
+        if (pc == $pt->sizebc) {
+            return first + $pt->numline
+        }
+        if (pc-- == 0) {
+            return first
+        }
+        if ($pt->numline < 256) {
+            return first + \@cast(lineinfo, "uint8_t")[pc]
+        }
+        if ($pt->numline < 65536) {
+            return first + \@cast(lineinfo, "uint16_t")[pc]
+        }
+        return first + \@cast(lineinfo, "uint32_t")[pc]
+    }
+    return 0
+}
+
+
+function debug_frameline(L, fn, nextframe) {
+    pc = debug_framepc(L, fn, nextframe)
+    //printf("debug frameline: pc = %p\\n", pc)
+    if (pc != $NO_BCPOS) {
+        pt = funcproto(fn)
+        //printf("pc <= pt->sizebc: %x %x\\n", pt, pc)
+        return lj_debug_line(pt, pc)
+    }
+    return -1
+}
+
 
 function lua_getinfo(L, i_ci) {
     /* code from function lj_debug_getinfo in LuaJIT 2.0 */
@@ -619,7 +758,7 @@ function lua_getinfo(L, i_ci) {
 
     size = (i_ci >> 16)
     if (size) {
-        nextframe = frame + size
+        nextframe = frame + size * $sizeof_TValue
 
     } else {
         nextframe = 0
@@ -642,11 +781,14 @@ function lua_getinfo(L, i_ci) {
     }
 
     if (isluafunc(fn)) {
+        currentline = frame ? debug_frameline(L, fn, nextframe) : -1
         pt = funcproto(fn)
-        firstline = $pt->firstline
         name = proto_chunkname(pt)  /* GCstr *name */
         src = strdata(name)
-        return sprintf("%s:%d", user_string(src), firstline)
+        if (currentline == -1) {
+            return user_string(src)
+        }
+        return sprintf("%s:%d", user_string(src), currentline)
     }
 
     /* being a C function */
