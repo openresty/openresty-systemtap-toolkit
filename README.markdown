@@ -504,7 +504,10 @@ See also `ngx-sample-lua-bt`.
 ngx-lua-bt
 ----------
 
-Dump the Lua land backtrace in the current running Nginx worker process:
+This tool dump out the current Lua-land backtrace in the current running Nginx worker process.
+
+This tool is very useful in locating the infinite Lua loop that keeps the Nginx worker
+spinning with 100% CPU usage.
 
 If LuaJIT 2.0 is used, specify the --luajit20 option, like this:
 

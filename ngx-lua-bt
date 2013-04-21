@@ -166,22 +166,9 @@ my $lua_path;
 }
 
 my $probes = <<_EOC_;
-      process("$lua_path").function("luaL_checklstring"),
-      process("$lua_path").function("luaL_checknumber"),
-      process("$lua_path").function("luaL_checkinteger"),
-      process("$lua_path").function("luaL_checkoption"),
-      process("$lua_path").function("luaL_checktype"),
-      process("$lua_path").function("luaL_optinteger"),
-      process("$lua_path").function("lua_pushnil"),
-      process("$lua_path").function("lua_toboolean"),
-      process("$lua_path").function("lua_pushlstring"),
-      process("$lua_path").function("lua_resume"),
-      process("$lua_path").function("lua_toboolean"),
-      process("$lua_path").function("lua_gettop"),
-      process("$nginx_path").function("ngx_http_lua_ngx_re_match"),
-      process("$nginx_path").function("ngx_http_lua_ngx_re_gmatch"),
-      process("$nginx_path").function("ngx_http_lua_ngx_re_gmatch_iterator"),
-      process("$nginx_path").function("ngx_http_lua_ngx_re_sub_helper")
+      process("$lua_path").function("luaL_*"),
+      process("$lua_path").function("lua_*"),
+      process("$nginx_path").function("ngx_http_lua_ngx_*")
 _EOC_
 
 if ($lua51) {
@@ -189,7 +176,7 @@ if ($lua51) {
     my $ci = qq{\@cast(ci, "CallInfo", "$lua_path")};
     my $p = qq{\@cast(p, "Proto", "$lua_path")};
     my $L = qq{\@cast(L, "lua_State", "$lua_path")};
-    my $sizeof_ptr = qq{\&\@cast(0, "LocVar", "$lua_path")->startpc};
+    my $sizeof_Instruction = qq{&\@cast(0, "Instruction", "$lua_path")[1]};
 
     $stap_src = <<_EOC_;
 $preamble
@@ -249,8 +236,8 @@ function funcinfo(cl) {
 
 
 function pcRel(pc, p) {
-    //printf("sizeof ptr: %d\\n", $sizeof_ptr)
-    return (pc - $p->code) / $sizeof_ptr - 1
+    //printf("sizeof ptr: %d\\n", $sizeof_Instruction)
+    return (pc - $p->code) / $sizeof_Instruction - 1
 }
 
 
@@ -374,7 +361,7 @@ process("$lua_path").function("str_find"),
 $probes
 {
     my_pid = pid()
-    if ($condition) {
+    if (\@defined(\$L) && $condition) {
         L = \$L
         //printf("HERE: %d\\n", L)
         if (L) {
@@ -650,7 +637,7 @@ function cframe_raw(cf) {
 
 // #define cframe_prev(cf)         (*(void **)(((char *)(cf))+CFRAME_OFS_PREV))
 function cframe_prev(cf) {
-    return cf + $CFRAME_OFS_PREV
+    return user_long(cf + $CFRAME_OFS_PREV)
 }
 
 
@@ -810,7 +797,7 @@ process("$lua_path").function("lj_cf_string_find"),
 $probes
 {
     my_pid = pid()
-    if ($condition) {
+    if (\@defined(\$L) && $condition) {
         L = \$L
         //printf("HERE: %d\\n", L)
         if (L) {
