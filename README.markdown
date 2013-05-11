@@ -529,7 +529,7 @@ If the standard Lua 5.1 interpreter is used instead, specify the --lua51 option:
 ngx-sample-bt-vfs
 -----------------
 
-Similar to ngx-sample-bt but samples the userspace backtraces on the Virtual File System (VFS) level for rendering File I/O Flame Graphs.
+Similar to ngx-sample-bt but samples the userspace backtraces on the Virtual File System (VFS) level for rendering File I/O Flame Graphs, which can show exactly how file I/O data volumn or file I/O latency is distributed among different parts of a running user process.
 
 By default, 1 sample of backtrace corresponds of 1 byte of data volumn (read or written). And by default, both `vfs_read` and `vfs_write` are tracked. For example,
 
@@ -593,6 +593,8 @@ http://agentzh.org/misc/flamegraph/vfs-latency-index-page-rw.svg
 The total samples shown in the graph, 1918669, indicate for total 1,918,669 microsends (or 1.9 seconds) were spent on both file reading and writing during the 3 seconds sampling interval.
 
 One can also combine either the `-r` or `-w` option with the `--latency` option to filter out file reads or file writes.
+
+This tool can be used to inspect any user process (not only Nginx processes) with debug symbols enabled.
 
 ngx-pcre-stats
 --------------
