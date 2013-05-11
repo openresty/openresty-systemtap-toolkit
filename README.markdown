@@ -526,6 +526,74 @@ If the standard Lua 5.1 interpreter is used instead, specify the --lua51 option:
     [tail]
     content_by_lua:1
 
+ngx-sample-bt-vfs
+-----------------
+
+Similar to ngx-sample-bt but samples the userspace backtraces on the Virtual File System (VFS) level for rendering File I/O Flame Graphs.
+
+By default, 1 sample of backtrace corresponds of 1 byte of data volumn (read or written). And by default, both `vfs_read` and `vfs_write` are tracked. For example,
+
+    $ ./ngx-sample-bt-vfs -p 12345 -t 3 > a.bt
+    WARNING: Tracing 20636 (/opt/nginx/sbin/nginx)...
+    WARNING: Time's up. Quitting now...(it may take a while)
+    WARNING: Number of errors: 0, skipped probes: 2
+
+We can then render a flamegraph for read/write VFS I/O like this:
+
+    $ stackcollapse-stap.pl a.bt > a.cbt
+    $ flamegraph.pl a.cbt > a.svg
+
+where the tools `stackcollapse-stap.pl` and `flamegraph.pl` are from Brendan Gregg's FlameGraph toolkit:
+
+    https://github.com/brendangregg/FlameGraph
+
+One sample "file I/O flamegraph" is here:
+
+    http://agentzh.org/misc/flamegraph/vfs-index-page-rw.svg
+
+This graph was rendered when the Nginx worker process is loaded by requests to its default index page (i.e., `/index.html`). We can see both the file writes in the standard access logging module and the file reads in the standard "static" module. The total sample space in this graph, 1481361, means for total 1481361 bytes of data actually read or written on VFS.
+
+You can also track file reading only by specifying the `-r` option:
+
+    $ ./ngx-sample-bt-vfs -p 12345 -t 3 -r > a.bt
+
+Here is an example of "file reading flamegraph" by sampling a Nginx loaded by requests accessing its default index page:
+
+    http://agentzh.org/misc/flamegraph/vfs-index-page-r.svg
+
+We can see that only the standard nginx "static" module is the only thing shown in the graph.
+
+Similarly, you can specify the `-w` option to track file writing only:
+
+
+    $ ./ngx-sample-bt-vfs -p 12345 -t 3 -w > a.bt
+
+Here is a sample "file writing flamegraph" for Nginx (with debugging logs enabled):
+
+    http://agentzh.org/misc/flamegraph/vfs-debug-log.svg
+
+And below is another example for "file writing flamegraphs" for Nginx with debugging logs turned off:
+
+    http://agentzh.org/misc/flamegraph/vfs-access-log-only.svg
+
+We can see that only access logging appears in the graph.
+
+Do not confuse file I/O here with disk I/O because we are only probing on the (high) Virtual File System level. So the system page cache can save many disk reads here.
+
+Generally, we are more interested in the latency (i.e, time) spent on the VFS reads and writes. You can specify the `--latency` option to track kernel call latency instead of the data volumn:
+
+    $ ./ngx-sample-bt-vfs -p 12345 -t 3 --latency > a.bt
+
+In this case, 1 sample corresponds to 1 microsends of file I/O time (or to be more correct, the `vfs_read` or `vfs_write` calls' time).
+
+Here is an example for this:
+
+    http://agentzh.org/misc/flamegraph/vfs-latency-index-page-rw.svg
+
+The total samples shown in the graph, 1918669, indicate for total 1,918,669 microsends (or 1.9 seconds) were spent on both file reading and writing during the 3 seconds sampling interval.
+
+One can also combine either the `-r` or `-w` option with the `--latency` option to filter out file reads or file writes.
+
 ngx-pcre-stats
 --------------
 
