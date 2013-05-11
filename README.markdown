@@ -545,11 +545,11 @@ We can then render a flamegraph for read/write VFS I/O like this:
 
 where the tools `stackcollapse-stap.pl` and `flamegraph.pl` are from Brendan Gregg's FlameGraph toolkit:
 
-    https://github.com/brendangregg/FlameGraph
+https://github.com/brendangregg/FlameGraph
 
 One sample "file I/O flamegraph" is here:
 
-    http://agentzh.org/misc/flamegraph/vfs-index-page-rw.svg
+http://agentzh.org/misc/flamegraph/vfs-index-page-rw.svg
 
 This graph was rendered when the Nginx worker process is loaded by requests to its default index page (i.e., `/index.html`). We can see both the file writes in the standard access logging module and the file reads in the standard "static" module. The total sample space in this graph, 1481361, means for total 1481361 bytes of data actually read or written on VFS.
 
@@ -559,7 +559,7 @@ You can also track file reading only by specifying the `-r` option:
 
 Here is an example of "file reading flamegraph" by sampling a Nginx loaded by requests accessing its default index page:
 
-    http://agentzh.org/misc/flamegraph/vfs-index-page-r.svg
+http://agentzh.org/misc/flamegraph/vfs-index-page-r.svg
 
 We can see that only the standard nginx "static" module is the only thing shown in the graph.
 
@@ -570,11 +570,11 @@ Similarly, you can specify the `-w` option to track file writing only:
 
 Here is a sample "file writing flamegraph" for Nginx (with debugging logs enabled):
 
-    http://agentzh.org/misc/flamegraph/vfs-debug-log.svg
+http://agentzh.org/misc/flamegraph/vfs-debug-log.svg
 
 And below is another example for "file writing flamegraphs" for Nginx with debugging logs turned off:
 
-    http://agentzh.org/misc/flamegraph/vfs-access-log-only.svg
+http://agentzh.org/misc/flamegraph/vfs-access-log-only.svg
 
 We can see that only access logging appears in the graph.
 
@@ -588,7 +588,7 @@ In this case, 1 sample corresponds to 1 microsends of file I/O time (or to be mo
 
 Here is an example for this:
 
-    http://agentzh.org/misc/flamegraph/vfs-latency-index-page-rw.svg
+http://agentzh.org/misc/flamegraph/vfs-latency-index-page-rw.svg
 
 The total samples shown in the graph, 1918669, indicate for total 1,918,669 microsends (or 1.9 seconds) were spent on both file reading and writing during the 3 seconds sampling interval.
 
