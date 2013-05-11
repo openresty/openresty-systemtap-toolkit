@@ -529,7 +529,7 @@ If the standard Lua 5.1 interpreter is used instead, specify the --lua51 option:
 ngx-sample-bt-vfs
 -----------------
 
-Similar to ngx-sample-bt but samples the userspace backtraces on the Virtual File System (VFS) level for rendering File I/O Flame Graphs, which can show exactly how file I/O data volumn or file I/O latency is distributed among different parts of a running user process.
+Similar to ngx-sample-bt but samples the userspace backtraces on the Virtual File System (VFS) level for rendering File I/O Flame Graphs, which can show exactly how file I/O data volumn or file I/O latency is distributed among different userspace code paths within any running user process.
 
 By default, 1 sample of backtrace corresponds of 1 byte of data volumn (read or written). And by default, both `vfs_read` and `vfs_write` are tracked. For example,
 
