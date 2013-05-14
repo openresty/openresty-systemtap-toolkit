@@ -1,0 +1,211 @@
+#!/usr/bin/env perl
+
+# Based on the systemtap script first shown by chaoslawful.
+
+use 5.006001;
+use strict;
+use warnings;
+
+use Getopt::Long qw( GetOptions );
+
+GetOptions("a=s",       \(my $stap_args),
+           "d",         \(my $dump_src),
+           "distr",     \(my $show_distr),
+           "h",         \(my $help),
+           "limit=i",   \(my $limit),
+           "port=i",    \(my $port),
+           "time=i",    \(my $time))
+    or die usage();
+
+if ($help) {
+    print usage();
+    exit;
+}
+
+if (!defined $port) {
+    die "No listening port specified by the -p option.\n";
+}
+
+if (!defined $limit) {
+    $limit = 10;
+}
+
+if (!defined $stap_args) {
+    $stap_args = '';
+}
+
+if ($stap_args !~ /\b-D\s*MAXACTION=/) {
+    $stap_args .= " -DMAXACTION=100000";
+}
+
+my $ver = `stap --version 2>&1`;
+if (!defined $ver) {
+    die "Systemtap not installed or its \"stap\" utility is not visible to the PATH environment: $!\n";
+}
+
+if ($ver =~ /version\s+(\d+\.\d+)/i) {
+    my $v = $1;
+    if ($v < 2.1) {
+        die "ERROR: at least systemtap 2.1 is required but found $v\n";
+    }
+
+} else {
+    die "ERROR: unknown version of systemtap:\n$ver\n";
+}
+
+my $stap_src;
+
+if ($show_distr) {
+    # show queue length distribution
+
+    my $summary_code = <<_EOC_;
+    if (max_syn_qlen == 0) {
+        println("\\nNo new connections found yet.")
+
+    } else {
+        println("\\n=== SYN Queue ===")
+        printf("min/avg/max: %d/%d/%d\\n",
+               \@min(syn_qlen_stats), \@avg(syn_qlen_stats), \@max(syn_qlen_stats))
+        println(\@hist_log(syn_qlen_stats))
+
+        println("=== Accept Queue ===")
+        printf("min/avg/max: %d/%d/%d\\n",
+               \@min(acc_qlen_stats), \@avg(acc_qlen_stats), \@max(acc_qlen_stats))
+        println(\@hist_log(acc_qlen_stats))
+    }
+_EOC_
+
+    my $postamble = <<_EOC_;
+probe end {
+$summary_code
+}
+_EOC_
+
+    my $tip;
+    if (!defined $time) {
+        $tip = "Hit Ctrl-C to end."
+
+    } else {
+        $tip = "Sampling for $time seconds.";
+        $postamble .= <<_EOC_;
+probe timer.s($time) {
+    exit()
+}
+_EOC_
+    }
+
+    $stap_src = <<_EOC_;
+global syn_qlen_stats
+global acc_qlen_stats
+global max_syn_qlen
+global max_acc_qlen
+
+probe begin {
+    warn("Tracing SYN & accept queue length distribution on the listening port $port...\\n$tip\\n")
+}
+
+probe kernel.function("tcp_v4_conn_request") {
+    tcphdr = __get_skb_tcphdr(\$skb)
+    dport = __tcp_skb_dport(tcphdr)
+
+    if (dport == $port) {
+        syn_qlen = \@cast(\$sk, "struct inet_connection_sock")->icsk_accept_queue->listen_opt->qlen
+        syn_qlen_stats <<< syn_qlen
+
+        if (max_syn_qlen == 0) {
+            max_qlen_log = \@cast(\$sk, "struct inet_connection_sock")->icsk_accept_queue->listen_opt->max_qlen_log
+            max_syn_qlen = (2 << max_qlen_log)
+            printf("SYN queue length limit: %d\\n", max_syn_qlen)
+        }
+
+        acc_qlen_stats <<< \$sk->sk_ack_backlog
+
+        if (max_acc_qlen == 0) {
+            max_acc_qlen = \$sk->sk_max_ack_backlog
+            printf("Accept queue length limit: %d\\n", max_acc_qlen)
+        }
+    }
+}
+
+$postamble
+_EOC_
+
+} else {
+    # trace queue overflows
+
+    $stap_src = <<_EOC_;
+global count
+
+probe begin {
+    warn("Tracing SYN & accept queue overflows on the listening port $port...\\n")
+}
+
+probe kernel.function("tcp_v4_conn_request") {
+    tcphdr = __get_skb_tcphdr(\$skb)
+    dport = __tcp_skb_dport(tcphdr)
+
+    if (dport == $port) {
+        syn_qlen = \@cast(\$sk, "struct inet_connection_sock")->icsk_accept_queue->listen_opt->qlen
+        max_syn_qlen_log = \@cast(\$sk, "struct inet_connection_sock")->icsk_accept_queue->listen_opt->max_qlen_log
+        max_syn_qlen = (2 << max_syn_qlen_log)
+
+        if (syn_qlen > max_qlen) {
+            now = tz_ctime(gettimeofday_s())
+            printf("[%s] SYN queue is overflown: %d > %d\\n", now, syn_qlen, max_syn_qlen)
+            count++
+        }
+
+        //printf("syn queue: %d <= %d\\n", qlen, max_qlen)
+
+        ack_backlog = \$sk->sk_ack_backlog
+        max_ack_backlog = \$sk->sk_max_ack_backlog
+
+        if (ack_backlog > max_ack_backlog) {
+            now = tz_ctime(gettimeofday_s())
+            printf("[%s] accept queue is overflown: %d > %d\\n", now, ack_backlog, max_ack_backlog)
+            count++
+        }
+
+        //printf("accept queue: %d <= %d\\n", ack_backlog, max_ack_backlog)
+
+        if (count >= $limit) {
+            exit()
+        }
+    }
+}
+_EOC_
+}
+
+if ($dump_src) {
+    print $stap_src;
+    exit;
+}
+
+open my $in, "|stap --all-modules $stap_args -"
+    or die "Cannot run stap: $!\n";
+
+print $in $stap_src;
+
+close $in;
+
+sub usage {
+    return <<'_EOC_';
+Usage:
+    ngx-accept-queue [optoins]
+
+Options:
+    -a <args>           Pass extra arguments to the stap utility.
+    -d                  Dump out the systemtap script source.
+    --distr             Show queue length distribution only.
+    -h                  Print this usage.
+    --limit=<count>     Exit when <count> queue overflowing issues are found.
+                        (Default to 10)
+    --port=<port>       Specify the listening port to be analyzed.
+    --time=<seconds>    Time to wait before printing out the report and exiting
+                        (Only meaningful with --distr)
+
+Examples:
+    ngx-accept-queue --port 11211
+    ngx-accept-queue --port 6379 --limit 10 -a '-DMAXACTION=100000'
+_EOC_
+}

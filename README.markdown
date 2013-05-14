@@ -679,6 +679,100 @@ hit Ctrl-C to end sampling:
     4. pattern "b": 19us (total data size: 12)
     5. pattern "a": 9us (total data size: 12)
 
+ngx-accept-queue
+----------------
+
+This tool checks the SYN queue and accept queue for the sockets listening on the local port specified by the `--port` option. It can work on any server processes even it is not Nginx.
+
+SYN queue or accept queue overflowing often results in connecting timeout errors on the client side.
+
+By default, the tool prints out up to 10 queue overflow events and then quits immediately. For example:
+
+    $ ./ngx-accept-queue --port=80
+    WARNING: Tracing SYN & accept queue overflows on the listening port 80...
+    [Tue May 14 12:29:15 2013 PDT] accept queue is overflown: 129 > 128
+    [Tue May 14 12:29:15 2013 PDT] accept queue is overflown: 129 > 128
+    [Tue May 14 12:29:15 2013 PDT] accept queue is overflown: 129 > 128
+    [Tue May 14 12:29:15 2013 PDT] accept queue is overflown: 129 > 128
+    [Tue May 14 12:29:15 2013 PDT] accept queue is overflown: 129 > 128
+    [Tue May 14 12:29:15 2013 PDT] accept queue is overflown: 129 > 128
+    [Tue May 14 12:29:15 2013 PDT] accept queue is overflown: 129 > 128
+    [Tue May 14 12:29:15 2013 PDT] accept queue is overflown: 129 > 128
+    [Tue May 14 12:29:15 2013 PDT] accept queue is overflown: 129 > 128
+    [Tue May 14 12:29:15 2013 PDT] accept queue is overflown: 129 > 128
+
+You can specify the `--limit` option to control the maximal number of issues reported:
+
+    $ ./ngx-accept-queue --port=80 --limit=3
+    WARNING: Tracing SYN & accept queue overflows on the listening port 80...
+    [Tue May 14 12:29:25 2013 PDT] accept queue is overflown: 129 > 128
+    [Tue May 14 12:29:25 2013 PDT] accept queue is overflown: 129 > 128
+    [Tue May 14 12:29:25 2013 PDT] accept queue is overflown: 129 > 128
+
+Or just hit Ctrl-C to end.
+
+You can also specify the `--distr` option to make this tool just print out a histogram for the distribution
+of the queue lengths:
+
+    $ ./ngx-accept-queue --port=80 --distr
+    WARNING: Tracing SYN & accept queue length distribution on the listening port 80...
+    Hit Ctrl-C to end.
+    SYN queue length limit: 512
+    Accept queue length limit: 128
+    ^C
+    === SYN Queue ===
+    min/avg/max: 0/2/8
+    value |-------------------------------------------------- count
+        0 |@@@@@@@@@@@@@@@@@@@@@@@@@@                         106
+        1 |@@@@@@@@@@@@@@@                                     60
+        2 |@@@@@@@@@@@@@@@@@@@@@                               84
+        4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@       176
+        8 |@@                                                   9
+       16 |                                                     0
+       32 |                                                     0
+
+    === Accept Queue ===
+    min/avg/max: 0/93/129
+    value |-------------------------------------------------- count
+        0 |@@@@                                                20
+        1 |@@@                                                 16
+        2 |                                                     3
+        4 |@@                                                  11
+        8 |@@@@                                                23
+       16 |@@@                                                 16
+       32 |@@@@@@                                              33
+       64 |@@@@@@@@@@@@                                        63
+      128 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 250
+      256 |                                                     0
+      512 |                                                     0
+
+You need to hit Ctrl-C to make this tool print out the histgram when the `--distr` option is specified. Alternatively, you can specify the `--time` option to specify the exact number of seconds for real-time sampling:
+
+    $ ./ngx-accept-queue --port=80 --distr --time=3
+    WARNING: Tracing SYN & accept queue length distribution on the listening port 1984...
+    Sampling for 3 seconds.
+    SYN queue length limit: 512
+    Accept queue length limit: 128
+
+    === SYN Queue ===
+    min/avg/max: 6/7/10
+    value |-------------------------------------------------- count
+        1 |                                                    0
+        2 |                                                    0
+        4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@             76
+        8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@          82
+       16 |                                                    0
+       32 |                                                    0
+
+    === Accept Queue ===
+    min/avg/max: 128/128/129
+    value |-------------------------------------------------- count
+       32 |                                                     0
+       64 |                                                     0
+      128 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@            158
+      256 |                                                     0
+      512 |                                                     0
+
 Community
 =========
 
