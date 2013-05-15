@@ -14,7 +14,8 @@ GetOptions("a=s",       \(my $stap_args),
            "h",         \(my $help),
            "limit=i",   \(my $limit),
            "port=i",    \(my $port),
-           "time=i",    \(my $time))
+           "time=i",    \(my $time),
+           "latency",   \(my $check_latency))
     or die usage();
 
 if ($help) {
@@ -130,6 +131,76 @@ probe kernel.function("tcp_v4_conn_request") {
 $postamble
 _EOC_
 
+} elsif ($check_latency) {
+
+    my $summary_code = <<_EOC_;
+    if (!found) {
+        println("\\nNo new connections found yet.")
+
+    } else {
+        println("\\n=== Queueing Latency Distribution (microsends) ===")
+        printf("min/avg/max: %d/%d/%d\\n",
+               \@min(latency_stats), \@avg(latency_stats), \@max(latency_stats))
+        println(\@hist_log(latency_stats))
+    }
+_EOC_
+
+    my $postamble = <<_EOC_;
+probe end {
+$summary_code
+}
+_EOC_
+
+    my $tip;
+    if (!defined $time) {
+        $tip = "Hit Ctrl-C to end."
+
+    } else {
+        $tip = "Sampling for $time seconds.";
+        $postamble .= <<_EOC_;
+probe timer.s($time) {
+    exit()
+}
+_EOC_
+    }
+
+    $stap_src = <<_EOC_;
+global begin_times
+global latency_stats
+global found
+
+probe begin {
+    warn("Tracing accept queueing latency on the listening port $port...\\n$tip\\n")
+}
+
+probe kernel.function("tcp_openreq_init") {
+    tcphdr = __get_skb_tcphdr(\$skb)
+    dport = __tcp_skb_dport(tcphdr)
+
+    if (dport == $port) {
+        begin_times[\$req] = gettimeofday_us()
+        //printf("tcp openreq init: %p %d\\n", \$req, dport)
+    }
+}
+
+probe kernel.function("inet_csk_accept") {
+    req = \@cast(\$sk, "struct inet_connection_sock")->icsk_accept_queue->rskq_accept_head
+    begin = begin_times[req]
+    if (begin) {
+        elapsed = gettimeofday_us() - begin
+        /*
+        printf("inet csk accept: sk=%p, req=%p, latency=%d\\n", \$sk, req,
+               elapsed)
+        */
+        latency_stats <<< elapsed
+        delete begin_times[req]
+        found = 1
+    }
+}
+
+$postamble
+_EOC_
+
 } else {
     # trace queue overflows
 
@@ -149,7 +220,7 @@ probe kernel.function("tcp_v4_conn_request") {
         max_syn_qlen_log = \@cast(\$sk, "struct inet_connection_sock")->icsk_accept_queue->listen_opt->max_qlen_log
         max_syn_qlen = (2 << max_syn_qlen_log)
 
-        if (syn_qlen > max_qlen) {
+        if (syn_qlen > max_syn_qlen) {
             now = tz_ctime(gettimeofday_s())
             printf("[%s] SYN queue is overflown: %d > %d\\n", now, syn_qlen, max_syn_qlen)
             count++
