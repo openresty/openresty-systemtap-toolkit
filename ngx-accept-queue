@@ -102,7 +102,7 @@ global max_syn_qlen
 global max_acc_qlen
 
 probe begin {
-    warn("Tracing SYN & accept queue length distribution on the listening port $port...\\n$tip\\n")
+    warn("Tracing SYN & ACK backlog queue length distribution on the listening port $port...\\n$tip\\n")
 }
 
 probe kernel.function("tcp_v4_conn_request") {
@@ -138,7 +138,7 @@ _EOC_
         println("\\nNo new connections found yet.")
 
     } else {
-        println("\\n=== Queueing Latency Distribution (microsends) ===")
+        println("\\n=== Accept Queueing Latency Distribution (microsends) ===")
         printf("min/avg/max: %d/%d/%d\\n",
                \@min(latency_stats), \@avg(latency_stats), \@max(latency_stats))
         println(\@hist_log(latency_stats))
@@ -208,7 +208,7 @@ _EOC_
 global count
 
 probe begin {
-    warn("Tracing SYN & accept queue overflows on the listening port $port...\\n")
+    warn("Tracing SYN & ACK backlog queue overflows on the listening port $port...\\n")
 }
 
 probe kernel.function("tcp_v4_conn_request") {
@@ -233,11 +233,11 @@ probe kernel.function("tcp_v4_conn_request") {
 
         if (ack_backlog > max_ack_backlog) {
             now = tz_ctime(gettimeofday_s())
-            printf("[%s] accept queue is overflown: %d > %d\\n", now, ack_backlog, max_ack_backlog)
+            printf("[%s] ACK backlog queue is overflown: %d > %d\\n", now, ack_backlog, max_ack_backlog)
             count++
         }
 
-        //printf("accept queue: %d <= %d\\n", ack_backlog, max_ack_backlog)
+        //printf("ACK backlog queue: %d <= %d\\n", ack_backlog, max_ack_backlog)
 
         if (count >= $limit) {
             exit()

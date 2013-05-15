@@ -682,32 +682,32 @@ hit Ctrl-C to end sampling:
 ngx-accept-queue
 ----------------
 
-This tool checks the SYN queue and accept queue for the sockets listening on the local port specified by the `--port` option. It can work on any server processes even it is not Nginx.
+This tool checks the SYN queue and ACK backlog queue for the sockets listening on the local port specified by the `--port` option. It can work on any server processes even it is not Nginx.
 
-SYN queue or accept queue overflowing often results in connecting timeout errors on the client side.
+SYN queue or ACK backlog queue overflowing often results in connecting timeout errors on the client side.
 
 By default, the tool prints out up to 10 queue overflow events and then quits immediately. For example:
 
     $ ./ngx-accept-queue --port=80
-    WARNING: Tracing SYN & accept queue overflows on the listening port 80...
-    [Tue May 14 12:29:15 2013 PDT] accept queue is overflown: 129 > 128
-    [Tue May 14 12:29:15 2013 PDT] accept queue is overflown: 129 > 128
-    [Tue May 14 12:29:15 2013 PDT] accept queue is overflown: 129 > 128
-    [Tue May 14 12:29:15 2013 PDT] accept queue is overflown: 129 > 128
-    [Tue May 14 12:29:15 2013 PDT] accept queue is overflown: 129 > 128
-    [Tue May 14 12:29:15 2013 PDT] accept queue is overflown: 129 > 128
-    [Tue May 14 12:29:15 2013 PDT] accept queue is overflown: 129 > 128
-    [Tue May 14 12:29:15 2013 PDT] accept queue is overflown: 129 > 128
-    [Tue May 14 12:29:15 2013 PDT] accept queue is overflown: 129 > 128
-    [Tue May 14 12:29:15 2013 PDT] accept queue is overflown: 129 > 128
+    WARNING: Tracing SYN & ACK backlog queue overflows on the listening port 80...
+    [Tue May 14 12:29:15 2013 PDT] ACK backlog queue is overflown: 129 > 128
+    [Tue May 14 12:29:15 2013 PDT] ACK backlog queue is overflown: 129 > 128
+    [Tue May 14 12:29:15 2013 PDT] ACK backlog queue is overflown: 129 > 128
+    [Tue May 14 12:29:15 2013 PDT] ACK backlog queue is overflown: 129 > 128
+    [Tue May 14 12:29:15 2013 PDT] ACK backlog queue is overflown: 129 > 128
+    [Tue May 14 12:29:15 2013 PDT] ACK backlog queue is overflown: 129 > 128
+    [Tue May 14 12:29:15 2013 PDT] ACK backlog queue is overflown: 129 > 128
+    [Tue May 14 12:29:15 2013 PDT] ACK backlog queue is overflown: 129 > 128
+    [Tue May 14 12:29:15 2013 PDT] ACK backlog queue is overflown: 129 > 128
+    [Tue May 14 12:29:15 2013 PDT] ACK backlog queue is overflown: 129 > 128
 
 You can specify the `--limit` option to control the maximal number of issues reported:
 
     $ ./ngx-accept-queue --port=80 --limit=3
-    WARNING: Tracing SYN & accept queue overflows on the listening port 80...
-    [Tue May 14 12:29:25 2013 PDT] accept queue is overflown: 129 > 128
-    [Tue May 14 12:29:25 2013 PDT] accept queue is overflown: 129 > 128
-    [Tue May 14 12:29:25 2013 PDT] accept queue is overflown: 129 > 128
+    WARNING: Tracing SYN & ACK backlog queue overflows on the listening port 80...
+    [Tue May 14 12:29:25 2013 PDT] ACK backlog queue is overflown: 129 > 128
+    [Tue May 14 12:29:25 2013 PDT] ACK backlog queue is overflown: 129 > 128
+    [Tue May 14 12:29:25 2013 PDT] ACK backlog queue is overflown: 129 > 128
 
 Or just hit Ctrl-C to end.
 
@@ -715,7 +715,7 @@ You can also specify the `--distr` option to make this tool just print out a his
 of the queue lengths:
 
     $ ./ngx-accept-queue --port=80 --distr
-    WARNING: Tracing SYN & accept queue length distribution on the listening port 80...
+    WARNING: Tracing SYN & ACK backlog queue length distribution on the listening port 80...
     Hit Ctrl-C to end.
     SYN queue length limit: 512
     Accept queue length limit: 128
@@ -749,7 +749,7 @@ of the queue lengths:
 You need to hit Ctrl-C to make this tool print out the histgram when the `--distr` option is specified. Alternatively, you can specify the `--time` option to specify the exact number of seconds for real-time sampling:
 
     $ ./ngx-accept-queue --port=80 --distr --time=3
-    WARNING: Tracing SYN & accept queue length distribution on the listening port 1984...
+    WARNING: Tracing SYN & ACK backlog queue length distribution on the listening port 80...
     Sampling for 3 seconds.
     SYN queue length limit: 512
     Accept queue length limit: 128
@@ -772,6 +772,51 @@ You need to hit Ctrl-C to make this tool print out the histgram when the `--dist
       128 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@            158
       256 |                                                     0
       512 |                                                     0
+
+Even though the accept queue is not overflowing, long latency involved in accept queueing can also lead to client connecting timeout. The `--latency` option can be specified to analyze the accept queueing latency for a given listening port:
+
+    $ ./ngx-accept-queue -port=80 --latency
+    WARNING: Tracing accept queueing latency on the listening port 80...
+    Hit Ctrl-C to end.
+    ^C
+    === Queueing Latency Distribution (microsends) ===
+    min/avg/max: 28/3281400/3619393
+      value |-------------------------------------------------- count
+          4 |                                                     0
+          8 |                                                     0
+         16 |                                                     1
+         32 |@                                                   12
+         64 |                                                     6
+        128 |                                                     2
+        256 |                                                     0
+        512 |                                                     0
+            ~
+       8192 |                                                     0
+      16384 |                                                     0
+      32768 |                                                     2
+      65536 |                                                     0
+     131072 |                                                     0
+     262144 |                                                     0
+     524288 |                                                     7
+    1048576 |@@                                                  28
+    2097152 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@     516
+    4194304 |                                                     0
+    8388608 |                                                     0
+
+The `--time` option can also be specified to control the sampling time in seconds:
+
+    $ ./ngx-accept-queue --port=80 --latency --time=5
+    WARNING: Tracing accept queueing latency on the listening port 80...
+    Sampling for 5 seconds.
+
+    === Accept Queueing Latency Distribution (microsends) ===
+    min/avg/max: 3604825/3618651/3639329
+      value |-------------------------------------------------- count
+     524288 |                                                    0
+    1048576 |                                                    0
+    2097152 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@              37
+    4194304 |                                                    0
+    8388608 |                                                    0
 
 Community
 =========
