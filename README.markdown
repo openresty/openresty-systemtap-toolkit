@@ -607,6 +607,8 @@ This tool requires uretprobes support in the Linux kernel.
 Also, you need to ensure that debug symbols are enabled in your
 Nginx build, PCRE build, and LuaJIT build.
 
+Below is an example that analyzes the PCRE regex executation time distribution for a given Nginx worker process. Note that, the time is given in microseconds (`us`), i.e., 1e-6 seconds. The `--exec-time-dist` option is used here.
+
     $ ./ngx-pcre-stats -p 24528 --exec-time-dist
     Tracing 24528 (/opt/nginx/sbin/nginx)...
     Hit Ctrl-C to end.
@@ -622,6 +624,8 @@ Nginx build, PCRE build, and LuaJIT build.
        64 |                                                     114
       128 |                                                       0
       256 |                                                       0
+
+Also, you can specify the `--data-len-dist` option to analyze the distribution of the length of those subject string data being matched in individual runs.
 
     $ ./ngx-pcre-stats -p 24528 --data-len-dist
     Tracing 24528 (/opt/nginx/sbin/nginx)...
@@ -642,6 +646,8 @@ Nginx build, PCRE build, and LuaJIT build.
      8192 |                                                       0
     16384 |                                                       0
 
+The `--worst-time-top` option can be specified to analyze the worst execution time of the individual regex matches using the ngx_lua module's [ngx.re API](http://wiki.nginx.org/HttpLuaModule#ngx.re.match):
+
     $ ./ngx-pcre-stats -p 24528 --worst-time-top --luajit20
     Tracing 24528 (/opt/nginx/sbin/nginx)...
     Hit Ctrl-C to end.
@@ -652,6 +658,10 @@ Nginx build, PCRE build, and LuaJIT build.
     3. pattern "a": 64us (data size: 12)
     4. pattern "b": 29us (data size: 12)
     5. pattern "ello": 26us (data size: 5)
+
+Note that the time values given above are just for individual runs and are not accumulated.
+
+And the `--total-time-top` option is similar to `--worst-time-top`, but using accumulated regex execution time.
 
     $ ./ngx-pcre-stats -p 24528 --total-time-top --luajit20
     Tracing 24528 (/opt/nginx/sbin/nginx)...
