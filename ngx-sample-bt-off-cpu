@@ -1,5 +1,10 @@
 #!/usr/bin/env perl
 
+# Copyright (C) Yichun Zhang (agentzh)
+
+# Thanks Brendan Gregg for the inspiration given here:
+#   http://dtrace.org/blogs/brendan/2011/07/08/off-cpu-performance-analysis/
+
 use 5.006001;
 use strict;
 use warnings;

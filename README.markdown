@@ -531,7 +531,11 @@ ngx-sample-bt-off-cpu
 
 Similar to `ngx-sample-bt` but analyzes the off-CPU time for a particular Nginx (worker) process.
 
-Here is an example:
+Why does off-CPU time matter? Check out Brendan Gregg's excellent blog post "Off-CPU Performance Analysis" for details:
+
+http://dtrace.org/blogs/brendan/2011/07/08/off-cpu-performance-analysis/
+
+Here is an example to demonstrate this tool's usage:
 
     # assuming the nginx worker process to be analyzed is 10901.
     $ ./ngx-sample-bt-off-cpu -p 10901 -t 5 > a.bt
