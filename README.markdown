@@ -526,10 +526,65 @@ If the standard Lua 5.1 interpreter is used instead, specify the --lua51 option:
     [tail]
     content_by_lua:1
 
+ngx-sample-bt-off-cpu
+---------------------
+
+Similar to `ngx-sample-bt` but analyzes the off-CPU time for a particular Nginx (worker) process.
+
+Here is an example:
+
+    # assuming the nginx worker process to be analyzed is 10901.
+    $ ./ngx-sample-bt-off-cpu -p 10901 -t 5 > a.bt
+    WARNING: Tracing 10901 (/opt/nginx/sbin/nginx)...
+    WARNING: _stp_read_address failed to access memory location
+    WARNING: Time's up. Quitting now...(it may take a while)
+    WARNING: Number of errors: 0, skipped probes: 23
+
+where the `-t 5` option makes the tool sample for 5 seconds.
+
+The resulting `a.bt` file can be used to render Flame Graphs just as with `ngx-sample-bt` and its other friends. And this type of flamegraphs can be called "off-CPU Flame Graphs" while the classic flamegraphs are essentially "on-CPU Flame Graphs".
+
+Below is such a "off-CPU flamegraph" for a loaded Nginx worker process accessing MySQL with the lua-resty-mysql library:
+
+http://agentzh.org/misc/flamegraph/off-cpu-lua-resty-mysql.svg
+
+By default, off-CPU time intervals shorter than 4 us (microseconds) are discarded. You can control this threshold via the `--min` option, as in
+
+    $ ./ngx-sample-bt-off-cpu -p 12345 --min 10 -t 10
+
+where we ignore off-CPU time intervals shorter than 10 us and sample the user process with the pid 12345 for total 10 seconds.
+
+The `-l` option can be control the upper limit of different backtraces to be outputed. By default, the hottest 1024 different backtraces are dumped.
+
+The `--distr` option can be specified to print out a base-2 logarithmic histogram for all the off-CPU time intervals (larger than the threshold specified by the `--min` option). For example,
+
+    $ ./ngx-sample-bt-off-cpu -p 10901 -t 3 --distr --min=1
+    WARNING: Tracing 10901 (/opt/nginx/sbin/nginx)...
+    Exiting...Please wait...
+    === Off-CPU time distribution (in us) ===
+    min/avg/max: 2/79/1739
+    value |-------------------------------------------------- count
+        0 |                                                     0
+        1 |                                                     0
+        2 |@                                                   10
+        4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@        259
+        8 |@@@@@@@                                             44
+       16 |@@@@@@@@@@                                          62
+       32 |@@@@@@@@@@@@@                                       79
+       64 |@@@@@@@                                             43
+      128 |@@@@@                                               31
+      256 |@@@                                                 22
+      512 |@@@                                                 22
+     1024 |                                                     4
+     2048 |                                                     0
+     4096 |                                                     0
+
+Here we can see that most of the samples (for total 259 samples) fall in the off-CPU time interval range `[4us, 8us)`. And the largest off-CPU time interval is 1739us, i.e., 1.739ms.
+
 ngx-sample-bt-vfs
 -----------------
 
-Similar to ngx-sample-bt but samples the userspace backtraces on the Virtual File System (VFS) level for rendering File I/O Flame Graphs, which can show exactly how file I/O data volumn or file I/O latency is distributed among different userspace code paths within any running user process.
+Similar to `ngx-sample-bt` but samples the userspace backtraces on the Virtual File System (VFS) level for rendering File I/O Flame Graphs, which can show exactly how file I/O data volumn or file I/O latency is distributed among different userspace code paths within any running user process.
 
 By default, 1 sample of backtrace corresponds of 1 byte of data volumn (read or written). And by default, both `vfs_read` and `vfs_write` are tracked. For example,
 
