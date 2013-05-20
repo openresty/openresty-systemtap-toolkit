@@ -125,8 +125,6 @@ if ($readonly) {
 
 my $return_probes = join ", ", map { "$_.return" } @probes;
 
-# TODO: check latency mode
-
 my $stap_src;
 if ($check_latency) {
     # analyze I/O latency
