@@ -529,7 +529,7 @@ If the standard Lua 5.1 interpreter is used instead, specify the --lua51 option:
 ngx-sample-bt-off-cpu
 ---------------------
 
-Similar to `ngx-sample-bt` but analyzes the off-CPU time for a particular Nginx (worker) process.
+Similar to `ngx-sample-bt` but analyzes the off-CPU time for a particular user process (not only Nginx, but any other applications).
 
 Why does off-CPU time matter? Check out Brendan Gregg's excellent blog post "Off-CPU Performance Analysis" for details:
 
