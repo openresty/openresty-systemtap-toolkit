@@ -529,7 +529,7 @@ If the standard Lua 5.1 interpreter is used instead, specify the --lua51 option:
 ngx-sample-bt-off-cpu
 ---------------------
 
-Similar to `ngx-sample-bt` but analyzes the off-CPU time for a particular user process (not only Nginx, but any other applications).
+Similar to `ngx-sample-bt` but analyzes the off-CPU time for a particular user process (not only Nginx, but also any other applications).
 
 Why does off-CPU time matter? Check out Brendan Gregg's excellent blog post "Off-CPU Performance Analysis" for details:
 
@@ -586,6 +586,8 @@ The `--distr` option can be specified to print out a base-2 logarithmic histogra
      4096 |                                                     0
 
 Here we can see that most of the samples (for total 259 samples) fall in the off-CPU time interval range `[4us, 8us)`. And the largest off-CPU time interval is 1739us, i.e., 1.739ms.
+
+You can specify the `-k` option to sample the kernel space backtraces instead of sampling userland backtraces. If you want to sample both the userland and kernelspace, then you can specify both the `-k` and `-u` options.
 
 ngx-sample-bt-vfs
 -----------------

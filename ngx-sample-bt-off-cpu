@@ -15,10 +15,12 @@ GetOptions("a=s",       \(my $stap_args),
            "d",         \(my $dump_src),
            "distr",     \(my $check_distr),
            "h",         \(my $help),
+           "k",         \(my $check_kernel),
            "l=i",       \(my $limit),
            "min=i",     \(my $min_elapsed),
            "p=i",       \(my $pid),
-           "t=i",       \(my $time))
+           "t=i",       \(my $time),
+           "u",         \(my $check_user))
     or die usage();
 
 if ($help) {
@@ -95,6 +97,7 @@ if ($ver =~ /version\s+(\d+\.\d+)/i) {
 
 my $preamble = <<_EOC_;
 global quit = 0;
+global found
 
 probe begin {
     warn(sprintf("Tracing %d ($nginx_path)...\\n", target()))
@@ -103,13 +106,8 @@ _EOC_
 
 my $postamble = <<_EOC_;
 probe timer.s($time) {
-    nstacks = 0
-    foreach (bt in bts limit 10) {
-        nstacks++
-    }
-
-    if (nstacks == 0) {
-        warn(sprintf("Too few backtraces (%d) found. Quitting now...\\n", nstacks))
+    if (!found) {
+        warn("No backtraces found. Quitting now...\\n")
         exit()
 
     } else {
@@ -125,7 +123,6 @@ if ($check_distr) {
     $stap_src = <<_EOC_;
 global start_time
 global elapsed_times
-global found
 
 $preamble
 
@@ -155,9 +152,9 @@ probe scheduler.cpu_off {
 probe scheduler.cpu_on {
     if ($condition && start_time > 0) {
         if (!quit) {
-            found = 1
             elapsed = gettimeofday_us() - start_time
             if (elapsed >= $min_elapsed) {
+                found = 1
                 elapsed_times <<< elapsed
             }
             start_time = 0
@@ -173,8 +170,42 @@ _EOC_
 
 } else {
     # for sampling backtraces
+
+    my ($gen_bt_code, $print_bt_code);
+
+    if ($check_kernel) {
+        if ($check_user) {
+            $gen_bt_code = "backtrace(), ubacktrace()";
+            $print_bt_code = <<_EOC_;
+            foreach ([kbt, ubt] in bts- limit $limit) {
+                print_stack(kbt)
+                print_ustack(ubt)
+                printf("\\t%d\\n", \@sum(bts[kbt, ubt]))
+            }
+_EOC_
+
+        } else {
+            $gen_bt_code = "backtrace()";
+            $print_bt_code = <<_EOC_;
+            foreach (bt in bts- limit $limit) {
+                print_stack(bt)
+                printf("\\t%d\\n", \@sum(bts[bt]))
+            }
+_EOC_
+        }
+
+    } else {
+        $gen_bt_code = "ubacktrace()";
+        $print_bt_code = <<_EOC_;
+            foreach (bt in bts- limit $limit) {
+                print_ustack(bt)
+                printf("\\t%d\\n", \@sum(bts[bt]))
+            }
+_EOC_
+    }
+
     $stap_src = <<_EOC_;
-global bts;
+global bts
 global start_time
 
 $preamble
@@ -185,11 +216,7 @@ probe scheduler.cpu_off {
             start_time = gettimeofday_us()
 
         } else {
-            foreach (bt in bts- limit $limit) {
-                print_ustack(bt)
-                printf("\\t%d\\n", \@sum(bts[bt]))
-            }
-
+$print_bt_code
             exit()
         }
     }
@@ -199,7 +226,8 @@ probe scheduler.cpu_on {
     if ($condition && start_time > 0) {
         elapsed = gettimeofday_us() - start_time
         if (elapsed >= $min_elapsed) {
-            bts[ubacktrace()] <<< elapsed
+            bts[$gen_bt_code] <<< elapsed
+            found = 1
         }
         start_time = 0
     }
@@ -231,12 +259,14 @@ Options:
     -d                  Dump out the systemtap script source.
     --distr             Analyze the distribution of the elapsed off-CPU times only.
     -h                  Print this usage.
+    -k                  Analyze kernelspace backtraces.
     -l <count>          Only output <count> most frenquent backtrace samples.
                         (Default to 1024)
     --min=<us>          Minimal elapsed off-CPU time to be tracked.
                         (Default to 4us)
     -p <pid>            Specify the user process pid.
     -t <seconds>        Specify the number of seconds for sampling.
+    -u                  Analyze userspace backtraces.
 
 Examples:
     ngx-sample-bt-off-cpu -p 12345 -t 10
