@@ -535,6 +535,8 @@ Why does off-CPU time matter? Check out Brendan Gregg's excellent blog post "Off
 
 http://dtrace.org/blogs/brendan/2011/07/08/off-cpu-performance-analysis/
 
+By default, this tool samples the userspace backtraces. And 1 (logical) sample of backtraces in the output corresponds to 1 microsecond of off-CPU time.
+
 Here is an example to demonstrate this tool's usage:
 
     # assuming the nginx worker process to be analyzed is 10901.
