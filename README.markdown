@@ -898,8 +898,8 @@ This tool can analyze the queueing latency involved in the TCP receive queue.
 
 The queueing latency defined here is the delay between the following two events:
 
-1. The first packet enteres the TCP receive queue since the last userland recvmsg() syscalls (and the like).
-2. The next userland recvmsg() syscall (and the like) that consumes the TCP receive queue.
+1. The first packet enteres the TCP receive queue since the last recvmsg() syscalls (and the like) initiated on the userland.
+2. The next recvmsg() syscall (and the like) that consumes the TCP receive queue.
 
 Large receive queueing lantencies often mean the user process is just too busy to consume the incoming requests, probably leading to timeout errors on the client side.
 
