@@ -211,7 +211,7 @@ close $in;
 sub usage {
     return <<'_EOC_';
 Usage:
-    ngx-sample-bt [optoins]
+    ngx-sample-bt-vfs [optoins]
 
 Options:
     -a <args>           Pass extra arguments to the stap utility.
@@ -227,7 +227,7 @@ Options:
     -t <seconds>        Specify the number of seconds for sampling.
 
 Examples:
-    ngx-sample-bt -p 12345 -t 10
-    ngx-sample-bt -p 12345 -t 5 -a '-DMAXACTION=100000'
+    ngx-sample-bt-vfs -p 12345 -t 10
+    ngx-sample-bt-vfs -p 12345 -t 5 -a '-DMAXACTION=100000'
 _EOC_
 }

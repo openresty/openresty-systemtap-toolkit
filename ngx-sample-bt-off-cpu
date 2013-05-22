@@ -252,7 +252,7 @@ close $in;
 sub usage {
     return <<'_EOC_';
 Usage:
-    ngx-sample-bt [optoins]
+    ngx-sample-bt-off-cpu [optoins]
 
 Options:
     -a <args>           Pass extra arguments to the stap utility.
