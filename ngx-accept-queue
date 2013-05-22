@@ -1,5 +1,7 @@
 #!/usr/bin/env perl
 
+# Copyright (C) Yichun Zhang (agentzh)
+
 # Based on the systemtap script first shown by chaoslawful.
 
 use 5.006001;
