@@ -891,6 +891,8 @@ The `--time` option can also be specified to control the sampling time in second
     4194304 |                                                    0
     8388608 |                                                    0
 
+This tool requires a Linux kernel compiled by gcc 4.5+ (preferrably gcc 4.7+) because gcc versions older than 4.5 generated incomplete DWARF debug info for C inlined functions. It is also recommended to enable DWARF format version 3 or above when compiling the kernel (by passing the `-gdwarf-3` or `-gdwarf-4` option to the `gcc` command line).
+
 ngx-recv-queue
 --------------
 
@@ -955,7 +957,9 @@ You can also specify the exact sampling time interval (in seconds) via the `--ti
     16384 |                                                       0
     32768 |                                                       0
 
-Successfully tested on Linux kernel 3.7 and should work for 3.8 ~ 3.10 as well.
+Successfully tested on Linux kernel 3.7 and should work for other versions of kernel as well.
+
+This tool requires a Linux kernel compiled by gcc 4.5+ (preferrably gcc 4.7+) because gcc versions older than 4.5 generated incomplete DWARF debug info for C inlined functions. It is also recommended to enable DWARF format version 3 or above when compiling the kernel (by passing the `-gdwarf-3` or `-gdwarf-4` option to the `gcc` command line).
 
 Community
 =========
