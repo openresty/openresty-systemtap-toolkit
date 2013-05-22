@@ -91,16 +91,24 @@ probe begin {
 
 /* TODO: take into account the TCP out_of_order queue (i.e., tcp_ofo_queue). */
 
-probe kernel.function("tcp_queue_rcv") {
+probe kernel.function("tcp_queue_rcv")!,
+      kernel.function("tcp_data_queue")
+{
     tcphdr = __get_skb_tcphdr(\$skb)
     dport = __tcp_skb_dport(tcphdr)
-    //sport = __tcp_skb_sport(tcphdr)
+    sport = __tcp_skb_sport(tcphdr)
 
-    if (dport == $dport && start_times[\$sk] == 0) {
+    if (dport == $dport && start_times[\$sk, sport] == 0) {
         //printf("tcp_queue_rcv: queue=%p sk=%p sport=%d\\n",
                //&\$sk->sk_receive_queue, \$sk, sport)
         if (\$skb->len > 0) {
-            start_times[\$sk] = gettimeofday_us()
+            //println("probe func: ", probefunc())
+            if (\@cast(\$skb->cb, "tcp_skb_cb")->seq != \@cast(\$skb->cb, "tcp_skb_cb")->end_seq) {
+                start_times[\$sk, sport] = gettimeofday_us()
+
+            } else {
+                //println("found seq == end_seq")
+            }
         }
     }
 }
@@ -114,13 +122,13 @@ probe kernel.function("tcp_recvmsg"), kernel.function("tcp_recv_skb") {
         dport = __tcp_skb_dport(tcphdr)
 
         if (dport == $dport) {
-            //sport = __tcp_skb_sport(tcphdr)
-            begin = start_times[\$sk]
+            sport = __tcp_skb_sport(tcphdr)
+            begin = start_times[\$sk, sport]
             if (begin > 0) {
                 //printf("tcp recvmsg: port=$dport sk=%p\\n", \$sk)
                 latency_stats <<< (gettimeofday_us() - begin)
                 found = 1
-                delete start_times[\$sk]
+                delete start_times[\$sk, sport]
             }
         }
     }
@@ -135,8 +143,8 @@ probe kernel.function("tcp_close"), kernel.function("tcp_disconnect") {
         dport = __tcp_skb_dport(tcphdr)
 
         if (dport == $dport) {
-            //sport = __tcp_skb_sport(tcphdr)
-            delete start_times[\$sk]
+            sport = __tcp_skb_sport(tcphdr)
+            delete start_times[\$sk, sport]
         }
     }
 }
