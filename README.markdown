@@ -891,6 +891,72 @@ The `--time` option can also be specified to control the sampling time in second
     4194304 |                                                    0
     8388608 |                                                    0
 
+ngx-recv-queue
+--------------
+
+This tool can analyze the queueing latency involved in the TCP receive queue.
+
+The queueing latency defined here is the delay between the following two events:
+
+1. The first packet enteres the TCP receive queue since the last userland recvmsg() syscalls (and the like).
+2. The next userland recvmsg() syscall (and the like) that consumes the TCP receive queue.
+
+Large receive queueing lantencies often mean the user process is just too busy to consume the incoming requests, probably leading to timeout errors on the client side.
+
+Zero-length data packets in the TCP receive queue (i.e., the FIN packets) are ignored by this tool.
+
+You are only required to specify the destination port number for the receiving packets via the `--dport` option.
+
+Here is an example for analyzing the MySQL server listening on the 3306 port:
+
+    $ ./ngx-recv-queue --dport=3306
+    WARNING: Tracing the TCP receive queues for packets to the port 3306...
+    Hit Ctrl-C to end.
+    ^C
+    === Distribution of First-In-First-Out Latency (us) in TCP Receive Queue ===
+    min/avg/max: 1/2/42
+    value |-------------------------------------------------- count
+        0 |                                                       0
+        1 |@@@@@@@@@@@@@@                                     20461
+        2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@  69795
+        4 |@@@@                                                6187
+        8 |@@                                                  3421
+       16 |                                                     178
+       32 |                                                       8
+       64 |                                                       0
+      128 |                                                       0
+
+We can see that most of the latency times fall into the interval `[2us, 4us)`. And the worst latency is 42us.
+
+You can also specify the exact sampling time interval (in seconds) via the `--time` option. For example, to analyze the Nginx server listening on the port 8080 for 5 seconds:
+
+    $ ./ngx-recv-queue --dport=1984 --time=5
+    WARNING: Tracing the TCP receive queues for packets to the port 1984...
+    Sampling for 5 seconds.
+
+    === Distribution of First-In-First-Out Latency (us) in TCP Receive Queue ===
+    min/avg/max: 1/1401/12761
+    value |-------------------------------------------------- count
+        0 |                                                       0
+        1 |                                                       1
+        2 |                                                       1
+        4 |                                                       5
+        8 |                                                     152
+       16 |@@                                                  1610
+       32 |                                                      35
+       64 |@@@                                                 2485
+      128 |@@@@@@                                              4056
+      256 |@@@@@@@@@@@@                                        7853
+      512 |@@@@@@@@@@@@@@@@@@@@@@@@                           15153
+     1024 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@  31424
+     2048 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@                   20454
+     4096 |@                                                    862
+     8192 |                                                      19
+    16384 |                                                       0
+    32768 |                                                       0
+
+Successfully tested on Linux kernel 3.7 and should work for 3.8 ~ 3.10 as well.
+
 Community
 =========
 

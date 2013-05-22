@@ -1,0 +1,176 @@
+#!/usr/bin/env perl
+
+# Copyright (C) Yichun Zhang (agentzh)
+
+use 5.006001;
+use strict;
+use warnings;
+
+use Getopt::Long qw( GetOptions );
+
+GetOptions("a=s",       \(my $stap_args),
+           "d",         \(my $dump_src),
+           "h",         \(my $help),
+           "dport=i",   \(my $dport),
+           "time=i",    \(my $time))
+    or die usage();
+
+if ($help) {
+    print usage();
+    exit;
+}
+
+if (!defined $dport) {
+    die "No destination port specified by the --dport option.\n";
+}
+
+if (!defined $stap_args) {
+    $stap_args = '';
+}
+
+if ($stap_args !~ /\b-D\s*MAXACTION=/) {
+    $stap_args .= " -DMAXACTION=100000";
+}
+
+my $ver = `stap --version 2>&1`;
+if (!defined $ver) {
+    die "Systemtap not installed or its \"stap\" utility is not visible to the PATH environment: $!\n";
+}
+
+if ($ver =~ /version\s+(\d+\.\d+)/i) {
+    my $v = $1;
+    if ($v < 2.1) {
+        die "ERROR: at least systemtap 2.1 is required but found $v\n";
+    }
+
+} else {
+    die "ERROR: unknown version of systemtap:\n$ver\n";
+}
+
+my $stap_src;
+
+my $summary_code = <<_EOC_;
+    if (!found) {
+        println("\\nNo queued received packets found yet.")
+
+    } else {
+        println("\\n=== Distribution of First-In-First-Out Latency (us) in TCP Receive Queue ===")
+        printf("min/avg/max: %d/%d/%d\\n",
+               \@min(latency_stats), \@avg(latency_stats), \@max(latency_stats))
+        println(\@hist_log(latency_stats))
+    }
+_EOC_
+
+my $postamble = <<_EOC_;
+probe end {
+$summary_code
+}
+_EOC_
+
+my $tip;
+if (!defined $time) {
+    $tip = "Hit Ctrl-C to end."
+
+} else {
+    $tip = "Sampling for $time seconds.";
+    $postamble .= <<_EOC_;
+probe timer.s($time) {
+    exit()
+}
+_EOC_
+}
+
+$stap_src = <<_EOC_;
+global latency_stats
+global start_times
+global found
+
+probe begin {
+    warn("Tracing the TCP receive queues for packets to the port $dport...\\n$tip\\n")
+}
+
+/* TODO: take into account the TCP out_of_order queue (i.e., tcp_ofo_queue). */
+
+probe kernel.function("tcp_queue_rcv") {
+    tcphdr = __get_skb_tcphdr(\$skb)
+    dport = __tcp_skb_dport(tcphdr)
+    //sport = __tcp_skb_sport(tcphdr)
+
+    if (dport == $dport && start_times[\$sk] == 0) {
+        //printf("tcp_queue_rcv: queue=%p sk=%p sport=%d\\n",
+               //&\$sk->sk_receive_queue, \$sk, sport)
+        if (\$skb->len > 0) {
+            start_times[\$sk] = gettimeofday_us()
+        }
+    }
+}
+
+probe kernel.function("tcp_recvmsg"), kernel.function("tcp_recv_skb") {
+    q = &\$sk->sk_receive_queue
+    skb = \$sk->sk_receive_queue->next
+    if (q != skb) {
+        /* queue is not empty */
+        tcphdr = __get_skb_tcphdr(skb)
+        dport = __tcp_skb_dport(tcphdr)
+
+        if (dport == $dport) {
+            //sport = __tcp_skb_sport(tcphdr)
+            begin = start_times[\$sk]
+            if (begin > 0) {
+                //printf("tcp recvmsg: port=$dport sk=%p\\n", \$sk)
+                latency_stats <<< (gettimeofday_us() - begin)
+                found = 1
+                delete start_times[\$sk]
+            }
+        }
+    }
+}
+
+probe kernel.function("tcp_close"), kernel.function("tcp_disconnect") {
+    q = &\$sk->sk_receive_queue
+    skb = \$sk->sk_receive_queue->next
+    if (q != skb) {
+        /* queue is not empty */
+        tcphdr = __get_skb_tcphdr(skb)
+        dport = __tcp_skb_dport(tcphdr)
+
+        if (dport == $dport) {
+            //sport = __tcp_skb_sport(tcphdr)
+            delete start_times[\$sk]
+        }
+    }
+}
+
+$postamble
+_EOC_
+
+if ($dump_src) {
+    print $stap_src;
+    exit;
+}
+
+open my $in, "|stap --all-modules $stap_args -"
+    or die "Cannot run stap: $!\n";
+
+print $in $stap_src;
+
+close $in;
+
+sub usage {
+    return <<'_EOC_';
+Usage:
+    ngx-recv-queue [optoins]
+
+Options:
+    -a <args>           Pass extra arguments to the stap utility.
+    -d                  Dump out the systemtap script source.
+    -h                  Print this usage.
+    --dport=<port>      Specify the destination port to be analyzed.
+    --time=<seconds>    Time to wait before printing out the report and exiting
+                        (Only meaningful with --distr)
+
+Examples:
+    ngx-recv-queue --dport=11211
+    ngx-recv-queue --dport=6379 --time=10 -a '-DMAXACTION=100000'
+_EOC_
+}
