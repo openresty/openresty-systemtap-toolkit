@@ -699,7 +699,7 @@ And you can specify both the `-r` and `-w` options:
 By default, hitting Ctrl-C will end the sampling process. And the `-t` option can be specified to control the sampling period by exact number of seconds, as in
 
     $ ./ngx-accessed-files -p 8823 -r -t 5
-    Tracing 8823 (/home/agentzh/git/lua-nginx-module/work/nginx/sbin/nginx)...
+    Tracing 8823 (/opt/nginx/sbin/nginx)...
     Please wait for 5 seconds.
 
     === Top 10 file reads ===
