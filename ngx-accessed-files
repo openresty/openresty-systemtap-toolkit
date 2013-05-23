@@ -145,6 +145,8 @@ Options:
     -a <args>           Pass extra arguments to the stap utility.
     -d                  Dump out the systemtap script source.
     -h                  Print this usage.
+    -l <count>          Limiting the number of different file names printed.
+                        (Default to 10.)
     -p <pid>            Specify the nginx worker process pid.
     -r                  Trace file reads.
     -w                  Trace file writes.
@@ -152,7 +154,7 @@ Options:
 
 Examples:
     ngx-accessed-files -p 12345 -t 5 -r
-    ngx-accessed-files -p 12345 -w
-    ngx-accessed-files -p 12345 -w -r
+    ngx-accessed-files -p 12345 -w -l 20
+    ngx-accessed-files -p 12345 -w -r -a '-DMAXACTION=100000'
 _EOC_
 }

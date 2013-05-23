@@ -662,7 +662,7 @@ This tool can be used to inspect any user process (not only Nginx processes) wit
 ngx-accessed-files
 ------------------
 
-Analyze the file names most frequently read from or written to in a user process (not only nginx) specified by the `-p` option.
+Find out the names of the files most frequently read from or written to in any user process (yes, not only nginx!) specified by the `-p` option.
 
 The `-r` option can be specified to analyze files that are read from. For example,
 
@@ -706,6 +706,10 @@ By default, hitting Ctrl-C will end the sampling process. And the `-t` option ca
     #1: 10 times, 720 bytes reads in file index.html.
     #2: 5 times, 75 bytes reads in file helloworld.html.
     #3: 2 times, 26 bytes reads in file a.html.
+
+By default, at most 10 different file names are printed out. You can control this upper limit by specifying the `-l` option. For instance,
+
+    $ ./ngx-accessed-files -p 8823 -r -l 20
 
 ngx-pcre-stats
 --------------
