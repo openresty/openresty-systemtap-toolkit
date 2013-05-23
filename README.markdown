@@ -659,6 +659,54 @@ One can also combine either the `-r` or `-w` option with the `--latency` option 
 
 This tool can be used to inspect any user process (not only Nginx processes) with debug symbols enabled.
 
+ngx-accessed-files
+------------------
+
+Analyze the file names most frequently read from or written to in a user process (not only nginx) specified by the `-p` option.
+
+The `-r` option can be specified to analyze files that are read from. For example,
+
+    $ ./ngx-accessed-files -p 8823 -r
+    Tracing 8823 (/opt/nginx/sbin/nginx)...
+    Hit Ctrl-C to end.
+    ^C
+    === Top 10 file reads ===
+    #1: 10 times, 720 bytes reads in file index.html.
+    #2: 5 times, 75 bytes reads in file helloworld.html.
+    #3: 2 times, 26 bytes reads in file a.html.
+
+And the `-w` option can be used to analyze files that are written to instead:
+
+    $ ./ngx-accessed-files -p 8823 -w
+    Tracing 8823 (/opt/nginx/sbin/nginx)...
+    Hit Ctrl-C to end.
+    ^C
+    === Top 10 file writes ===
+    #1: 17 times, 1600 bytes writes in file access.log.
+
+And you can specify both the `-r` and `-w` options:
+
+    $ ./ngx-accessed-files -p 8823 -w -r
+    Tracing 8823 (/opt/nginx/sbin/nginx)...
+    Hit Ctrl-C to end.
+    ^C
+    === Top 10 file reads/writes ===
+    #1: 17 times, 1600 bytes reads/writes in file access.log.
+    #2: 10 times, 720 bytes reads/writes in file index.html.
+    #3: 5 times, 75 bytes reads/writes in file helloworld.html.
+    #4: 2 times, 26 bytes reads/writes in file a.html.
+
+By default, hitting Ctrl-C will end the sampling process. And the `-t` option can be specified to control the sampling period by exact number of seconds, as in
+
+    $ ./ngx-accessed-files -p 8823 -r -t 5
+    Tracing 8823 (/home/agentzh/git/lua-nginx-module/work/nginx/sbin/nginx)...
+    Please wait for 5 seconds.
+
+    === Top 10 file reads ===
+    #1: 10 times, 720 bytes reads in file index.html.
+    #2: 5 times, 75 bytes reads in file helloworld.html.
+    #3: 2 times, 26 bytes reads in file a.html.
+
 ngx-pcre-stats
 --------------
 
