@@ -140,12 +140,12 @@ probe timer.profile {
 
 probe timer.s($time) {
     nstacks = 0
-    foreach ([a, b] in bts limit 10) {
+    foreach ([a, b] in bts limit 1) {
         nstacks++
     }
 
-    if (nstacks < 10) {
-        warn(sprintf("Too few backtraces (%d) found. Quitting now...\\n", nstacks))
+    if (nstacks == 0) {
+        warn("No backtraces found. Quitting now...\\n")
         exit()
 
     } else {
@@ -182,12 +182,12 @@ probe timer.profile {
 
 probe timer.s($time) {
     nstacks = 0
-    foreach (bt in bts limit 10) {
+    foreach (bt in bts limit 1) {
         nstacks++
     }
 
-    if (nstacks < 10) {
-        warn(sprintf("Too few backtraces (%d) found. Quitting now...\\n", nstacks))
+    if (nstacks == 0) {
+        warn("No backtraces found. Quitting now...\\n")
         exit()
 
     } else {
@@ -212,9 +212,19 @@ probe timer.profile {
 }
 
 probe end {
-    foreach (bt in bts- limit $limit) {
-        print_stack(bt)
-        printf("\\t%d\\n", \@count(bts[bt]))
+    nstacks = 0
+    foreach (bt in bts limit 1) {
+        nstacks++
+    }
+
+    if (nstacks == 0) {
+        warn("No backtraces found. Quitting now...\\n")
+
+    } else {
+        foreach (bt in bts- limit $limit) {
+            print_stack(bt)
+            printf("\\t%d\\n", \@count(bts[bt]))
+        }
     }
 }
 
