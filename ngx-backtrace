@@ -42,7 +42,7 @@ exec 'addr2line', '-e', $exec_file, '-f', @ARGV;
 sub usage {
     return <<'_EOC_';
 Usage:
-    ngx-leaked-pools [optoins]
+    ngx-backtrace [optoins]
 
 Options:
     -h                  Print this usage.
