@@ -120,7 +120,8 @@ _EOC_
 my $stap_src;
 
 my $postamble = <<_EOC_;
-probe timer.s($time) {
+probe timer.s($time)
+{
     warn("Time's up. Quitting now...\\n")
     foreach (bt in bts- limit $limit) {
         printf("%s\\t%d\\n", bt, \@count(bts[bt]))
@@ -208,7 +209,8 @@ probe process("$lua_path").function("lua_resume"),
 }
 
 
-probe process("$lua_path").function("lua_yield") {
+probe process("$lua_path").function("lua_yield")
+{
     //printf("L = %p\\n", \$L)
     my_pid = pid()
     if ($condition) {
@@ -217,7 +219,8 @@ probe process("$lua_path").function("lua_yield") {
 }
 
 
-probe process("$nginx_path").function("ngx_http_lua_del_thread") {
+probe process("$nginx_path").function("ngx_http_lua_del_thread")
+{
     my_pid = pid()
     if ($condition) {
         lua_states[my_pid] = 0
