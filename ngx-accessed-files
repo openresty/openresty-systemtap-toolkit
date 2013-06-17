@@ -1,0 +1,160 @@
+#!/usr/bin/env perl
+
+# Copyright (C) Yichun Zhang (agentzh)
+
+use 5.006001;
+use strict;
+use warnings;
+
+use Getopt::Long qw( GetOptions );
+
+GetOptions("a=s",            \(my $stap_args),
+           "d",              \(my $dump_src),
+           "h",              \(my $help),
+           "l=i",            \(my $limit),
+           "p=i",            \(my $pid),
+           "r",              \(my $check_reads),
+           "w",              \(my $check_writes),
+           "t=i",            \(my $time))
+    or die usage();
+
+if ($help) {
+    print usage();
+    exit;
+}
+
+if (!$pid) {
+    die "No nginx process pid specified by the -p option\n";
+}
+
+if (!$limit) {
+    $limit = 10;
+}
+
+if (!defined $stap_args) {
+    $stap_args = '';
+}
+
+if (!defined $check_reads && !defined $check_writes) {
+    die "Neither -r nor -w options are specified.\n";
+}
+
+my ($probes, $operation);
+
+if (defined $check_reads) {
+    if (defined $check_writes) {
+        $probes = "vfs.read.return, vfs.write.return";
+        $operation = "reads/writes";
+
+    } else {
+        $probes = "vfs.read.return";
+        $operation = "reads";
+    }
+
+} else {
+    $probes = "vfs.write.return";
+    $operation = "writes";
+}
+
+if ($^O ne 'linux') {
+    die "Only linux is supported but I am on $^O.\n";
+}
+
+my $exec_file = "/proc/$pid/exe";
+if (!-f $exec_file) {
+    die "Nginx process $pid is not running or ",
+        "you do not have enough permissions.\n";
+}
+
+my $exec_path = readlink $exec_file;
+
+my $postamble = <<_EOC_;
+probe end {
+    if (!found) {
+        println("No file $operation observed so far.")
+
+    } else {
+        printf("\\n=== Top $limit file $operation ===\\n")
+
+        i = 0
+        foreach (path in stats- limit $limit) {
+            printf("#%d: %d times, %d bytes $operation in file %s.\\n",
+                   ++i, \@count(stats[path]), \@sum(stats[path]), path)
+        }
+    }
+}
+_EOC_
+
+my $guide;
+if (defined $time) {
+    $guide = "Please wait for $time seconds.";
+    $postamble .= <<_EOC_;
+probe timer.s($time) {
+    exit()
+}
+_EOC_
+
+} else {
+    $guide = "Hit Ctrl-C to end.";
+}
+
+my $preamble = <<_EOC_;
+global stats
+global found
+
+probe begin
+{
+    printf("Tracing %d ($exec_path)...\\n$guide\\n", target())
+}
+_EOC_
+chop $preamble;
+
+my $stap_src = <<_EOC_;
+$preamble
+
+probe $probes {
+    if (pid() == target() && \$return > 0) {
+        path = __file_filename(file)
+        //println(path)
+        stats[path] <<< \$return
+        found++;
+    }
+}
+
+$postamble
+_EOC_
+
+if ($dump_src) {
+    print $stap_src;
+    exit;
+}
+
+open my $in, "|stap --skip-badvars $stap_args -x $pid -"
+    or die "Cannot run stap: $!\n";
+
+print $in $stap_src;
+
+close $in;
+
+sub usage {
+    return <<'_EOC_';
+Usage:
+    ngx-accessed-files [optoins]
+
+Options:
+    -a <args>           Pass extra arguments to the stap utility.
+    -d                  Dump out the systemtap script source.
+    -h                  Print this usage.
+    -l <count>          Limiting the number of different file names printed.
+                        (Default to 10.)
+    -p <pid>            Specify the nginx worker process pid.
+    -r                  Trace file reads.
+    -w                  Trace file writes.
+    -t <seconds>        Specify the time period in seconds for  sampling
+
+Examples:
+    ngx-accessed-files -p 12345 -t 5 -r
+    ngx-accessed-files -p 12345 -w -l 20
+    ngx-accessed-files -p 12345 -w -r -a '-DMAXACTION=100000'
+_EOC_
+}

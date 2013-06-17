@@ -1,0 +1,487 @@
+#!/usr/bin/env perl
+
+# Copyright (C) Yichun Zhang (agentzh)
+
+use 5.006001;
+use strict;
+use warnings;
+
+use Getopt::Long qw( GetOptions );
+
+GetOptions("a=s",            \(my $stap_args),
+           "d",              \(my $dump_src),
+           "h",              \(my $help),
+           "p=i",            \(my $pid),
+           "exec-time-dist", \(my $exec_time_dist),
+           "worst-time-top", \(my $worst_time_top),
+           "t=i",            \(my $time),
+           "total-time-top", \(my $total_time_top),
+           "data-len-dist",  \(my $data_len_dist),
+           "luajit20",       \(my $luajit20),
+           "lua51",          \(my $lua51))
+    or die usage();
+
+if ($help) {
+    print usage();
+    exit;
+}
+
+if (!$pid) {
+    die "No nginx process pid specified by the -p option\n";
+}
+
+if (!defined $stap_args) {
+    $stap_args = '';
+}
+
+if ($^O ne 'linux') {
+    die "Only linux is supported but I am on $^O.\n";
+}
+
+my $exec_file = "/proc/$pid/exe";
+if (!-f $exec_file) {
+    die "Nginx process $pid is not running or ",
+        "you do not have enough permissions.\n";
+}
+
+my $nginx_path = readlink $exec_file;
+
+my $maps_file = "/proc/$pid/maps";
+if (!-f $maps_file) {
+    die "Nginx process $pid is not running or ",
+        "you do not have enough permissions.\n";
+}
+
+open my $in, $maps_file or
+    die "Cannot open $maps_file for reading: $!\n";
+
+my $pcre_path;
+while (<$in>) {
+    if (m{\s+(/\S*libpcre\.so\S*)}) {
+        $pcre_path = $1;
+    }
+}
+close $in;
+
+#warn "pcre path: $pcre_path\n";
+
+my $ver = `stap --version 2>&1`;
+if (!defined $ver) {
+    die "Systemtap not installed or its \"stap\" utility is not visible to the PATH environment: $!\n";
+}
+
+if ($ver =~ /version\s+(\d+\.\d+)/i) {
+    my $v = $1;
+    if ($v < 2.1) {
+        die "ERROR: at least systemtap 2.1 is required but found $v\n";
+    }
+
+} else {
+    die "ERROR: unknown version of systemtap:\n$ver\n";
+}
+
+my $limit = 10;
+my $stap_src;
+
+my $guide;
+if (defined $time) {
+    $guide = "Please wait for $time seconds.";
+
+} else {
+    $guide = "Hit Ctrl-C to end.";
+}
+
+my $preamble = <<_EOC_;
+probe begin
+{
+    printf("Tracing %d ($nginx_path)...\\n$guide\\n", target())
+}
+_EOC_
+chop $preamble;
+
+my $process_path = $pcre_path || $nginx_path;
+
+if ($exec_time_dist) {
+    $stap_src = <<_EOC_;
+$preamble
+
+global exectimes
+global begin
+
+probe process("$process_path").function("pcre_exec")
+{
+    if (target() == pid()) {
+        begin = gettimeofday_us()
+    }
+}
+
+probe process("$process_path").function("pcre_exec").return
+{
+    if (target() == pid() && begin) {
+        elapsed = gettimeofday_us() - begin
+        exectimes <<< elapsed
+    }
+}
+
+probe end
+{
+    if (!begin) {
+        println("\\nNo pcre_exec() calls found so far.")
+
+    } else {
+        println("\\nLogarithmic histogram for pcre_exec running time distribution (us):")
+        print(\@hist_log(exectimes))
+    }
+}
+_EOC_
+
+} elsif ($data_len_dist) {
+    $stap_src = <<_EOC_;
+$preamble
+
+global datalens
+global found
+
+probe process("$process_path").function("pcre_exec")
+{
+    if (target() == pid()) {
+        found = 1
+        datalens <<< \$length
+        //printf("len: %d, ofs: %d", \$length, \$start_offset)
+    }
+}
+
+probe end
+{
+    if (!found) {
+        println("\\nNo pcre_exec() calls found so far.")
+
+    } else {
+        println("\\nLogarithmic histogram for data length distribution:")
+        print(\@hist_log(datalens))
+    }
+}
+_EOC_
+
+} elsif ($worst_time_top || $total_time_top) {
+    my $lua_path = get_lua_path();
+
+    if (!$luajit20) {
+        die "Only LuaJIT 2.0 is currently supported.\n";
+    }
+
+    my $LJ_TUDATA = "4294967283";
+    my $TL_TSTR = "4294967291";
+
+    my $sizeof_TValue = qq{\&\@cast(0, "TValue", "$lua_path")[1]};
+    my $sizeof_GCstr = qq{\&\@cast(0, "GCstr", "$lua_path")[1]};
+    my $o = qq{\@cast(o, "TValue", "$lua_path")};
+    my $L = qq{\@cast(L, "lua_State", "$lua_path")};
+    my $gcr = qq{\@cast(gcr, "GCRef", "$lua_path")};
+    my $gcobj = qq{\@cast(gcobj, "GCobj", "$lua_path")};
+    my $str = qq{\@cast(str, "GCstr", "$lua_path")};
+    my $fn = qq{\@cast(fn, "GCfunc", "$lua_path")};
+    my $ud = qq{\@cast(ud, "GCudata", "$lua_path")};
+
+    my $common = <<_EOC_;
+$preamble
+
+global regex
+global gmatch_regex
+global datalen
+global begin
+global exectimes
+global datalens
+global compiled
+
+function gcref(gcr)
+{
+    return $gcr->gcptr32
+}
+
+function gcval(o)
+{
+    return gcref(\&$o->gcr)
+}
+
+function strdata(s)
+{
+    return s + $sizeof_GCstr
+}
+
+function curr_func(L)
+{
+    o = $L->base - 1 * $sizeof_TValue
+    gcobj = gcref(\&$o->fr->func)
+    return \&$gcobj->fn
+}
+
+probe process("$nginx_path").function("ngx_http_lua_ngx_re_gmatch_iterator")
+{
+    if (target() == pid()) {
+        L = \$L
+        fn = curr_func(L)
+        //printf("upvalues: %d\\n", $fn->c->nupvalues)
+        if ($fn->c->nupvalues >= 3) {
+            o = \&$fn->c->upvalue[1] // the 2nd upvalue
+            //printf("upvalue type: %d == $LJ_TUDATA\\n", $o->it)
+            if ($o->it == $LJ_TUDATA) {
+                gcobj = gcval(o)
+                ud = \&$gcobj->ud
+                regex = compiled[ud]
+            }
+        }
+    }
+}
+
+probe process("$nginx_path").function("ngx_http_lua_ngx_re_gmatch")
+{
+    if (target() == pid()) {
+        delete compiled  // XXX this is a hack
+        L = \$L
+        o = $L->base + $sizeof_TValue * (2 - 1)
+        if (o < $L->top && $o->it == $TL_TSTR) {
+            gcobj = gcval(o)
+            str = \&$gcobj->str
+            //printf("gmatch regex: %s\\n", user_string_n(strdata(str), $str->len))
+            gmatch_regex = user_string_n(strdata(str), $str->len)
+        } else {
+            gmatch_regex = ""
+        }
+    }
+}
+
+probe process("$lua_path").function("lua_pushcclosure") {
+    if (target() == pid() && gmatch_regex != "") {
+        L = \$L
+        //compiled[\$ctx->regex] = gmatch_regex
+        o = $L->top + $sizeof_TValue * -2
+        //printf("type %d == $LJ_TUDATA\\n", $o->it)
+        if ($o->it == $LJ_TUDATA) {
+            gcobj = gcval(o)
+            ud = \&$gcobj->ud
+            compiled[ud] = gmatch_regex
+        }
+        gmatch_regex = ""
+    }
+}
+
+probe process("$nginx_path").function("ngx_http_lua_ngx_re_gmatch").return
+{
+    if (target() == pid()) {
+        gmatch_regex = ""
+    }
+}
+
+probe process("$nginx_path").function("ngx_http_lua_ngx_re_match"),
+      process("$nginx_path").function("ngx_http_lua_ngx_re_sub_helper")
+{
+    if (target() == pid()) {
+        L = \$L
+        o = $L->base + $sizeof_TValue * (2 - 1)
+        if (o < $L->top && $o->it == $TL_TSTR) {
+            gcobj = gcval(o)
+            str = \&$gcobj->str
+            //printf("regex: %s\\n", user_string_n(strdata(str), $str->len))
+            regex = user_string_n(strdata(str), $str->len)
+        }
+    }
+}
+
+probe process("$process_path").function("pcre_exec")
+{
+    if (target() == pid()) {
+        begin = gettimeofday_us()
+        datalen = \$length
+    }
+}
+_EOC_
+
+    if ($worst_time_top) {
+        $stap_src = <<_EOC_;
+$common
+
+probe process("$process_path").function("pcre_exec").return
+{
+    if (target() == pid() && begin && regex != "") {
+        elapsed = gettimeofday_us() - begin
+        max = exectimes[regex]
+        if (max < elapsed) {
+            exectimes[regex] = elapsed
+            datalens[regex] = datalen
+        }
+        regex = ""
+        elapsed = 0
+    }
+}
+
+probe end
+{
+    if (!begin) {
+        println("\\nNo pcre_exec() calls found so far.")
+
+    } else {
+        println("\\nTop N regexes with worst running time:")
+
+        i = 0
+        foreach (regex in exectimes- limit $limit) {
+            i++
+            printf("%d. pattern /%s/: %dus (data size: %d)\\n",
+                   i, regex, exectimes[regex], datalens[regex])
+        }
+    }
+}
+_EOC_
+
+    } else {
+        # $total_time_top
+
+        $stap_src = <<_EOC_;
+$common
+
+probe process("$process_path").function("pcre_exec").return
+{
+    if (target() == pid() && begin && regex != "") {
+        elapsed = gettimeofday_us() - begin
+        exectimes[regex] += elapsed
+        datalens[regex] += datalen
+        regex = ""
+        elapsed = 0
+    }
+}
+
+probe end
+{
+    if (!begin) {
+        println("\\nNo pcre_exec() calls found so far.")
+
+    } else {
+        println("\\nTop N regexes with longest total running time:")
+
+        i = 0
+        foreach (regex in exectimes- limit $limit) {
+            i++
+            printf("%d. pattern /%s/: %dus (total data size: %d)\\n",
+                   i, regex, exectimes[regex], datalens[regex])
+        }
+    }
+}
+_EOC_
+    }
+
+} else {
+    die "You must specify one of the --exec-time-dist, --worst-time-top, "
+        ."--total-time-top, and --data-len-dist options.\n";
+}
+
+if (defined $time) {
+    $stap_src .= <<_EOC_;
+probe timer.s($time) {
+    exit()
+}
+_EOC_
+}
+
+if ($dump_src) {
+    print $stap_src;
+    exit;
+}
+
+open $in, "|stap --skip-badvars -d '$nginx_path' $stap_args -x $pid -"
+    or die "Cannot run stap: $!\n";
+
+print $in $stap_src;
+
+close $in;
+
+sub usage {
+    return <<'_EOC_';
+Usage:
+    ngx-pcre-stats [optoins]
+
+Options:
+    -a <args>           Pass extra arguments to the stap utility.
+    --exec-time-dist    pcre_exec running time distribution.
+    -d                  Dump out the systemtap script source.
+    --data-len-dist     Data length distribution.
+    --lua51             The target Nginx is using the standard Lua 5.1 interpreter.
+    --luajit20          The target Nginx is using the LuaJIT 2.0.
+    -h                  Print this usage.
+    -p <pid>            Specify the nginx worker process pid.
+    -t <seconds>        Specify the time period in seconds for  sampling
+    --total-time-top    The top N regexes with longest total running time.
+    --worst-time-top    The top N regexes with worst running time.
+
+Examples:
+    ngx-pcre-stats -p 12345 --exec-time-dist
+    ngx-pcre-stats -p 12345 --data-len-dist
+    ngx-pcre-stats -p 12345 --worst-time-top --luajit20
+    ngx-pcre-stats -p 12345 --total-time-top --luajit20
+    ngx-pcre-stats -p 12345 --total-time-top --luajit20 -t 10
+_EOC_
+}
+
+sub get_lua_path {
+    my $lua_path;
+
+    if (!defined $lua51 && !defined $luajit20) {
+        die "Neither --lua51 nor --luajit20 options are specified.\n";
+    }
+
+    my $maps_file = "/proc/$pid/maps";
+    open my $in, $maps_file
+        or die "Cannot open $maps_file for reading: $!\n";
+
+    while (<$in>) {
+        if (m{\S+\bliblua-(\d+\.\d+)\.so(?:\.\d+)*$}) {
+            my ($path, $ver) = ($&, $1);
+
+            if ($luajit20) {
+                die "The --luajit20 option is specified but seen standard Lua library: $path\n";
+            }
+
+            if ($ver ne '5.1') {
+                die "Nginx server $pid uses a Lua $ver library ",
+                    "but only Lua 5.1 is supported.\n";
+            }
+
+            $lua_path = $path;
+            last;
+
+        } elsif (m{\S+\bliblua\.so(?:\.\d+)*$}) {
+            my $path = $&;
+
+            if ($luajit20) {
+                die "The --luajit20 option is specified but seen standard Lua library: $path\n";
+            }
+
+            $lua_path = $path;
+            last;
+
+        } elsif (m{\S+\blibluajit-(\d+\.\d+)\.so(?:\.\d+)*$}) {
+            my ($path, $ver) = ($&, $1);
+
+            if ($lua51) {
+                die "The --lua51 option is specified but seen the LuaJIT library: $path\n";
+            }
+
+            if ($ver ne '5.1') {
+                die "Nginx server $pid uses a Lua $ver compatible LuaJIT library ",
+                    "but only Lua 5.1 is supported.\n";
+            }
+
+            $lua_path = $path;
+            last;
+        }
+    }
+
+    close $in;
+
+    if (!defined $lua_path) {
+        #warn "FALL BACK TO NGINX PATH";
+        $lua_path = $nginx_path;
+    }
+
+    return $lua_path;
+}
+

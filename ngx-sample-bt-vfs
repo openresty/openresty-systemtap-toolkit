@@ -1,0 +1,233 @@
+#!/usr/bin/env perl
+
+# Copyright (C) Yichun Zhang (agentzh)
+
+use 5.006001;
+use strict;
+use warnings;
+
+use Getopt::Long qw( GetOptions );
+
+GetOptions("a=s",       \(my $stap_args),
+           "d",         \(my $dump_src),
+           "h",         \(my $help),
+           "l=i",       \(my $limit),
+           "latency",   \(my $check_latency),
+           "p=i",       \(my $pid),
+           "r",         \(my $readonly),
+           "w",         \(my $writeonly),
+           "t=i",       \(my $time))
+    or die usage();
+
+if ($help) {
+    print usage();
+    exit;
+}
+
+if (!defined $pid) {
+    die "No process pid specified by the -p option.\n";
+}
+
+my $condition = "pid() == target()";
+
+if (!defined $time) {
+    die "No -t <seconds> option specified.\n";
+}
+
+if (!defined $limit) {
+    $limit = 1024;
+}
+
+if (!defined $stap_args) {
+    $stap_args = '';
+}
+
+if ($stap_args !~ /\b-D\s*MAXACTION=/) {
+    $stap_args .= " -DMAXACTION=100000";
+}
+
+if ($stap_args !~ /\b-D\s*MAXMAPENTRIES=/) {
+    $stap_args .= " -DMAXMAPENTRIES=5000";
+}
+
+if ($stap_args !~ /\b-D\s*MAXBACKTRACE=/) {
+    $stap_args .= " -DMAXBACKTRACE=200";
+}
+
+if ($stap_args !~ /\b-D\s*MAXSTRINGLEN=2048/) {
+    $stap_args .= " -DMAXSTRINGLEN=2048";
+}
+
+$stap_args .= " -DSTP_NO_OVERLOAD";
+
+if ($^O ne 'linux') {
+    die "Only linux is supported but I am on $^O.\n";
+}
+
+my $exec_file = "/proc/$pid/exe";
+if (!-f $exec_file) {
+    die "Nginx process $pid is not running or ",
+        "you do not have enough permissions.\n";
+}
+
+my $nginx_path = readlink $exec_file;
+
+my $ver = `stap --version 2>&1`;
+if (!defined $ver) {
+    die "Systemtap not installed or its \"stap\" utility is not visible to the PATH environment: $!\n";
+}
+
+if ($ver =~ /version\s+(\d+\.\d+)/i) {
+    my $v = $1;
+    if ($v < 2.1) {
+        die "ERROR: at least systemtap 2.1 is required but found $v\n";
+    }
+
+} else {
+    die "ERROR: unknown version of systemtap:\n$ver\n";
+}
+
+my $preamble = <<_EOC_;
+global bts;
+global quit = 0;
+
+probe begin {
+    warn(sprintf("Tracing %d ($nginx_path)...\\n", target()))
+}
+_EOC_
+
+my $postamble = <<_EOC_;
+probe timer.s($time) {
+    nstacks = 0
+    foreach (bt in bts limit 10) {
+        nstacks++
+    }
+
+    if (nstacks == 0) {
+        warn(sprintf("Too few backtraces (%d) found. Quitting now...\\n", nstacks))
+        exit()
+
+    } else {
+        warn("Time's up. Quitting now...(it may take a while)\\n")
+        quit = 1
+    }
+}
+_EOC_
+
+my @probes;
+if ($readonly) {
+    @probes = qw(vfs.read);
+
+} elsif ($writeonly) {
+    @probes = qw(vfs.write);
+
+} else {
+    @probes = qw(vfs.read vfs.write);
+}
+
+my $return_probes = join ", ", map { "$_.return" } @probes;
+
+my $stap_src;
+if ($check_latency) {
+    # analyze I/O latency
+    my $entry_probes = join ", ", @probes;
+    $stap_src = <<_EOC_;
+$preamble
+
+global start_time
+
+probe $entry_probes {
+    if ($condition) {
+        if (!quit) {
+            if (devname != "N/A") {
+                start_time = gettimeofday_us()
+            }
+
+        } else {
+            foreach (bt in bts- limit $limit) {
+                print_ustack(bt)
+                printf("\\t%d\\n", \@sum(bts[bt]))
+            }
+
+            exit()
+        }
+    }
+}
+
+probe $return_probes {
+    if ($condition) {
+        if (!quit) {
+            if (\$return > 0 && devname != "N/A" && start_time) {
+                bts[ubacktrace()] <<< gettimeofday_us() - start_time
+                start_time = 0;
+            }
+        }
+    }
+}
+
+$postamble
+_EOC_
+
+} else {
+    # analyze I/O data volumn
+    $stap_src = <<_EOC_;
+$preamble
+
+probe $return_probes {
+    if ($condition) {
+        if (!quit) {
+            if (\$return > 0 && devname != "N/A") {
+                bts[ubacktrace()] <<< \$return
+            }
+
+        } else {
+
+            foreach (bt in bts- limit $limit) {
+                print_ustack(bt);
+                printf("\\t%d\\n", \@sum(bts[bt]))
+            }
+
+            exit()
+        }
+    }
+}
+
+$postamble
+_EOC_
+}
+
+if ($dump_src) {
+    print $stap_src;
+    exit;
+}
+
+open my $in, "|stap --skip-badvars --all-modules -x $pid -d '$nginx_path' --ldd $stap_args -"
+    or die "Cannot run stap: $!\n";
+
+print $in $stap_src;
+
+close $in;
+
+sub usage {
+    return <<'_EOC_';
+Usage:
+    ngx-sample-bt-vfs [optoins]
+
+Options:
+    -a <args>           Pass extra arguments to the stap utility.
+    -d                  Dump out the systemtap script source.
+    -h                  Print this usage.
+    --latency           Analyze the VFS kernel calls' latency instead
+                        of I/O data volumn.
+    -l <count>          Only output <count> most frenquent backtrace samples.
+                        (Default to 1024)
+    -p <pid>            Specify the user process pid.
+    -r                  Probe file reading operations only.
+    -w                  Probe file writing operations only.
+    -t <seconds>        Specify the number of seconds for sampling.
+
+Examples:
+    ngx-sample-bt-vfs -p 12345 -t 10
+    ngx-sample-bt-vfs -p 12345 -t 5 -a '-DMAXACTION=100000'
+_EOC_
+}

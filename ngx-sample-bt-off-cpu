@@ -1,0 +1,276 @@
+#!/usr/bin/env perl
+
+# Copyright (C) Yichun Zhang (agentzh)
+
+# Thanks Brendan Gregg for the inspiration given here:
+#   http://dtrace.org/blogs/brendan/2011/07/08/off-cpu-performance-analysis/
+
+use 5.006001;
+use strict;
+use warnings;
+
+use Getopt::Long qw( GetOptions );
+
+GetOptions("a=s",       \(my $stap_args),
+           "d",         \(my $dump_src),
+           "distr",     \(my $check_distr),
+           "h",         \(my $help),
+           "k",         \(my $check_kernel),
+           "l=i",       \(my $limit),
+           "min=i",     \(my $min_elapsed),
+           "p=i",       \(my $pid),
+           "t=i",       \(my $time),
+           "u",         \(my $check_user))
+    or die usage();
+
+if ($help) {
+    print usage();
+    exit;
+}
+
+if (!defined $min_elapsed) {
+    $min_elapsed = 4;
+}
+
+if (!defined $pid) {
+    die "No process pid specified by the -p option.\n";
+}
+
+my $condition = "pid() == target()";
+
+if (!defined $time) {
+    die "No -t <seconds> option specified.\n";
+}
+
+if (!defined $limit) {
+    $limit = 1024;
+}
+
+if (!defined $stap_args) {
+    $stap_args = '';
+}
+
+if ($stap_args !~ /\b-D\s*MAXACTION=/) {
+    $stap_args .= " -DMAXACTION=100000";
+}
+
+if ($stap_args !~ /\b-D\s*MAXMAPENTRIES=/) {
+    $stap_args .= " -DMAXMAPENTRIES=5000";
+}
+
+if ($stap_args !~ /\b-D\s*MAXBACKTRACE=/) {
+    $stap_args .= " -DMAXBACKTRACE=200";
+}
+
+if ($stap_args !~ /\b-D\s*MAXSTRINGLEN=2048/) {
+    $stap_args .= " -DMAXSTRINGLEN=2048";
+}
+
+$stap_args .= " -DSTP_NO_OVERLOAD";
+
+if ($^O ne 'linux') {
+    die "Only linux is supported but I am on $^O.\n";
+}
+
+my $exec_file = "/proc/$pid/exe";
+if (!-f $exec_file) {
+    die "Nginx process $pid is not running or ",
+        "you do not have enough permissions.\n";
+}
+
+my $nginx_path = readlink $exec_file;
+
+my $ver = `stap --version 2>&1`;
+if (!defined $ver) {
+    die "Systemtap not installed or its \"stap\" utility is not visible to the PATH environment: $!\n";
+}
+
+if ($ver =~ /version\s+(\d+\.\d+)/i) {
+    my $v = $1;
+    if ($v < 2.1) {
+        die "ERROR: at least systemtap 2.1 is required but found $v\n";
+    }
+
+} else {
+    die "ERROR: unknown version of systemtap:\n$ver\n";
+}
+
+my $preamble = <<_EOC_;
+global quit = 0;
+global found
+
+probe begin {
+    warn(sprintf("Tracing %d ($nginx_path)...\\n", target()))
+}
+_EOC_
+
+my $postamble = <<_EOC_;
+probe timer.s($time) {
+    if (!found) {
+        warn("No backtraces found. Quitting now...\\n")
+        exit()
+
+    } else {
+        warn("Time's up. Quitting now...(it may take a while)\\n")
+        quit = 1
+    }
+}
+_EOC_
+
+my $stap_src;
+
+if ($check_distr) {
+    $stap_src = <<_EOC_;
+global start_time
+global elapsed_times
+
+$preamble
+
+probe end {
+    if (!found) {
+        println("\\nNo samples found yet.")
+
+    } else {
+        println("=== Off-CPU time distribution (in us) ===")
+        printf("min/avg/max: %d/%d/%d\\n",
+               \@min(elapsed_times), \@avg(elapsed_times), \@max(elapsed_times))
+        println(\@hist_log(elapsed_times))
+    }
+}
+
+probe scheduler.cpu_off {
+    if ($condition) {
+        if (!quit) {
+            start_time = gettimeofday_us()
+
+        } else {
+            exit()
+        }
+    }
+}
+
+probe scheduler.cpu_on {
+    if ($condition && start_time > 0) {
+        if (!quit) {
+            elapsed = gettimeofday_us() - start_time
+            if (elapsed >= $min_elapsed) {
+                found = 1
+                elapsed_times <<< elapsed
+            }
+            start_time = 0
+        }
+    }
+}
+
+probe timer.s($time) {
+    println("Exiting...Please wait...")
+    quit = 1
+}
+_EOC_
+
+} else {
+    # for sampling backtraces
+
+    my ($gen_bt_code, $print_bt_code);
+
+    if ($check_kernel) {
+        if ($check_user) {
+            $gen_bt_code = "backtrace(), ubacktrace()";
+            $print_bt_code = <<_EOC_;
+            foreach ([kbt, ubt] in bts- limit $limit) {
+                print_stack(kbt)
+                print_ustack(ubt)
+                printf("\\t%d\\n", \@sum(bts[kbt, ubt]))
+            }
+_EOC_
+
+        } else {
+            $gen_bt_code = "backtrace()";
+            $print_bt_code = <<_EOC_;
+            foreach (bt in bts- limit $limit) {
+                print_stack(bt)
+                printf("\\t%d\\n", \@sum(bts[bt]))
+            }
+_EOC_
+        }
+
+    } else {
+        $gen_bt_code = "ubacktrace()";
+        $print_bt_code = <<_EOC_;
+            foreach (bt in bts- limit $limit) {
+                print_ustack(bt)
+                printf("\\t%d\\n", \@sum(bts[bt]))
+            }
+_EOC_
+    }
+
+    $stap_src = <<_EOC_;
+global bts
+global start_time
+
+$preamble
+
+probe scheduler.cpu_off {
+    if ($condition) {
+        if (!quit) {
+            start_time = gettimeofday_us()
+
+        } else {
+$print_bt_code
+            exit()
+        }
+    }
+}
+
+probe scheduler.cpu_on {
+    if ($condition && start_time > 0) {
+        elapsed = gettimeofday_us() - start_time
+        if (elapsed >= $min_elapsed) {
+            bts[$gen_bt_code] <<< elapsed
+            found = 1
+        }
+        start_time = 0
+    }
+}
+
+$postamble
+_EOC_
+}
+
+if ($dump_src) {
+    print $stap_src;
+    exit;
+}
+
+open my $in, "|stap --skip-badvars --all-modules -x $pid -d '$nginx_path' --ldd $stap_args -"
+    or die "Cannot run stap: $!\n";
+
+print $in $stap_src;
+
+close $in;
+
+sub usage {
+    return <<'_EOC_';
+Usage:
+    ngx-sample-bt-off-cpu [optoins]
+
+Options:
+    -a <args>           Pass extra arguments to the stap utility.
+    -d                  Dump out the systemtap script source.
+    --distr             Analyze the distribution of the elapsed off-CPU times only.
+    -h                  Print this usage.
+    -k                  Analyze kernelspace backtraces.
+    -l <count>          Only output <count> most frenquent backtrace samples.
+                        (Default to 1024)
+    --min=<us>          Minimal elapsed off-CPU time to be tracked.
+                        (Default to 4us)
+    -p <pid>            Specify the user process pid.
+    -t <seconds>        Specify the number of seconds for sampling.
+    -u                  Analyze userspace backtraces.
+
+Examples:
+    ngx-sample-bt-off-cpu -p 12345 -t 10
+    ngx-sample-bt-off-cpu -p 12345 -t 5 -a '-DMAXACTION=100000'
+    ngx-sample-bt-off-cpu --distr -p 12345 -t 10 --min=1
+_EOC_
+}

@@ -134,6 +134,7 @@ function print_all_the_pool(table) {
 }
 
 probe process("$exec_path").function("ngx_http_lua_socket_tcp_send")
+
 { 
     L = \@var("L")
     if(L){
