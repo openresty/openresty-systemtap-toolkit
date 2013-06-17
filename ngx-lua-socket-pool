@@ -1,6 +1,7 @@
 #!/usr/bin/env perl
 
 # Copyright (C) Yichun Zhang (agentzh)
+# Copyright (C) Guanlan Dai
 
 use 5.006001;
 use strict;
@@ -8,9 +9,9 @@ use warnings;
 
 use Getopt::Long qw( GetOptions );
 
-GetOptions("a=s",            \(my $stap_args),
+GetOptions("a=s",       \(my $stap_args),
            "h",         \(my $help),
-           "p=i",            \(my $pid))
+           "p=i",       \(my $pid))
     or die usage();
 
 if ($help) {
