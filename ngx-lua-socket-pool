@@ -64,14 +64,11 @@ my $exec_path = readlink $exec_file;
 my $postamble = <<_EOC_;
 _EOC_
 
-my $guide;
-$guide = "Hit Ctrl-C to end.";
-
 my $preamble = <<_EOC_;
 
 probe begin
 {
-    printf("Tracing %d ($exec_path)...\\n$guide\\n", target())
+    printf("\\nTracing %d ($exec_path)...\\n", target())
 }
 _EOC_
 chop $preamble;
@@ -122,9 +119,10 @@ function traverse_queue(queue) {
         length = length + 1
     }
     if(length > 0) {
-        printf("\\treused times max: %d ", \@max(reused_time))
-        printf("min: %d ", \@min(reused_time))
-        printf("avg: %d\\n", \@avg(reused_time))
+        printf("\\t    reused times (max/min/avg): %d %d %d\\n",
+               \@max(reused_time),
+               \@min(reused_time),
+               \@avg(reused_time))
     }
     delete reused_time
 }
@@ -149,7 +147,6 @@ function print_all_the_pool(table) {
         }
     }
     if (pool_num > 0) {
-        print("Summary\\n")
         printf("Total Number of Pools:%d\\n", pool_num)
         exit()
     }

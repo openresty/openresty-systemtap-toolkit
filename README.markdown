@@ -1021,38 +1021,43 @@ and free queue length in each pool.
 
 Here's a sample command:
 
-    # assuming the nginx worker pid is 11242 
-    sudo ./ngx-lua-socket-pool -p 11242
-    Tracing 11242 (/home/xguru/ngx_openresty-1.2.8.5/build/nginx-1.2.8/objs/nginx)...
-    Hit Ctrl-C to end.
-    pool "127.0.0.1:11211"
-        out-of-pool connections: 29
-        in-pool connections: 5
-        pool capacity: 100
+	# assuming the nginx worker pid is 19773 
+	$ sudo ./ngx-lua-socket-pool -p 19773
 
-    pool "127.0.0.1:11213"
-        out-of-pool connections: 34
-        in-pool connections: 3
-        pool capacity: 100
+	Tracing 19773 (/opt/nginx/sbin/nginx)...
+	pool "127.0.0.1:11213"
+		out-of-pool connections: 185
+		in-pool connections: 183
+			reused times (max/min/avg): 9322 1042 3748
+		pool capacity: 1024
 
-    pool "127.0.0.1:11212"
-        out-of-pool connections: 34
-        in-pool connections: 6
-        pool capacity: 100
+	pool "127.0.0.1:11212"
+		out-of-pool connections: 184
+		in-pool connections: 182
+			reused times (max/min/avg): 10283 414 3408
+		pool capacity: 1024
 
-    pool "127.0.0.1:11215"
-        out-of-pool connections: 29
-        in-pool connections: 5
-        pool capacity: 100
+	pool "127.0.0.1:11211"
+		out-of-pool connections: 185
+		in-pool connections: 183
+			reused times (max/min/avg): 7109 651 3867
+		pool capacity: 1024
 
-    pool "127.0.0.1:11214"
-        out-of-pool connections: 29
-        in-pool connections: 5
-        pool capacity: 100
+	pool "127.0.0.1:11214"
+		out-of-pool connections: 185
+		in-pool connections: 183
+			reused times (max/min/avg): 7051 810 3807
+		pool capacity: 1024
 
-    Summary
-    Total Number of Pools:5
-    0 microseconds elapsed in the probe handler.
+	pool "127.0.0.1:11215"
+		out-of-pool connections: 185
+		in-pool connections: 183
+			reused times (max/min/avg): 7275 1127 3839
+		pool capacity: 1024
+
+	Total Number of Pools:5
+	324 microseconds elapsed in the probe handler.
+
 
 
 Community
