@@ -83,7 +83,7 @@ my $sizeof_Udata = qq{&\@cast(0, "Udata", "$exec_path")[1]};
 
 my $stap_src = <<_EOC_;
 $preamble
-
+global reused_time
 function size_node(table) {
     res = \@cast(table,"Table","$exec_path")->lsizenode
     res = 1 << res
@@ -104,10 +104,30 @@ function queue_len(queue) {
     while (curr != head) {
         curr = \@cast(curr, "ngx_queue_t", "$exec_path")->prev
         length = length + 1
-    }    
+    }
     return length
 }
 
+function traverse_queue(queue) {
+    pool_offset = &\@cast(0, "ngx_http_lua_socket_pool_item_t", "$exec_path")->queue
+    length = 0
+    head = queue
+    start = \@cast(queue, "ngx_queue_t", "$exec_path")->prev
+    curr = start
+    while (curr != head) {
+        pool_item = curr - pool_offset
+        reused = \@cast(pool_item, "ngx_http_lua_socket_pool_item_t", "$exec_path")->reused
+        reused_time <<< reused
+        curr = \@cast(curr, "ngx_queue_t", "$exec_path")->prev
+        length = length + 1
+    }
+    if(length > 0) {
+        printf("\\treused times max: %d ", \@max(reused_time))
+        printf("min: %d ", \@min(reused_time))
+        printf("avg: %d\\n", \@avg(reused_time))
+    }
+    delete reused_time
+}
 function print_all_the_pool(table) {
     pool_num = 0
     for(i = 0; i < size_node(table); i++) {
@@ -115,30 +135,31 @@ function print_all_the_pool(table) {
         i_val = &\@cast(n, "Node", "$exec_path")->i_val
         if (\@cast(i_val, "TValue", "$exec_path")->tt == $USERDATA_TYPE) {
             pool_num++
-            printf("=========Pool No.%d=========\\n", pool_num)
             pool = &\@cast(n, "Node", "$exec_path")->i_val->value->gc->u
             pool += $sizeof_Udata
+            pool_key = &$pool->key
             cache = &$pool->cache
             free = &$pool->free
             conn_num =  $pool->active_connections
-            printf("Ative connection:\\t%d\\n", conn_num)
-            printf("Cache Queue length:\\t%d\\n", queue_len(cache))
-            printf("Free Queue length:\\t%d\\n\\n", queue_len(free))
+            printf("pool \\"%s\\"\\n", text_str(user_string(pool_key)))
+            printf("\tout-of-pool connections: %d\\n", conn_num)
+            printf("\tin-pool connections: %d\\n", queue_len(cache))
+            traverse_queue(cache)
+            printf("\tpool capacity: %d\\n\\n", queue_len(cache) + queue_len(free))
         }
     }
     if (pool_num > 0) {
-        print("\\nSummary")
-        printf("\\nTotal Number of Pools:%d\\n", pool_num)
+        print("Summary\\n")
+        printf("Total Number of Pools:%d\\n", pool_num)
         exit()
     }
 }
 
 probe process("$exec_path").function("ngx_http_lua_socket_tcp_send")
-
-{ 
+{
     L = \@var("L")
     if(L){
-        begin = local_clock_us()
+        begin = gettimeofday_us()
         key = &\@var("ngx_http_lua_socket_pool_key")
         lg = \@cast(L, "lua_State")->l_G
         registrytv = &\@cast(lg, "global_State")->l_registry
@@ -148,13 +169,12 @@ probe process("$exec_path").function("ngx_http_lua_socket_tcp_send")
         if(pool_tables) {
             print_all_the_pool(pool_tables)
         }
-        elapsed = local_clock_us() - begin
+        elapsed = gettimeofday_us() - begin
         printf("%d microseconds elapsed in the probe handler.\\n", elapsed)
     }
 }
 $postamble
 _EOC_
-
 
 open my $in, "|stap --skip-badvars $stap_args -x $pid -"
     or die "Cannot run stap: $!\n";

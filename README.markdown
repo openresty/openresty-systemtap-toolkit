@@ -1021,40 +1021,38 @@ and free queue length in each pool.
 
 Here's a sample command:
 
-    # assuming the nginx worker pid is 5043
-	$ ./ngx-lua-socket-pool -p 5403 
-	Tracing 6014 (/home/xguru/ngx_openresty-1.2.8.5/build/nginx-1.2.8/objs/nginx)...
-	Hit Ctrl-C to end.
-	=========Pool No.1=========
-	Ative connection:	4
-	Cache Queue length:	2
-	Free Queue length:	98
+    # assuming the nginx worker pid is 11242 
+    sudo ./ngx-lua-socket-pool -p 11242
+    Tracing 11242 (/home/xguru/ngx_openresty-1.2.8.5/build/nginx-1.2.8/objs/nginx)...
+    Hit Ctrl-C to end.
+    pool "127.0.0.1:11211"
+        out-of-pool connections: 29
+        in-pool connections: 5
+        pool capacity: 100
 
-	=========Pool No.2=========
-	Ative connection:	2
-	Cache Queue length:	0
-	Free Queue length:	100
+    pool "127.0.0.1:11213"
+        out-of-pool connections: 34
+        in-pool connections: 3
+        pool capacity: 100
 
-	=========Pool No.3=========
-	Ative connection:	2
-	Cache Queue length:	2
-	Free Queue length:	98
+    pool "127.0.0.1:11212"
+        out-of-pool connections: 34
+        in-pool connections: 6
+        pool capacity: 100
 
-	=========Pool No.4=========
-	Ative connection:	2
-	Cache Queue length:	2
-	Free Queue length:	98
+    pool "127.0.0.1:11215"
+        out-of-pool connections: 29
+        in-pool connections: 5
+        pool capacity: 100
 
-	=========Pool No.5=========
-	Ative connection:	2
-	Cache Queue length:	2
-	Free Queue length:	98
+    pool "127.0.0.1:11214"
+        out-of-pool connections: 29
+        in-pool connections: 5
+        pool capacity: 100
 
-
-	Summary
-	Total Number of Pools:5
-	29 microseconds elapsed in the probe handler.
-
+    Summary
+    Total Number of Pools:5
+    0 microseconds elapsed in the probe handler.
 
 
 Community
