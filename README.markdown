@@ -1021,44 +1021,42 @@ and free queue length in each pool.
 
 Here's a sample command:
 
-	# assuming the nginx worker pid is 19773 
-	$ sudo ./ngx-lua-socket-pool -p 19773
+    # assuming the nginx worker pid is 19773 
+    $ sudo ./ngx-lua-socket-pool -p 19773
 
-	Tracing 19773 (/opt/nginx/sbin/nginx)...
-	pool "127.0.0.1:11213"
-		out-of-pool connections: 185
-		in-pool connections: 183
-			reused times (max/min/avg): 9322 1042 3748
-		pool capacity: 1024
+    Tracing 19773 (/opt/nginx/sbin/nginx)...
+    pool "127.0.0.1:11213"
+        out-of-pool connections: 185
+        in-pool connections: 183
+            reused times (max/min/avg): 9322 1042 3748
+        pool capacity: 1024
 
-	pool "127.0.0.1:11212"
-		out-of-pool connections: 184
-		in-pool connections: 182
-			reused times (max/min/avg): 10283 414 3408
-		pool capacity: 1024
+    pool "127.0.0.1:11212"
+        out-of-pool connections: 184
+        in-pool connections: 182
+            reused times (max/min/avg): 10283 414 3408
+        pool capacity: 1024
 
-	pool "127.0.0.1:11211"
-		out-of-pool connections: 185
-		in-pool connections: 183
-			reused times (max/min/avg): 7109 651 3867
-		pool capacity: 1024
+    pool "127.0.0.1:11211"
+        out-of-pool connections: 185
+        in-pool connections: 183
+            reused times (max/min/avg): 7109 651 3867
+        pool capacity: 1024
 
-	pool "127.0.0.1:11214"
-		out-of-pool connections: 185
-		in-pool connections: 183
-			reused times (max/min/avg): 7051 810 3807
-		pool capacity: 1024
+    pool "127.0.0.1:11214"
+        out-of-pool connections: 185
+        in-pool connections: 183
+            reused times (max/min/avg): 7051 810 3807
+        pool capacity: 1024
 
-	pool "127.0.0.1:11215"
-		out-of-pool connections: 185
-		in-pool connections: 183
-			reused times (max/min/avg): 7275 1127 3839
-		pool capacity: 1024
+    pool "127.0.0.1:11215"
+        out-of-pool connections: 185
+        in-pool connections: 183
+            reused times (max/min/avg): 7275 1127 3839
+        pool capacity: 1024
 
-	Total Number of Pools:5
-	324 microseconds elapsed in the probe handler.
-
-
+    Total Number of Pools:5
+    324 microseconds elapsed in the probe handler.
 
 Community
 =========

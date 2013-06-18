@@ -158,7 +158,7 @@ function print_all_the_pool(table) {
 probe process("$exec_path").function("ngx_http_lua_socket_tcp_send")
 {
     L = \@var("L")
-    if(L){
+    if(L) {
         begin = gettimeofday_us()
         key = &\@var("ngx_http_lua_socket_pool_key")
         lg = \@cast(L, "lua_State")->l_G
