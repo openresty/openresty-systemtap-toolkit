@@ -60,9 +60,6 @@ if (!-f $exec_file) {
 
 my $exec_path = readlink $exec_file;
 
-my $postamble = <<_EOC_;
-_EOC_
-
 my $preamble = <<_EOC_;
 
 probe begin
@@ -82,6 +79,7 @@ my $pool_offset = qq{&\@cast(0,
 my $stap_src = <<_EOC_;
 $preamble
 global reused_time
+
 function size_node(table) {
     res = \@cast(table,"Table","$exec_path")->lsizenode
     res = 1 << res
@@ -101,16 +99,20 @@ function queue_len(queue) {
     curr = start
     while (curr != head) {
         curr = \@cast(curr, "ngx_queue_t", "$exec_path")->prev
-        length = length + 1
+        length++
     }
     return length
 }
 
 function traverse_queue(queue) {
-    length = 0
     head = queue
     start = \@cast(queue, "ngx_queue_t", "$exec_path")->prev
     curr = start
+    if (curr == head) {
+        is_queue_empty = 1
+    } else {
+        is_queue_empty = 0
+    }
     while (curr != head) {
         pool_item = curr - $pool_offset
         reused = \@cast(pool_item,
@@ -120,7 +122,7 @@ function traverse_queue(queue) {
         curr = \@cast(curr, "ngx_queue_t", "$exec_path")->prev
         length = length + 1
     }
-    if(length > 0) {
+    if (!is_queue_empty) {
         printf("\\t    reused times (max/min/avg): %d %d %d\\n",
                \@max(reused_time),
                \@min(reused_time),
@@ -128,10 +130,11 @@ function traverse_queue(queue) {
     }
     delete reused_time
 }
-function print_all_the_pool(table) {
+
+function print_all_the_pool(pools) {
     pool_num = 0
-    for(i = 0; i < size_node(table); i++) {
-        n = &\@cast(table, "Table", "$exec_path")->node[i]
+    for (i = 0; i < size_node(pools); i++) {
+        n = &\@cast(pools, "Table", "$exec_path")->node[i]
         i_val = &\@cast(n, "Node", "$exec_path")->i_val
         if (\@cast(i_val, "TValue", "$exec_path")->tt == $USERDATA_TYPE) {
             pool_num++
@@ -150,30 +153,29 @@ function print_all_the_pool(table) {
         }
     }
     if (pool_num > 0) {
-        printf("Total Number of Pools:%d\\n", pool_num)
+        printf("Total number of pools: %d\\n", pool_num)
         exit()
     }
 }
 
 probe process("$exec_path").function("ngx_http_lua_socket_tcp_send")
 {
-    L = \@var("L")
-    if(L) {
+    L = \$L
+    if (L) {
         begin = gettimeofday_us()
         key = &\@var("ngx_http_lua_socket_pool_key")
         lg = \@cast(L, "lua_State")->l_G
         registrytv = &\@cast(lg, "global_State")->l_registry
         table = &\@cast(registrytv, "TValue")->value->gc->h
         index = hash_mod(table, key)
-        pool_tables = &\@cast(table, "Table")->node[index]->i_val->value->gc->h
-        if(pool_tables) {
-            print_all_the_pool(pool_tables)
+        pools_table = &\@cast(table, "Table")->node[index]->i_val->value->gc->h
+        if (pools_table) {
+            print_all_the_pool(pools_table)
         }
         elapsed = gettimeofday_us() - begin
         printf("%d microseconds elapsed in the probe handler.\\n", elapsed)
     }
 }
-$postamble
 _EOC_
 
 open my $in, "|stap --skip-badvars $stap_args -x $pid -"
@@ -186,14 +188,14 @@ close $in;
 sub usage {
     return <<'_EOC_';
 Usage:
-    ngx-lua-socket-pool [optoins]
+    ngx-lua-socket-pools [optoins]
 
 Options
     -a <args>           Pass extra arguments to the stap utility.:
     -p <pid>            Specify the nginx worker process pid.
 
 Examples:
-     ngx-lua-socket-pool -p 12345
-     ngx-lua-socket-pool -p 12345 -a '-DMAXACTION=100000'
+     ngx-lua-socket-pools -p 12345
+     ngx-lua-socket-pools -p 12345 -a '-DMAXACTION=100000'
 _EOC_
 }

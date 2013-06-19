@@ -1021,7 +1021,7 @@ and free queue length in each pool.
 
 Here's a sample command:
 
-    # assuming the nginx worker pid is 19773 
+    # assuming the nginx worker pid is 19773
     $ sudo ./ngx-lua-socket-pool -p 19773
 
     Tracing 19773 (/opt/nginx/sbin/nginx)...
@@ -1055,7 +1055,7 @@ Here's a sample command:
             reused times (max/min/avg): 7275 1127 3839
         pool capacity: 1024
 
-    Total Number of Pools:5
+    Total number of pools: 5
     324 microseconds elapsed in the probe handler.
 
 Community
