@@ -1016,13 +1016,12 @@ This tool requires a Linux kernel compiled by gcc 4.5+ (preferrably gcc 4.7+) be
 ngx-lua-socket-pool
 ----------------
 
-Tracks of Nginx Lua module socket pools and report the active connections, cache queue length
-and free queue length in each pool.
+Tracks of Nginx Lua module socket pools, reports the connections number both out of pools and in the pools, calculates statistics of socket reused times in the pools and prints the capacity of each pool.
 
 Here's a sample command:
 
     # assuming the nginx worker pid is 19773
-    $ sudo ./ngx-lua-socket-pool -p 19773
+    $ sudo ./ngx-lua-socket-pools -p 19773
 
     Tracing 19773 (/opt/nginx/sbin/nginx)...
     pool "127.0.0.1:11213"
