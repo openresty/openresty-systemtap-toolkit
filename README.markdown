@@ -1013,7 +1013,7 @@ Successfully tested on Linux kernel 3.7 and should work for other versions of ke
 
 This tool requires a Linux kernel compiled by gcc 4.5+ (preferrably gcc 4.7+) because gcc versions older than 4.5 generated incomplete DWARF debug info for C inlined functions. It is also recommended to enable DWARF format version 3 or above when compiling the kernel (by passing the `-gdwarf-3` or `-gdwarf-4` option to the `gcc` command line).
 
-ngx-lua-socket-pool
+ngx-lua-socket-pools
 ----------------
 
 Tracks of Nginx Lua module socket pools, reports the connections number both out of pools and in the pools, calculates statistics of socket reused times in the pools and prints the capacity of each pool.
