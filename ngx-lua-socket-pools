@@ -96,11 +96,13 @@ function queue_len(queue) {
     length = 0
     head = queue
     start = \@cast(queue, "ngx_queue_t", "$exec_path")->prev
+
     curr = start
     while (curr != head) {
         curr = \@cast(curr, "ngx_queue_t", "$exec_path")->prev
         length++
     }
+
     return length
 }
 
@@ -108,11 +110,13 @@ function traverse_queue(queue) {
     head = queue
     start = \@cast(queue, "ngx_queue_t", "$exec_path")->prev
     curr = start
+
     if (curr == head) {
         is_queue_empty = 1
     } else {
         is_queue_empty = 0
     }
+
     while (curr != head) {
         pool_item = curr - $pool_offset
         reused = \@cast(pool_item,
@@ -122,6 +126,7 @@ function traverse_queue(queue) {
         curr = \@cast(curr, "ngx_queue_t", "$exec_path")->prev
         length = length + 1
     }
+
     if (!is_queue_empty) {
         printf("\\t    reused times (max/min/avg): %d %d %d\\n",
                \@max(reused_time),
@@ -131,7 +136,7 @@ function traverse_queue(queue) {
     delete reused_time
 }
 
-function print_all_the_pool(pools) {
+function print_pools_stat(pools) {
     pool_num = 0
     for (i = 0; i < size_node(pools); i++) {
         n = &\@cast(pools, "Table", "$exec_path")->node[i]
@@ -144,6 +149,7 @@ function print_all_the_pool(pools) {
             cache = &$pool->cache
             free = &$pool->free
             conn_num =  $pool->active_connections
+
             printf("pool \\"%s\\"\\n", text_str(user_string(pool_key)))
             printf("\tout-of-pool connections: %d\\n", conn_num)
             printf("\tin-pool connections: %d\\n", queue_len(cache))
@@ -170,7 +176,7 @@ probe process("$exec_path").function("ngx_http_lua_socket_tcp_send")
         index = hash_mod(table, key)
         pools_table = &\@cast(table, "Table")->node[index]->i_val->value->gc->h
         if (pools_table) {
-            print_all_the_pool(pools_table)
+            print_pools_stat(pools_table)
         }
         elapsed = gettimeofday_us() - begin
         printf("%d microseconds elapsed in the probe handler.\\n", elapsed)
