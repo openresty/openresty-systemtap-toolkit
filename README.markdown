@@ -1021,7 +1021,7 @@ Tracks of Nginx Lua module socket pools, reports the connections number both out
 Here's a sample command:
 
     # assuming the nginx worker pid is 19773
-    $ sudo ./ngx-lua-socket-pools -p 19773
+    $ ./ngx-lua-socket-pools -p 19773
 
     Tracing 19773 (/opt/nginx/sbin/nginx)...
     pool "127.0.0.1:11213"
