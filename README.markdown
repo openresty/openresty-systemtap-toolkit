@@ -359,8 +359,11 @@ ngx-sample-bt
 -------------
 
 This script can be used to sample backtraces in either user space or kernel space
-or both for a specific Nginx worker process. It outputs the aggregated backgraces (by count). For example,
-to sample a running Nginx worker process (whose pid is 8736) in user space only for total 5 seconds:
+or both for *any* user process that you specify (yes, not just Nginx!).
+It outputs the aggregated backgraces (by count).
+
+For example, to sample a running Nginx worker process (whose pid is 8736) in user space
+only for total 5 seconds:
 
     $ ./ngx-sample-bt -p 8736 -t 5 -u > a.bt
     WARNING: Tracing 8736 (/opt/nginx/sbin/nginx) in user-space only...
