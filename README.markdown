@@ -810,7 +810,10 @@ hit Ctrl-C to end sampling:
 ngx-accept-queue
 ----------------
 
-This tool checks the SYN queue and ACK backlog queue for the sockets listening on the local port specified by the `--port` option. It can work on any server processes even it is not Nginx.
+This tool samples the SYN queue and ACK backlog queue for the sockets listening on the local port specified by the `--port` option
+for the time interval when it is running. It can work on any server processes even it is not Nginx.
+
+This is a real-time sampling tool.
 
 SYN queue or ACK backlog queue overflowing often results in connecting timeout errors on the client side.
 
