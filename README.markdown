@@ -832,6 +832,8 @@ By default, the tool prints out up to 10 queue overflow events and then quits im
     [Tue May 14 12:29:15 2013 PDT] ACK backlog queue is overflown: 129 > 128
     [Tue May 14 12:29:15 2013 PDT] ACK backlog queue is overflown: 129 > 128
 
+From the output, we can see a lot of ACK backlog queue overflows happening when the tool is running. This means the corresponding SYN packets were dropped in the kernel.
+
 You can specify the `--limit` option to control the maximal number of issues reported:
 
     $ ./ngx-accept-queue --port=80 --limit=3
@@ -876,6 +878,8 @@ of the queue lengths:
       128 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 250
       256 |                                                     0
       512 |                                                     0
+
+From the outputs, we can see that for 106 samples (i.e., 106 new connecting request), the SYN queue length remains 0; for samples, the SYN queue is of the length 1; and for 84 samples, the queue size is within the interval [2, 4); and so on. We can see most of the samples have the SYN queue size 0 ~ 8.
 
 You need to hit Ctrl-C to make this tool print out the histgram when the `--distr` option is specified. Alternatively, you can specify the `--time` option to specify the exact number of seconds for real-time sampling:
 
