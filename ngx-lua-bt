@@ -92,6 +92,7 @@ if ($ver =~ /version\s+(\d+\.\d+)/i) {
 }
 
 #warn "Nginx worker processes: @$child_pids\n";
+
 my $context;
 if ($lua51) {
     $context = "standard Lua 5.1";
@@ -415,7 +416,6 @@ _EOC_
     my $pt = qq{\@cast(pt, "GCproto", "$lua_path")};
     my $gcobj = qq{\@cast(gcobj, "GCobj", "$lua_path")};
     my $sizeof_GCproto = qq{\&\@cast(0, "GCproto", "$lua_path")[1]};
-    warn("$lua_path");
     my $sizeof_GCstr = qq{\&\@cast(0, "GCstr", "$lua_path")[1]};
     my $sizeof_ptr = qq{\&\@cast(0, "global_State", "$lua_path")->strmask};
     my $sizeof_BCIns = qq{\&\@cast(0, "BCIns", "$lua_path")[1]};
@@ -711,12 +711,12 @@ function lj_debug_line(pt, pc) {
             return first
         }
         if ($pt->numline < 256) {
-            return first + \@cast(lineinfo, "uint8_t", "$lua_path")[pc]
+            return first + \@cast(lineinfo, "uint8_t")[pc]
         }
         if ($pt->numline < 65536) {
-            return first + \@cast(lineinfo, "uint16_t", "$lua_path")[pc]
+            return first + \@cast(lineinfo, "uint16_t")[pc]
         }
-        return first + \@cast(lineinfo, "uint32_t", "$lua_path")[pc]
+        return first + \@cast(lineinfo, "uint32_t")[pc]
     }
     return 0
 }
@@ -913,3 +913,4 @@ sub gen_pid_test_condition {
     }
     return join " || ", @c;
 }
+
