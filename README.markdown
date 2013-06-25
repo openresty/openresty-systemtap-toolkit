@@ -1018,10 +1018,12 @@ ngx-lua-socket-pools
 
 Tracks of Nginx Lua module socket pools, reports the connections number both out of pools and in the pools, calculates statistics of socket reused times in the pools and prints the capacity of each pool.
 
+Specify the `--lua51` option when you're using the standard Lua 5.1 interpreter in your Nginx build, or `--luajit20` if LuaJIT 2.0 is used instead.
+
 Here's a sample command:
 
     # assuming the nginx worker pid is 19773
-    $ ./ngx-lua-socket-pools -p 19773
+    $ ./ngx-lua-socket-pools -p 19773 --lua51
 
     Tracing 19773 (/opt/nginx/sbin/nginx)...
     pool "127.0.0.1:11213"
