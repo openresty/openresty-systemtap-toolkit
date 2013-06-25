@@ -10,13 +10,24 @@ use warnings;
 use Getopt::Long qw( GetOptions );
 
 GetOptions("a=s",       \(my $stap_args),
+           "d",         \(my $dump_src),
            "h",         \(my $help),
-           "p=i",       \(my $pid))
+           "p=i",       \(my $pid),
+           "lua51",     \(my $lua51),
+           "luajit20",  \(my $luajit20))
     or die usage();
 
 if ($help) {
     print usage();
     exit;
+}
+
+if (!$luajit20 && !$lua51) {
+    die "You have to specify either the --lua51 or --luajit20 options.\n";
+}
+
+if ($luajit20 && $lua51) {
+    die "You cannot specify --lua51 and --luajit20 at the same time.\n";
 }
 
 if (!$pid) {
@@ -58,40 +69,90 @@ if (!-f $exec_file) {
         "you do not have enough permissions.\n";
 }
 
+my $context;
+if ($lua51) {
+    $context = "standard Lua 5.1";
+
+} elsif ($luajit20) {
+    $context = "LuaJIT 2.0";
+}
+
 my $exec_path = readlink $exec_file;
 
-my $preamble = <<_EOC_;
+my $lua_path;
 
+{
+    my $maps_file = "/proc/$pid/maps";
+    open my $in, $maps_file
+        or die "Cannot open $maps_file for reading: $!\n";
+
+    while (<$in>) {
+        if (m{\S+\bliblua-(\d+\.\d+)\.so(?:\.\d+)*$}) {
+            my ($path, $ver) = ($&, $1);
+
+            if ($luajit20) {
+                die "The --luajit20 option is specified but seen standard Lua library: $path\n";
+            }
+
+            if ($ver ne '5.1') {
+                die "Nginx server $pid uses a Lua $ver library ",
+                    "but only Lua 5.1 is supported.\n";
+            }
+
+            $lua_path = $path;
+            last;
+
+        } elsif (m{\S+\bliblua\.so(?:\.\d+)*$}) {
+            my $path = $&;
+
+            if ($luajit20) {
+                die "The --luajit20 option is specified but seen standard Lua library: $path\n";
+            }
+
+            $lua_path = $path;
+            last;
+
+        } elsif (m{\S+\blibluajit-(\d+\.\d+)\.so(?:\.\d+)*$}) {
+            my ($path, $ver) = ($&, $1);
+
+            if ($lua51) {
+                die "The --lua51 option is specified but seen the LuaJIT library: $path\n";
+            }
+
+            if ($ver ne '5.1') {
+                die "Nginx server $pid uses a Lua $ver compatible LuaJIT library ",
+                    "but only Lua 5.1 is supported.\n";
+            }
+
+            $lua_path = $path;
+            last;
+        }
+    }
+
+    close $in;
+
+    if (!defined $lua_path) {
+        $lua_path = $exec_path;
+    }
+}
+
+my $stap_src;
+
+my $preamble = <<_EOC_;
 probe begin
 {
-    printf("\\nTracing %d ($exec_path)...\\n", target())
+    printf("\\nTracing %d ($exec_path) for $context...\\n", target())
 }
 _EOC_
 chop $preamble;
 
 my $L = qq{\@cast(L, "lua_State", "$exec_path")};
 my $pool = qq{\@cast(pool, "ngx_http_lua_socket_pool_t", "$exec_path")};
-my $USERDATA_TYPE = 7;
-my $sizeof_Udata = qq{&\@cast(0, "Udata", "$exec_path")[1]};
 my $pool_offset = qq{&\@cast(0,
                              "ngx_http_lua_socket_pool_item_t",
                              "$exec_path")->queue};
-my $stap_src = <<_EOC_;
-$preamble
-global reused_time
 
-function size_node(table) {
-    res = \@cast(table,"Table","$exec_path")->lsizenode
-    res = 1 << res
-    return res
-}
-
-function hash_mod(table, key) {
-    size = size_node(table)
-    i = key % ((size - 1) | 1)
-    return i
-}
-
+my $ngx_queue_stat_func_def = <<_EOC_;
 function queue_len(queue) {
     length = 0
     head = queue
@@ -135,6 +196,29 @@ function traverse_queue(queue) {
     }
     delete reused_time
 }
+
+_EOC_
+
+if ($lua51) {
+    my $USERDATA_TYPE = 7;
+    my $sizeof_Udata = qq{&\@cast(0, "Udata", "$exec_path")[1]};
+    $stap_src = <<_EOC_;
+$preamble
+global reused_time
+
+function size_node(table) {
+    res = \@cast(table, "Table", "$exec_path")->lsizenode
+    res = 1 << res
+    return res
+}
+
+function hash_mod(table, key) {
+    size = size_node(table)
+    i = key % ((size - 1) | 1)
+    return i
+}
+
+$ngx_queue_stat_func_def
 
 function print_pools_stat(pools) {
     pool_num = 0
@@ -184,24 +268,148 @@ probe process("$exec_path").function("ngx_http_lua_socket_tcp_send")
 }
 _EOC_
 
+} else {
+    # LuaJIT 2.0
+    my $HASH_BIAS = -0x04c11db7;
+    my $HASH_ROT1 = 14;
+    my $HASH_ROT2 = 5;
+    my $HASH_ROT3 = 13;
+    my $USERDATA_TYPE = ~12 & 0xFFFFFFFF;
+    my $sizeof_node = qq{&\@cast(0, "Node", "$lua_path")[1]};
+    my $sizeof_ud = qq{&\@cast(0, "GCudata", "$lua_path")[1]};
+    my $sizeof_x = qq{&\@cast(0, "uint32_t", "$exec_path")[1]};
+
+    $stap_src = <<_EOC_;
+$preamble
+
+global reused_time
+
+function lj_rol(x, n) {
+    return ((x << n) |(x >> ((8 * $sizeof_x - n))))
+}
+
+function hashrot(low, high) {
+    lo = low
+    hi = high & 0xFFFFFFFF
+    lo ^= hi
+    lo = lo & 0xFFFFFFFF
+    hi = lj_rol(hi, $HASH_ROT1)
+    hi = hi & 0xFFFFFFFF
+    lo -= hi
+    lo = lo & 0xFFFFFFFF
+    hi = lj_rol(hi, $HASH_ROT2)
+    hi = hi & 0xFFFFFFFF
+    hi ^= lo
+    hi = hi & 0xFFFFFFFF
+    hi -= lj_rol(lo, $HASH_ROT3)
+    hi = hi & 0xFFFFFFFF
+    return hi
+}
+
+function hashgcref(t, key) {
+    low = key
+    high = key + $HASH_BIAS
+    hash = hashrot(low, high)
+    n = \@cast(t, "GCtab", "$lua_path")->node->ptr32
+    hmask = \@cast(t, "GCtab", "$lua_path")->hmask
+    index = hash & hmask
+    node = n + ($sizeof_node * index)
+    return node
+}
+
+function lj_tab_get(t, key) {
+    node = hashgcref(t, key)
+    node_key = \@cast(node, "Node", "$lua_path")->key->gcr->gcptr32
+
+    while (node_key != key) {
+        node = \@cast(node, "Node", "$lua_path")->next->ptr32
+        node_key = \@cast(node, "Node", "$lua_path")->key->gcr->gcptr32
+    }
+    return node
+}
+
+$ngx_queue_stat_func_def
+
+function print_pools_stat(pools) {
+    pool_num = 0
+    n = \@cast(pools, "GCtab", "$lua_path")->node->ptr32
+    for (i = 0; i <= \@cast(pools, "GCtab", "$lua_path")->hmask; i++) {
+        node = n + ($sizeof_node * i)
+        if (\@cast(node, "Node", "$lua_path")->val->it == $USERDATA_TYPE) {
+            pool_num++
+            pool_obj = \@cast(node, "Node", "$lua_path")->val->gcr->gcptr32
+            pool = &\@cast(pool_obj, "GCobj", "$lua_path")->ud
+            pool += $sizeof_ud
+            pool_key = &$pool->key
+            cache = &$pool->cache
+            free = &$pool->free
+            conn_num =  $pool->active_connections
+            printf("pool \\"%s\\"\\n", text_str(user_string(pool_key)))
+            printf("\tout-of-pool connections: %d\\n", conn_num)
+            printf("\tin-pool connections: %d\\n", queue_len(cache))
+            traverse_queue(cache)
+            printf("\tpool capacity: %d\\n\\n",
+                   queue_len(cache) + queue_len(free))
+        }
+    }
+
+    if (pool_num > 0) {
+        printf("Total number of pools: %d\\n", pool_num)
+        exit()
+    }
+}
+
+probe process("$exec_path").function("ngx_http_lua_socket_tcp_send")
+{
+    L = \$L
+    if (L) {
+        begin = gettimeofday_us()
+        key = &\@var("ngx_http_lua_socket_pool_key")
+        lg = \@cast(L, "lua_State", "$lua_path")->glref->ptr32
+        registrytv = &\@cast(lg, "global_State", "$lua_path")->registrytv
+        gcptr = \@cast(registrytv, "TValue", "$lua_path")->gcr->gcptr32
+        table = &\@cast(gcptr, "GCobj", "$lua_path")->tab
+        pools_table = lj_tab_get(table, key)
+
+        if (pools_table) {
+            pools_obj = \@cast(pools_table, "cTValue", "$lua_path")->gcr->gcptr32
+            pools = &\@cast(pools_obj, "GCobj", "$lua_path")->tab
+            print_pools_stat(pools)
+        }
+
+        elapsed = gettimeofday_us() - begin
+        printf("%d microseconds elapsed in the probe handler.\\n", elapsed)
+    }
+}
+_EOC_
+}
+
+if ($dump_src) {
+    print $stap_src;
+    exit;
+}
+
 open my $in, "|stap --skip-badvars $stap_args -x $pid -"
     or die "Cannot run stap: $!\n";
 
 print $in $stap_src;
 
 close $in;
-
 sub usage {
     return <<'_EOC_';
 Usage:
     ngx-lua-socket-pools [optoins]
 
-Options
-    -a <args>           Pass extra arguments to the stap utility.:
+Options:
     -p <pid>            Specify the nginx worker process pid.
+    -a <args>           Pass extra arguments to the stap utility.
+    -d                  Dump out the systemtap script source.
+    --lua51             Specify that the Nginx is using the standard Lua 5.1.
+                        interpreter.
+    --luajit20          Specify that the Nginx is using LuaJIT 2.0.
 
 Examples:
-     ngx-lua-socket-pools -p 12345
-     ngx-lua-socket-pools -p 12345 -a '-DMAXACTION=100000'
+     ngx-lua-socket-pool --lua51 -p 12345
+     ngx-lua-socket-pool --luajit20 -p 12345 -a '-DMAXACTION=100000'
 _EOC_
 }

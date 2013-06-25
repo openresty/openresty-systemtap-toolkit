@@ -120,14 +120,6 @@ _EOC_
 my $stap_src;
 
 my $postamble = <<_EOC_;
-probe timer.s($time)
-{
-    warn("Time's up. Quitting now...\\n")
-    foreach (bt in bts- limit $limit) {
-        printf("%s\\t%d\\n", bt, \@count(bts[bt]))
-    }
-    exit()
-}
 _EOC_
 
 my $lua_path;
