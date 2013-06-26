@@ -6,6 +6,7 @@
 use 5.006001;
 use strict;
 use warnings;
+use Config;
 
 use Getopt::Long qw( GetOptions );
 
@@ -13,6 +14,7 @@ GetOptions("a=s",       \(my $stap_args),
            "d",         \(my $dump_src),
            "h",         \(my $help),
            "p=i",       \(my $pid),
+           "dist",      \(my $dist),
            "lua51",     \(my $lua51),
            "luajit20",  \(my $luajit20))
     or die usage();
@@ -63,8 +65,13 @@ if ($^O ne 'linux') {
     die "Only linux is supported but I am on $^O.\n";
 }
 
-my $exec_file = "/proc/$pid/exe";
-if (!-f $exec_file) {
+my $arch = $Config{archname};
+if ($arch !~ m/x86_64/) {
+    die "Only x86_64 is supported, current arch is $arch .\n";
+}
+
+my $nginx_file = "/proc/$pid/exe";
+if (!-f $nginx_file) {
     die "Nginx process $pid is not running or ",
         "you do not have enough permissions.\n";
 }
@@ -77,7 +84,7 @@ if ($lua51) {
     $context = "LuaJIT 2.0";
 }
 
-my $exec_path = readlink $exec_file;
+my $nginx_path = readlink $nginx_file;
 
 my $lua_path;
 
@@ -132,7 +139,7 @@ my $lua_path;
     close $in;
 
     if (!defined $lua_path) {
-        $lua_path = $exec_path;
+        $lua_path = $nginx_path;
     }
 }
 
@@ -141,26 +148,38 @@ my $stap_src;
 my $preamble = <<_EOC_;
 probe begin
 {
-    printf("\\nTracing %d ($exec_path) for $context...\\n", target())
+    printf("\\nTracing %d ($nginx_path) for $context...\\n", target())
 }
 _EOC_
 chop $preamble;
 
-my $L = qq{\@cast(L, "lua_State", "$exec_path")};
-my $pool = qq{\@cast(pool, "ngx_http_lua_socket_pool_t", "$exec_path")};
+my $L = qq{\@cast(L, "lua_State", "$nginx_path")};
+my $pool = qq{\@cast(pool, "ngx_http_lua_socket_pool_t", "$nginx_path")};
 my $pool_offset = qq{&\@cast(0,
                              "ngx_http_lua_socket_pool_item_t",
-                             "$exec_path")->queue};
+                             "$nginx_path")->queue};
+
+my $print_dist_func_def;
+if ($dist) {
+    $print_dist_func_def = <<_EOC_;
+printf("\t    reused times distribution:\\n")
+print(\@hist_log(reused_time))
+
+_EOC_
+
+} else {
+    $print_dist_func_def = "";
+}
 
 my $ngx_queue_stat_func_def = <<_EOC_;
 function queue_len(queue) {
     length = 0
     head = queue
-    start = \@cast(queue, "ngx_queue_t", "$exec_path")->prev
+    start = \@cast(queue, "ngx_queue_t", "$nginx_path")->prev
 
     curr = start
     while (curr != head) {
-        curr = \@cast(curr, "ngx_queue_t", "$exec_path")->prev
+        curr = \@cast(curr, "ngx_queue_t", "$nginx_path")->prev
         length++
     }
 
@@ -169,7 +188,7 @@ function queue_len(queue) {
 
 function traverse_queue(queue) {
     head = queue
-    start = \@cast(queue, "ngx_queue_t", "$exec_path")->prev
+    start = \@cast(queue, "ngx_queue_t", "$nginx_path")->prev
     curr = start
 
     if (curr == head) {
@@ -182,9 +201,9 @@ function traverse_queue(queue) {
         pool_item = curr - $pool_offset
         reused = \@cast(pool_item,
                         "ngx_http_lua_socket_pool_item_t",
-                        "$exec_path")->reused
+                        "$nginx_path")->reused
         reused_time <<< reused
-        curr = \@cast(curr, "ngx_queue_t", "$exec_path")->prev
+        curr = \@cast(curr, "ngx_queue_t", "$nginx_path")->prev
         length = length + 1
     }
 
@@ -193,6 +212,8 @@ function traverse_queue(queue) {
                \@max(reused_time),
                \@min(reused_time),
                \@avg(reused_time))
+
+        $print_dist_func_def
     }
     delete reused_time
 }
@@ -201,13 +222,14 @@ _EOC_
 
 if ($lua51) {
     my $USERDATA_TYPE = 7;
-    my $sizeof_Udata = qq{&\@cast(0, "Udata", "$exec_path")[1]};
+    my $sizeof_Udata = qq{&\@cast(0, "Udata", "$lua_path")[1]};
+    my $node = qq{\@cast(node, "Node", "$lua_path")};
     $stap_src = <<_EOC_;
 $preamble
 global reused_time
 
 function size_node(table) {
-    res = \@cast(table, "Table", "$exec_path")->lsizenode
+    res = \@cast(table, "Table", "$lua_path")->lsizenode
     res = 1 << res
     return res
 }
@@ -223,11 +245,11 @@ $ngx_queue_stat_func_def
 function print_pools_stat(pools) {
     pool_num = 0
     for (i = 0; i < size_node(pools); i++) {
-        n = &\@cast(pools, "Table", "$exec_path")->node[i]
-        i_val = &\@cast(n, "Node", "$exec_path")->i_val
-        if (\@cast(i_val, "TValue", "$exec_path")->tt == $USERDATA_TYPE) {
+        node = &\@cast(pools, "Table", "$lua_path")->node[i]
+        i_val = &$node->i_val
+        if (\@cast(i_val, "TValue", "$lua_path")->tt == $USERDATA_TYPE) {
             pool_num++
-            pool = &\@cast(n, "Node", "$exec_path")->i_val->value->gc->u
+            pool = &$node->i_val->value->gc->u
             pool += $sizeof_Udata
             pool_key = &$pool->key
             cache = &$pool->cache
@@ -248,7 +270,7 @@ function print_pools_stat(pools) {
     }
 }
 
-probe process("$exec_path").function("ngx_http_lua_socket_tcp_send")
+probe process("$nginx_path").function("ngx_http_lua_socket_tcp_send")
 {
     L = \$L
     if (L) {
@@ -261,9 +283,9 @@ probe process("$exec_path").function("ngx_http_lua_socket_tcp_send")
         pools_table = &\@cast(table, "Table")->node[index]->i_val->value->gc->h
         if (pools_table) {
             print_pools_stat(pools_table)
+            elapsed = gettimeofday_us() - begin
+            printf("%d microseconds elapsed in the probe handler.\\n", elapsed)
         }
-        elapsed = gettimeofday_us() - begin
-        printf("%d microseconds elapsed in the probe handler.\\n", elapsed)
     }
 }
 _EOC_
@@ -277,9 +299,10 @@ _EOC_
     my $USERDATA_TYPE = ~12 & 0xFFFFFFFF;
     my $node = qq{\@cast(node, "Node", "$lua_path")};
     my $pools = qq{\@cast(pools, "GCtab", "$lua_path")};
+    my $t = qq{\@cast(t, "GCtab", "$lua_path")};
     my $sizeof_node = qq{&\@cast(0, "Node", "$lua_path")[1]};
     my $sizeof_ud = qq{&\@cast(0, "GCudata", "$lua_path")[1]};
-    my $sizeof_x = qq{&\@cast(0, "uint32_t", "$exec_path")[1]};
+    my $sizeof_x = qq{&\@cast(0, "uint32_t", "$nginx_path")[1]};
 
     $stap_src = <<_EOC_;
 $preamble
@@ -312,8 +335,8 @@ function hashgcref(t, key) {
     low = key
     high = key + $HASH_BIAS
     hash = hashrot(low, high)
-    n = \@cast(t, "GCtab", "$lua_path")->node->ptr32
-    hmask = \@cast(t, "GCtab", "$lua_path")->hmask
+    n = $t->node->ptr32
+    hmask = $t->hmask
     index = hash & hmask
     node = n + ($sizeof_node * index)
     return node
@@ -360,9 +383,10 @@ function print_pools_stat(pools) {
         printf("Total number of pools: %d\\n", pool_num)
         exit()
     }
+    return pool_num
 }
 
-probe process("$exec_path").function("ngx_http_lua_socket_tcp_send")
+probe process("$nginx_path").function("ngx_http_lua_socket_tcp_send")
 {
     L = \$L
     if (L) {
@@ -374,15 +398,18 @@ probe process("$exec_path").function("ngx_http_lua_socket_tcp_send")
         gcptr = \@cast(registrytv, "TValue", "$lua_path")->gcr->gcptr32
         table = &\@cast(gcptr, "GCobj", "$lua_path")->tab
         pools_table = lj_tab_get(table, key)
+        pool_num = 0
 
         if (pools_table) {
             pools_obj = \@cast(pools_table, "cTValue", "$lua_path")->gcr->gcptr32
             pools = &\@cast(pools_obj, "GCobj", "$lua_path")->tab
-            print_pools_stat(pools)
+            pool_num = print_pools_stat(pools)
         }
 
-        elapsed = gettimeofday_us() - begin
-        printf("%d microseconds elapsed in the probe handler.\\n", elapsed)
+        if (pool_num > 0) {
+            elapsed = gettimeofday_us() - begin
+            printf("%d microseconds elapsed in the probe handler.\\n", elapsed)
+        }
     }
 }
 _EOC_
@@ -408,6 +435,7 @@ Options:
     -p <pid>            Specify the nginx worker process pid.
     -a <args>           Pass extra arguments to the stap utility.
     -d                  Dump out the systemtap script source.
+    --dist              Print the distribution of reused times of sockets.
     --lua51             Specify that the Nginx is using the standard Lua 5.1.
                         interpreter.
     --luajit20          Specify that the Nginx is using LuaJIT 2.0.
