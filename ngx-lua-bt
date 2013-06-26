@@ -913,4 +913,3 @@ sub gen_pid_test_condition {
     }
     return join " || ", @c;
 }
-
