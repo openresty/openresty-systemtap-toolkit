@@ -1026,7 +1026,7 @@ This tool requires a Linux kernel compiled by gcc 4.5+ (preferrably gcc 4.7+) be
 ngx-lua-socket-pools
 ----------------
 
-Dumps socket pools status of Nginx Lua module, reports the number both out-of-pool and in-pool connections, calculates socket reused times statistics of in-pool connections, and prints the capacity of each pool.
+Dumps socket pools status of Nginx Lua module, reports the number of both out-of-pool and in-pool connections, calculates socket reused times statistics of in-pool connections, and prints the capacity of each pool.
 
 Specify the `--lua51` option when you're using the standard Lua 5.1 interpreter in your Nginx build, or `--luajit20` if LuaJIT 2.0 is used instead.
 

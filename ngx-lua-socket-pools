@@ -275,14 +275,20 @@ probe process("$nginx_path").function("ngx_http_lua_socket_tcp_send")
     L = \$L
     if (L) {
         begin = gettimeofday_us()
+
         key = &\@var("ngx_http_lua_socket_pool_key")
         lg = \@cast(L, "lua_State")->l_G
         registrytv = &\@cast(lg, "global_State")->l_registry
         table = &\@cast(registrytv, "TValue")->value->gc->h
         index = hash_mod(table, key)
         pools_table = &\@cast(table, "Table")->node[index]->i_val->value->gc->h
+        pool_num = 0
+
         if (pools_table) {
-            print_pools_stat(pools_table)
+            pool_num = print_pools_stat(pools_table)
+        }
+
+        if (pool_num > 0) {
             elapsed = gettimeofday_us() - begin
             printf("%d microseconds elapsed in the probe handler.\\n", elapsed)
         }
