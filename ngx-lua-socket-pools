@@ -275,6 +275,8 @@ _EOC_
     my $HASH_ROT2 = 5;
     my $HASH_ROT3 = 13;
     my $USERDATA_TYPE = ~12 & 0xFFFFFFFF;
+    my $node = qq{\@cast(node, "Node", "$lua_path")};
+    my $pools = qq{\@cast(pools, "GCtab", "$lua_path")};
     my $sizeof_node = qq{&\@cast(0, "Node", "$lua_path")[1]};
     my $sizeof_ud = qq{&\@cast(0, "GCudata", "$lua_path")[1]};
     my $sizeof_x = qq{&\@cast(0, "uint32_t", "$exec_path")[1]};
@@ -319,11 +321,11 @@ function hashgcref(t, key) {
 
 function lj_tab_get(t, key) {
     node = hashgcref(t, key)
-    node_key = \@cast(node, "Node", "$lua_path")->key->gcr->gcptr32
+    node_key = $node->key->gcr->gcptr32
 
     while (node_key != key) {
-        node = \@cast(node, "Node", "$lua_path")->next->ptr32
-        node_key = \@cast(node, "Node", "$lua_path")->key->gcr->gcptr32
+        node = $node->next->ptr32
+        node_key = $node->key->gcr->gcptr32
     }
     return node
 }
@@ -332,12 +334,13 @@ $ngx_queue_stat_func_def
 
 function print_pools_stat(pools) {
     pool_num = 0
-    n = \@cast(pools, "GCtab", "$lua_path")->node->ptr32
-    for (i = 0; i <= \@cast(pools, "GCtab", "$lua_path")->hmask; i++) {
+    n = $pools->node->ptr32
+    hmask = $pools->hmask
+    for (i = 0; i <= hmask; i++) {
         node = n + ($sizeof_node * i)
-        if (\@cast(node, "Node", "$lua_path")->val->it == $USERDATA_TYPE) {
+        if ($node->val->it == $USERDATA_TYPE) {
             pool_num++
-            pool_obj = \@cast(node, "Node", "$lua_path")->val->gcr->gcptr32
+            pool_obj = $node->val->gcr->gcptr32
             pool = &\@cast(pool_obj, "GCobj", "$lua_path")->ud
             pool += $sizeof_ud
             pool_key = &$pool->key
@@ -364,6 +367,7 @@ probe process("$exec_path").function("ngx_http_lua_socket_tcp_send")
     L = \$L
     if (L) {
         begin = gettimeofday_us()
+
         key = &\@var("ngx_http_lua_socket_pool_key")
         lg = \@cast(L, "lua_State", "$lua_path")->glref->ptr32
         registrytv = &\@cast(lg, "global_State", "$lua_path")->registrytv
