@@ -13,6 +13,7 @@ GetOptions("a=s",       \(my $stap_args),
            "d",         \(my $dump_src),
            "h",         \(my $help),
            "p=i",       \(my $pid),
+           "raw",       \(my $raw),
            "n=s",       \(my $zone),
            "k=s",       \(my $key))
     or die usage();
@@ -62,7 +63,6 @@ if (!-f $nginx_file) {
 
 my $nginx_path = readlink $nginx_file;
 
-
 my $ver = `stap --version 2>&1`;
 if (!defined $ver) {
     die "Systemtap not installed or its \"stap\" utility is not visible to the PATH environment: $!\n";
@@ -78,8 +78,6 @@ if ($ver =~ /version\s+(\d+\.\d+)/i) {
     die "ERROR: unknown version of systemtap:\n$ver\n";
 }
 
-
-
 if (!$zone) {
     die "ERROR: please specify a dict zone\n";
 }
@@ -89,15 +87,6 @@ if (!$key) {
 }
 
 my $hash = crc32($key);
-print $hash;
-
-my $preamble = <<_EOC_;
-probe begin {
-    printf("Tracing %d ($nginx_path)...\\n\\n", target())
-}
-_EOC_
-chop $preamble;
-
 my $zone_name_len = length $zone;
 my $key_len = length $key;
 my $quoted_zone = quote_str($zone);
@@ -107,49 +96,120 @@ my $LUA_TSTRING = 4;
 my $node = qq{\@cast(node, "ngx_rbtree_node_t", "$nginx_path")};
 my $sd = qq{\@cast(sd, "ngx_http_lua_shdict_node_t", "$nginx_path")};
 
+my $preamble;
+my $print_result_func_def;
+my $print_time_elasped_func_def;
+my $set_timer_begin;
+
+if ($raw) {
+    $preamble = "";
+
+    $set_timer_begin = "";
+
+    $print_time_elasped_func_def = "";
+
+    $print_result_func_def = <<_EOC_;
+function print_result(sd) {
+    if (sd) {
+        value_type = $sd->value_type;
+        data = $sd->data + $key_len;
+        if (value_type == $LUA_TSTRING) {
+            print(user_string(data))
+        } else if (value_type == $LUA_TNUMBER) {
+            print(user_long(data))
+        } else if (value_type == $LUA_TBOOLEAN) {
+            print(user_long(data))
+        } else {
+            printf("bad value type found for key $key in shared_dict $zone\\n")
+        }
+    } else {
+        exit()
+    }
+}
+_EOC_
+
+} else {
+    $preamble = <<_EOC_;
+probe begin {
+    printf("Tracing %d ($nginx_path)...\\n\\n", target())
+}
+_EOC_
+
+    $set_timer_begin = qq{begin = local_clock_us()};
+
+    $print_time_elasped_func_def = <<_EOC_;
+elapsed = local_clock_us() - begin
+printf("\\n%d microseconds elapsed in the probe handler.\\n", elapsed)
+_EOC_
+
+    $print_result_func_def = <<_EOC_;
+function print_result(sd) {
+    printf("zone: \\"$zone\\" key: \\"$key\\"\\n")
+    if (sd) {
+        value_type = $sd->value_type;
+        data = $sd->data + $key_len;
+        if (value_type == $LUA_TSTRING) {
+            printf("type: LUA_TSTRING\\n")
+            printf("value: %s\\n", text_str(user_string(data)))
+        } else if (value_type == $LUA_TNUMBER) {
+            printf("type: LUA_TNUMBER\\n")
+            printf("value: %d\\n", user_long(data))
+        } else if (value_type == $LUA_TBOOLEAN) {
+            printf("type: LUA_TBOOLEAN\\n")
+            printf("value: %d\\n", user_long(data))
+        } else {
+            printf("ERROR: Bad value type found for key $key in shared_dict $zone\\n")
+        }
+    } else {
+        printf("ERROR: key not found\\n");
+    }
+}
+_EOC_
+
+}
+
+chop $preamble;
+
 my $stap_src;
 
 $stap_src = <<_EOC_;
 $preamble
 
 function ngx_http_lua_shdict_lookup(zone, hash, key) {
-    printf("zone addr :%d\\n", zone)
     ctx = \@cast(zone, "ngx_shm_zone_t", "$nginx_path")->data
     sh = \@cast(ctx, "ngx_http_lua_shdict_ctx_t", "$nginx_path")->sh
     node = \@cast(sh, "ngx_http_lua_shdict_shctx_t", "$nginx_path")->rbtree->root
     sentinel = \@cast(sh, "ngx_http_lua_shdict_shctx_t", "$nginx_path")->rbtree->sentinel
-    printf("ctx addr :%d\\n", ctx)
-    printf("node addr :%d\\n", node)
+
     while (node != sentinel) {
 
         if (hash < $node->key) {
             node = $node->left
             continue
         }
-
         if (hash > $node->key) {
             node = $node->right
             continue
         }
+
         sd = &$node->color
-        printf("sd addr %d\\n", sd)
         data = $sd->data
         data_str = text_str(user_string(data))
         data_key = substr(data_str, 0 , $key_len)
-        printf("data_key %s\\n", data_key)
         if (data_key == "$key"){
             return sd
         } else {
-            if(data_key < "$key") {
+            if (data_key < "$key") {
                 node = $node->left
             } else {
                 node = $node->right
             }
         }
     }
-
     return 0
 }
+
+$print_result_func_def
 
 probe process("$nginx_path").function("ngx_process_events_and_timers"),
     process("$nginx_path").function("ngx_http_init_request")
@@ -157,10 +217,12 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
     if (pid() == target()) {
 
         zone_found = 0
-        begin = local_clock_us()
+
+        $set_timer_begin
 
         part = &\@var("ngx_cycle\@ngx_cycle.c")->shared_memory->part
         zone = \@cast(part, "ngx_list_part_t")->elts
+
         for (i = 0; ; i++) {
             if (i >= \@cast(part, "ngx_list_part_t")->nelts) {
                 if (\@cast(part, "ngx_list_part_t")->next == 0) {
@@ -173,40 +235,17 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
             }
 
             shm = &\@cast(zone, "ngx_shm_zone_t")[i]->shm
-
             name = &\@cast(shm, "ngx_shm_t")->name
-
             if (\@cast(name, "ngx_str_t")->len != $zone_name_len) {
                 continue;
             }
-
             zone_name = user_string_n(\@cast(name, "ngx_str_t")->data, $zone_name_len)
-
             if (zone_name != $quoted_zone) {
                 continue;
             }
 
             sd = ngx_http_lua_shdict_lookup(zone, $hash, "$key")
-
-            if (sd) {
-                printf("Key found!\\n");
-                value_type = $sd->value_type;
-                printf("value_type is %d\\n", value_type)
-                data = $sd->data + $key_len;
-                printf("value data addr %d", data)
-                if (value_type == $LUA_TSTRING) {
-                    printf("Data is\\n%s\\n", user_string(data))
-                } else if (value_type == $LUA_TNUMBER) {
-                    printf("Data is\\n%s", user_string(data))
-                } else if (value_type == $LUA_TBOOLEAN) {
-                    printf("Data is\\n%d\\n", data)
-                    break;
-                } else {
-                    printf("bad value type found for key $key in shared_dict $zone\\n")
-                }
-            } else {
-                printf("Key not found!\\n");
-            }
+            print_result(sd)
 
             zone_found = 1
             break
@@ -216,8 +255,8 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
             printf("shm zone \\"%s\\" not found.\\n", $quoted_zone)
         }
 
-        elapsed = local_clock_us() - begin
-        printf("\\n%d microseconds elapsed in the probe handler.\\n", elapsed)
+
+        $print_time_elasped_func_def
 
         exit()
 
@@ -246,12 +285,14 @@ Usage:
 Options:
     -p <pid>            Specify the nginx worker process pid.
     -a <args>           Pass extra arguments to the stap utility.
-    -n <zone>           Specify the dict. 
+    -d                  Dump out the systemtap script source.
+    -n <zone>           Specify the zone.
     -k <key>            Specify the key.
+    --raw               Raw output.
 
 Examples:
      ngx-lua-shdict -p 12345
-     ngx-lua-shdict -p 12345 -a '-DMAXACTION=100000'
+     ngx-lua-shdict -p 12345 -n dogs -k Jim
 _EOC_
 }
 
