@@ -435,7 +435,7 @@ close $in;
 sub usage {
     return <<'_EOC_';
 Usage:
-    ngx-lua-socket-pools [optoins]
+    ngx-lua-conn-pools [optoins]
 
 Options:
     -p <pid>            Specify the nginx worker process pid.
@@ -447,7 +447,7 @@ Options:
     --luajit20          Specify that the Nginx is using LuaJIT 2.0.
 
 Examples:
-     ngx-lua-socket-pool --lua51 -p 12345
-     ngx-lua-socket-pool --luajit20 -p 12345 -a '-DMAXACTION=100000'
+     ngx-lua-conn-pools --lua51 -p 12345
+     ngx-lua-conn-pools --luajit20 -p 12345 -a '-DMAXACTION=100000'
 _EOC_
 }
