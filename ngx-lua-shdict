@@ -1,0 +1,295 @@
+#!/usr/bin/env perl
+
+# Copyright (C) Yichun Zhang (agentzh)
+# Copyright (C) Guanlan Dai
+
+use 5.006001;
+use strict;
+use warnings;
+
+use Getopt::Long qw( GetOptions );
+
+GetOptions("a=s",       \(my $stap_args),
+           "d",         \(my $dump_src),
+           "h",         \(my $help),
+           "p=i",       \(my $pid),
+           "n=s",       \(my $zone),
+           "k=s",       \(my $key))
+    or die usage();
+
+if ($help) {
+    print usage();
+    exit;
+}
+
+if (!$pid) {
+    die "No nginx process pid specified by the -p option\n";
+}
+
+if (!defined $stap_args) {
+    $stap_args = '';
+}
+
+if ($stap_args !~ /\b-D\s*MAXACTION=/) {
+    $stap_args .= " -DMAXACTION=100000"
+}
+
+if ($stap_args !~ /\b-D\s*MAXMAPENTRIES=/) {
+    $stap_args .= " -DMAXMAPENTRIES=5000"
+}
+
+if ($stap_args !~ /\b-D\s*MAXBACKTRACE=/) {
+    $stap_args .= " -DMAXBACKTRACE=200"
+}
+
+if ($stap_args !~ /\b-D\s*MAXSTRINGLEN=2048/) {
+    $stap_args .= " -DMAXSTRINGLEN=2048"
+}
+
+if ($stap_args !~ /\b-D\s*MAXSKIPPED=1024/) {
+    $stap_args .= " -DMAXSKIPPED=1024"
+}
+
+if ($^O ne 'linux') {
+    die "Only linux is supported but I am on $^O.\n";
+}
+
+my $nginx_file = "/proc/$pid/exe";
+if (!-f $nginx_file) {
+    die "Nginx process $pid is not running or ",
+        "you do not have enough permissions.\n";
+}
+
+my $nginx_path = readlink $nginx_file;
+
+
+my $ver = `stap --version 2>&1`;
+if (!defined $ver) {
+    die "Systemtap not installed or its \"stap\" utility is not visible to the PATH environment: $!\n";
+}
+
+if ($ver =~ /version\s+(\d+\.\d+)/i) {
+    my $v = $1;
+    if ($v < 2.1) {
+        die "ERROR: at least systemtap 2.1 is required but found $v\n";
+    }
+
+} else {
+    die "ERROR: unknown version of systemtap:\n$ver\n";
+}
+
+
+
+if (!$zone) {
+    die "ERROR: please specify a dict zone\n";
+}
+
+if (!$key) {
+    die "ERROR: please specify a key\n";
+}
+
+my $hash = crc32($key);
+print $hash;
+
+my $preamble = <<_EOC_;
+probe begin {
+    printf("Tracing %d ($nginx_path)...\\n\\n", target())
+}
+_EOC_
+chop $preamble;
+
+my $zone_name_len = length $zone;
+my $key_len = length $key;
+my $quoted_zone = quote_str($zone);
+my $LUA_TBOOLEAN = 1;
+my $LUA_TNUMBER = 3;
+my $LUA_TSTRING = 4;
+my $node = qq{\@cast(node, "ngx_rbtree_node_t", "$nginx_path")};
+my $sd = qq{\@cast(sd, "ngx_http_lua_shdict_node_t", "$nginx_path")};
+
+my $stap_src;
+
+$stap_src = <<_EOC_;
+$preamble
+
+function ngx_http_lua_shdict_lookup(zone, hash, key) {
+    printf("zone addr :%d\\n", zone)
+    ctx = \@cast(zone, "ngx_shm_zone_t", "$nginx_path")->data
+    sh = \@cast(ctx, "ngx_http_lua_shdict_ctx_t", "$nginx_path")->sh
+    node = \@cast(sh, "ngx_http_lua_shdict_shctx_t", "$nginx_path")->rbtree->root
+    sentinel = \@cast(sh, "ngx_http_lua_shdict_shctx_t", "$nginx_path")->rbtree->sentinel
+    printf("ctx addr :%d\\n", ctx)
+    printf("node addr :%d\\n", node)
+    while (node != sentinel) {
+
+        if (hash < $node->key) {
+            node = $node->left
+            continue
+        }
+
+        if (hash > $node->key) {
+            node = $node->right
+            continue
+        }
+        sd = &$node->color
+        printf("sd addr %d\\n", sd)
+        data = $sd->data
+        data_str = text_str(user_string(data))
+        data_key = substr(data_str, 0 , $key_len)
+        printf("data_key %s\\n", data_key)
+        if (data_key == "$key"){
+            return sd
+        } else {
+            if(data_key < "$key") {
+                node = $node->left
+            } else {
+                node = $node->right
+            }
+        }
+    }
+
+    return 0
+}
+
+probe process("$nginx_path").function("ngx_process_events_and_timers"),
+    process("$nginx_path").function("ngx_http_init_request")
+{
+    if (pid() == target()) {
+
+        zone_found = 0
+        begin = local_clock_us()
+
+        part = &\@var("ngx_cycle\@ngx_cycle.c")->shared_memory->part
+        zone = \@cast(part, "ngx_list_part_t")->elts
+        for (i = 0; ; i++) {
+            if (i >= \@cast(part, "ngx_list_part_t")->nelts) {
+                if (\@cast(part, "ngx_list_part_t")->next == 0) {
+                    break
+                }
+
+                part = \@cast(part, "ngx_list_part_t")->next
+                zone = \@cast(part, "ngx_list_part_t")->elts
+                i = 0
+            }
+
+            shm = &\@cast(zone, "ngx_shm_zone_t")[i]->shm
+
+            name = &\@cast(shm, "ngx_shm_t")->name
+
+            if (\@cast(name, "ngx_str_t")->len != $zone_name_len) {
+                continue;
+            }
+
+            zone_name = user_string_n(\@cast(name, "ngx_str_t")->data, $zone_name_len)
+
+            if (zone_name != $quoted_zone) {
+                continue;
+            }
+
+            sd = ngx_http_lua_shdict_lookup(zone, $hash, "$key")
+
+            if (sd) {
+                printf("Key found!\\n");
+                value_type = $sd->value_type;
+                printf("value_type is %d\\n", value_type)
+                data = $sd->data + $key_len;
+                printf("value data addr %d", data)
+                if (value_type == $LUA_TSTRING) {
+                    printf("Data is\\n%s\\n", user_string(data))
+                } else if (value_type == $LUA_TNUMBER) {
+                    printf("Data is\\n%s", user_string(data))
+                } else if (value_type == $LUA_TBOOLEAN) {
+                    printf("Data is\\n%d\\n", data)
+                    break;
+                } else {
+                    printf("bad value type found for key $key in shared_dict $zone\\n")
+                }
+            } else {
+                printf("Key not found!\\n");
+            }
+
+            zone_found = 1
+            break
+        }
+
+        if (!zone_found) {
+            printf("shm zone \\"%s\\" not found.\\n", $quoted_zone)
+        }
+
+        elapsed = local_clock_us() - begin
+        printf("\\n%d microseconds elapsed in the probe handler.\\n", elapsed)
+
+        exit()
+
+    } /* pid() == target() */
+}
+_EOC_
+
+
+if ($dump_src) {
+    print $stap_src;
+    exit;
+}
+
+open my $in, "|stap $stap_args -x $pid -"
+    or die "Cannot run stap: $!\n";
+
+print $in $stap_src;
+
+close $in;
+
+sub usage {
+    return <<'_EOC_';
+Usage:
+    ngx-lua-shdict [optoins]
+
+Options:
+    -p <pid>            Specify the nginx worker process pid.
+    -a <args>           Pass extra arguments to the stap utility.
+    -n <zone>           Specify the dict. 
+    -k <key>            Specify the key.
+
+Examples:
+     ngx-lua-shdict -p 12345
+     ngx-lua-shdict -p 12345 -a '-DMAXACTION=100000'
+_EOC_
+}
+
+
+sub quote_str {
+    my $s = shift;
+    $s =~ s/\\/\\\\/g;
+    $s =~ s/"/\\"/g;
+    $s =~ s/\n/\\n/g;
+    $s =~ s/\t/\\t/g;
+    $s =~ s/\r/\\r/g;
+    return qq{"$s"};
+}
+
+sub crc32 {
+    my ($input, $init_value, $polynomial) = @_;
+
+    $init_value = 0 unless (defined $init_value);
+    $polynomial = 0xedb88320 unless (defined $polynomial);
+
+    my @lookup_table;
+
+    for (my $i = 0; $i < 256; $i++) {
+        my $x = $i;
+        for (my $j = 0; $j < 8; $j++) {
+            if ($x & 1) {
+                $x = ($x >> 1) ^ $polynomial;
+            } else {
+                $x = $x >> 1;
+            }
+        }
+        push @lookup_table, $x;
+    }
+    my $crc = $init_value ^ 0xffffffff;
+    foreach my $x (unpack ('C*', $input)) {
+        $crc = (($crc >> 8) & 0xffffff) ^ $lookup_table[ ($crc ^ $x) & 0xff ];
+    }
+    $crc = $crc ^ 0xffffffff;
+
+    return $crc;
+}
