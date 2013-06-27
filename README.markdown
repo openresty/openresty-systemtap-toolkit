@@ -1023,17 +1023,17 @@ Successfully tested on Linux kernel 3.7 and should work for other versions of ke
 
 This tool requires a Linux kernel compiled by gcc 4.5+ (preferrably gcc 4.7+) because gcc versions older than 4.5 generated incomplete DWARF debug info for C inlined functions. It is also recommended to enable DWARF format version 3 or above when compiling the kernel (by passing the `-gdwarf-3` or `-gdwarf-4` option to the `gcc` command line).
 
-ngx-lua-socket-pools
+ngx-lua-conn-pools
 ----------------
 
-Dumps socket pools status of Nginx Lua module, reports the number of both out-of-pool and in-pool connections, calculates socket reused times statistics of in-pool connections, and prints the capacity of each pool.
+Dumps connections pools status of [ngx_lua](http://wiki.nginx.org/HttpLuaModule), reports the number of both out-of-pool and in-pool connections, calculates connections reused times statistics of in-pool connections, and prints the capacity of each pool.
 
 Specify the `--lua51` option when you're using the standard Lua 5.1 interpreter in your Nginx build, or `--luajit20` if LuaJIT 2.0 is used instead.
 
 Here's a sample command:
 
     # assuming the nginx worker pid is 19773
-    $ ./ngx-lua-socket-pools -p 19773 --luajit
+    $ ./ngx-lua-conn-pools -p 19773 --luajit
 
     Tracing 19773 (/opt/nginx/sbin/nginx)...
     pool "127.0.0.1:11213"
