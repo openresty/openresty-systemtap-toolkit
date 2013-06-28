@@ -227,7 +227,8 @@ function ngx_http_lua_shdict_lookup(zone, hash, key) {
 $print_result_func_def
 
 probe process("$nginx_path").function("ngx_process_events_and_timers"),
-    process("$nginx_path").function("ngx_http_init_request")
+      process("$nginx_path").function("ngx_http_init_request")?,
+      process("$nginx_path").function("ngx_http_init_connection")?
 {
     if (pid() == target()) {
 

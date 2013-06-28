@@ -1023,6 +1023,22 @@ Successfully tested on Linux kernel 3.7 and should work for other versions of ke
 
 This tool requires a Linux kernel compiled by gcc 4.5+ (preferrably gcc 4.7+) because gcc versions older than 4.5 generated incomplete DWARF debug info for C inlined functions. It is also recommended to enable DWARF format version 3 or above when compiling the kernel (by passing the `-gdwarf-3` or `-gdwarf-4` option to the `gcc` command line).
 
+ngx-lua-shdict
+-------
+
+This tool fetches the data from the shared memory dict by the specified dict and key.
+
+    # assuming the nginx worker pid is 5050
+
+    $ ./ngx-shm -p 5050 --dict dogs --key Jim
+    Tracing 5050 (/opt/nginx/sbin/nginx)...
+
+	dict: "dogs" key: "Jim"
+	type: LUA_TBOOLEAN
+	value: 1
+
+	6 microseconds elapsed in the probe handler.
+
 Community
 =========
 
