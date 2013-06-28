@@ -168,7 +168,7 @@ function print_result(sd) {
             printf("value: %d\\n", user_long(data))
 
         } else {
-            error("ERROR: Bad value type found for key $key in shared_dict $dict\\n")
+            error("Bad value type found for key $key in shared_dict $dict\\n")
         }
 
     } else {
@@ -187,7 +187,6 @@ $stap_src = <<_EOC_;
 $preamble
 
 function ngx_http_lua_shdict_lookup(zone, hash, key) {
-    error("ERROR: Bad value type found for key $key in shared_dict $dict\\n")
     ctx = \@cast(zone, "ngx_shm_zone_t", "$nginx_path")->data
     sh = \@cast(ctx, "ngx_http_lua_shdict_ctx_t", "$nginx_path")->sh
     node = $sh->rbtree->root
