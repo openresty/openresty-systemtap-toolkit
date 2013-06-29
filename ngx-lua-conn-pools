@@ -407,7 +407,7 @@ probe process("$nginx_path").function("ngx_http_lua_socket_tcp_send")
         pool_count = 0
 
         if (pools_table) {
-            pools_obj = \@cast(pools_table, "cTValue", "$lua_path")->gcr->gcptr32
+            pools_obj = \@cast(pools_table, "TValue", "$lua_path")->gcr->gcptr32
             pools = &\@cast(pools_obj, "GCobj", "$lua_path")->tab
             pool_count = print_pools_stat(pools)
         }
