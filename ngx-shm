@@ -113,11 +113,13 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
             init = \@cast(zone, "ngx_shm_zone_t")[i]->init
             addr = \@cast(shm, "ngx_shm_t")->addr
 
+            /*
             if (addr != \@cast(addr, "ngx_slab_pool_t")->addr) {
                 error("shm zone \\"" . zone_name . "\\" is corrupted: "
                       . "pool != pool->addr")
                 exit()
             }
+            */
 
             init_name = usymname(init)
             owner = str_replace(str_replace(init_name, "_init", ""), "_zone", "")
@@ -131,7 +133,7 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
             blocks = 0
 
             for (page = \@cast(free, "ngx_slab_page_t")->next;
-                 page != free;
+                 page && page != free;
                  page = \@cast(page, "ngx_slab_page_t")->next)
             {
                 pages += \@cast(page, "ngx_slab_page_t")->slab
