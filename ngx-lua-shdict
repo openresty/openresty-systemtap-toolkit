@@ -126,7 +126,7 @@ function print_result(sd) {
             print(user_long(data))
 
         } else {
-            printf("bad value type found for key $key in shared_dict $dict\\n")
+            printf("ERROR: bad value type found for key $key in shared_dict $dict\\n")
         }
 
     } else {
@@ -151,21 +151,35 @@ _EOC_
 
     $print_result_func_def = <<_EOC_;
 function print_result(sd) {
-    printf("dict: \\"$dict\\" key: \\"$key\\"\\n")
     if (sd) {
         value_type = $sd->value_type;
         data = $sd->data + $key_len;
         if (value_type == $LUA_TSTRING) {
             printf("type: LUA_TSTRING\\n")
             printf("value: %s\\n", text_str(user_string(data)))
+            printf("expires: %d\\n", $sd->expires)
+            printf("flags: 0x%x\\n", $sd->user_flags)
 
         } else if (value_type == $LUA_TNUMBER) {
             printf("type: LUA_TNUMBER\\n")
             printf("value: %d\\n", user_long(data))
+            printf("expires: %d\\n", $sd->expires)
+            printf("flags: 0x%x\\n", $sd->user_flags)
 
         } else if (value_type == $LUA_TBOOLEAN) {
             printf("type: LUA_TBOOLEAN\\n")
-            printf("value: %d\\n", user_long(data))
+            if ( user_long(data) == 0) {
+                printf("value: false\\n")
+
+            } else if ( user_long(data) == 1) {
+                printf("value: true\\n")
+
+            } else {
+                printf("ERROR: value error\\n")
+            }
+
+            printf("expires: %d\\n", $sd->expires)
+            printf("flags: 0x%x\\n", $sd->user_flags)
 
         } else {
             error("Bad value type found for key $key in shared_dict $dict\\n")
@@ -227,8 +241,8 @@ function ngx_http_lua_shdict_lookup(zone, hash, key) {
 $print_result_func_def
 
 probe process("$nginx_path").function("ngx_process_events_and_timers"),
-      process("$nginx_path").function("ngx_http_init_request")?,
-      process("$nginx_path").function("ngx_http_init_connection")?
+      process("$nginx_path").function("ngx_http_init_request")!,
+      process("$nginx_path").function("ngx_http_init_connection")
 {
     if (pid() == target()) {
 
