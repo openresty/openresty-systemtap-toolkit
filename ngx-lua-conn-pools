@@ -208,10 +208,10 @@ function traverse_queue(queue) {
     }
 
     if (!is_queue_empty) {
-        printf("\\t    reused times (max/min/avg): %d %d %d\\n",
+        printf("\\t    reused times (max/avg/min): %d %d %d\\n",
                \@max(reused_time),
-               \@min(reused_time),
-               \@avg(reused_time))
+               \@avg(reused_time),
+               \@min(reused_time))
 
         $print_dist_func_def
     }
