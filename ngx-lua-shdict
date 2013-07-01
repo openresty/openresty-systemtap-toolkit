@@ -285,7 +285,7 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
         }
 
         if (!zone_found) {
-            printf("shm zone \\"%s\\" not found.\\n", $quoted_zone)
+            printf("dict \\"%s\\" not found.\\n", $quoted_zone)
         }
 
         $print_time_elasped_func_def

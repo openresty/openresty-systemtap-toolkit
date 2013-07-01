@@ -1028,14 +1028,16 @@ ngx-lua-shdict
 
 This tool fetches the data from the shared memory dict by the specified dict and key.
 
+Specify the `--raw` option when you need dump the raw value of the given key.
+
     # assuming the nginx worker pid is 5050
 
-    $ ./ngx-shm -p 5050 --dict dogs --key Jim
+    $ ./ngx-lua-shdict -p 5050 --dict dogs --key Jim
     Tracing 5050 (/opt/nginx/sbin/nginx)...
 
 	dict: "dogs" key: "Jim"
 	type: LUA_TBOOLEAN
-	value: 1
+	value: true
 
 	6 microseconds elapsed in the probe handler.
 
