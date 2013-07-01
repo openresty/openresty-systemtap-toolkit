@@ -1066,7 +1066,7 @@ Here's a sample command:
             reused times (max/min/avg): 7275 1127 3839
         pool capacity: 1024
 
-    Total number of pools: 5
+    For total 5 connection pool(s) found.
     324 microseconds elapsed in the probe handler.
 
 Community
