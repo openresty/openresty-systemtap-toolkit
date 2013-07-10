@@ -12,6 +12,10 @@ use Getopt::Long qw( GetOptions );
 GetOptions("a=s",       \(my $stap_args),
            "d",         \(my $dump_src),
            "h",         \(my $help),
+           "lua51",     \(my $lua51),
+           "luajit",    \(my $luajit20),
+           "w",         \(my $trace_write),
+           "f",         \(my $find_value),
            "p=i",       \(my $pid),
            "raw",       \(my $raw),
            "dict=s",    \(my $dict),
@@ -62,6 +66,7 @@ if (!-f $nginx_file) {
 }
 
 my $nginx_path = readlink $nginx_file;
+my $lua_path = get_lua_path();
 
 my $ver = `stap --version 2>&1`;
 if (!defined $ver) {
@@ -77,40 +82,121 @@ if ($ver =~ /version\s+(\d+\.\d+)/i) {
 } else {
     die "ERROR: unknown version of systemtap:\n$ver\n";
 }
-
-if (!$dict) {
-    die "ERROR: please specify a dict zone\n";
-}
-
 if (!$key) {
     die "ERROR: please specify a key\n";
 }
 
-my $hash = crc32($key);
-my $dict_name_len = length $dict;
-my $key_len = length $key;
-my $quoted_zone = quote_str($dict);
-my $LUA_TBOOLEAN = 1;
-my $LUA_TNUMBER = 3;
-my $LUA_TSTRING = 4;
-my $part = qq{\@cast(part, "ngx_list_part_t")};
-my $node = qq{\@cast(node, "ngx_rbtree_node_t", "$nginx_path")};
-my $sd = qq{\@cast(sd, "ngx_http_lua_shdict_node_t", "$nginx_path")};
-my $sh = qq{\@cast(sh, "ngx_http_lua_shdict_shctx_t", "$nginx_path")};
-
+my $stap_src;
 my $preamble;
-my $print_result_func_def;
-my $print_time_elasped_func_def;
-my $set_timer_begin;
 
-if ($raw) {
-    $preamble = "";
+if ($trace_write) {
+    my $o = qq{\@cast(o, "TValue", "$lua_path")};
+    my $L = qq{\@cast(L, "lua_State", "$lua_path")};
+    my $gcr = qq{\@cast(gcr, "GCRef", "$lua_path")};
+    my $gcobj = qq{\@cast(gcobj, "GCobj", "$lua_path")};
+    my $str = qq{\@cast(str, "GCstr", "$lua_path")};
+    my $sizeof_TValue = qq{\&\@cast(0, "TValue", "$lua_path")[1]};
+    my $sizeof_GCstr = qq{\&\@cast(0, "GCstr", "$lua_path")[1]};
+    my $TL_TSTR = "4294967291";
+    my $NGX_HTTP_LUA_SHDICT_ADD = '0x0001';
+    my $NGX_HTTP_LUA_SHDICT_REPLACE = '0x0002';
+    my $NGX_HTTP_LUA_SHDICT_SAFE_STORE = '0x0004';
+    my $LJ_TISNUM = '0xfffeffffu';
+    $preamble = <<_EOC_;
+probe begin {
+    printf("Tracing %d ($nginx_path)...\\n\\n", target())
+    printf("Hit Ctrl-C to end.\\n\\n")
+}
+_EOC_
 
-    $set_timer_begin = "";
+    $stap_src = <<_EOC_;
+$preamble
 
-    $print_time_elasped_func_def = "";
+function gcref(gcr)
+{
+    return $gcr->gcptr32
+}
 
-    $print_result_func_def = <<_EOC_;
+function gcval(o)
+{
+    return gcref(\&$o->gcr)
+}
+
+function strdata(s)
+{
+    return s + $sizeof_GCstr
+}
+
+probe process("$nginx_path").function("ngx_http_lua_shdict_set_helper")
+{
+    if (pid() == target()) {
+        flags = \$flags
+        if (flags & $NGX_HTTP_LUA_SHDICT_ADD) {
+            op = "add"
+
+        } else if (flags & $NGX_HTTP_LUA_SHDICT_REPLACE) {
+            op = "replace"
+
+        } else {
+            op = "set"
+        }
+
+        if (flags & $NGX_HTTP_LUA_SHDICT_SAFE_STORE) {
+            op = "safe_" . op
+        }
+
+        L = \$L
+        o = $L->base + $sizeof_TValue * (2 - 1)
+        if (o < $L->top && $o->it == $TL_TSTR) {
+            gcobj = gcval(o)
+            str = \&$gcobj->str
+            //printf("gmatch regex: %s\\n", user_string_n(strdata(str), $str->len))
+            key = user_string_n(strdata(str), $str->len)
+            if (key == "$key") {
+                printf("%s %s", op, key)
+
+                o = $L->base + $sizeof_TValue * (4 - 1)
+                if (o < $L->top) {
+                    exptime = user_long(&$o->n)
+                    printf(" exptime=%d", exptime)
+                }
+
+                printf("\\n")
+            }
+        }
+    }
+}
+_EOC_
+
+} else {
+    if (!$dict) {
+        die "ERROR: please specify a dict zone\n";
+    }
+
+    my $hash = crc32($key);
+    my $dict_name_len = length $dict;
+    my $key_len = length $key;
+    my $quoted_zone = quote_str($dict);
+    my $LUA_TBOOLEAN = 1;
+    my $LUA_TNUMBER = 3;
+    my $LUA_TSTRING = 4;
+    my $part = qq{\@cast(part, "ngx_list_part_t")};
+    my $node = qq{\@cast(node, "ngx_rbtree_node_t", "$nginx_path")};
+    my $sd = qq{\@cast(sd, "ngx_http_lua_shdict_node_t", "$nginx_path")};
+    my $sh = qq{\@cast(sh, "ngx_http_lua_shdict_shctx_t", "$nginx_path")};
+
+    my $print_result_func_def;
+    my $print_time_elasped_func_def;
+    my $set_timer_begin;
+
+    if ($raw) {
+        $preamble = "";
+
+        $set_timer_begin = "";
+
+        $print_time_elasped_func_def = "";
+
+        $print_result_func_def = <<_EOC_;
 function print_result(sd) {
     if (sd) {
         value_type = $sd->value_type;
@@ -135,8 +221,8 @@ function print_result(sd) {
 }
 _EOC_
 
-} else {
-    $preamble = <<_EOC_;
+    } else {
+        $preamble = <<_EOC_;
 probe begin {
     printf("Tracing %d ($nginx_path)...\\n\\n", target())
 }
@@ -191,13 +277,10 @@ function print_result(sd) {
 }
 _EOC_
 
-}
+    }
+    chop $preamble;
 
-chop $preamble;
-
-my $stap_src;
-
-$stap_src = <<_EOC_;
+    $stap_src = <<_EOC_;
 $preamble
 
 function ngx_http_lua_shdict_lookup(zone, hash, key) {
@@ -296,6 +379,8 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
 }
 _EOC_
 
+}
+
 if ($dump_src) {
     print $stap_src;
     exit;
@@ -317,13 +402,18 @@ Options:
     -p <pid>            Specify the nginx worker process pid.
     -a <args>           Pass extra arguments to the stap utility.
     -d                  Dump out the systemtap script source.
+    -f                  Find value of specify key.
+    -w                  Trace writes to the dict.
+    --lua51             The target Nginx is using the standard Lua 5.1 interpreter.
+    --luajit            The target Nginx is using the LuaJIT 2.0.
     --dict <dict>       Specify the dict.
     --key  <key>        Specify the key.
     --raw               Raw output.
 
 Examples:
      ngx-lua-shdict -p 12345
-     ngx-lua-shdict -p 12345 --dict dogs --key Jim
+     ngx-lua-shdict -p 12345 -f --dict dogs --key Jim --luajit
+     ngx-lua-shdict -p 12345 -w --key Jim --luajit
 _EOC_
 }
 
@@ -335,6 +425,70 @@ sub quote_str {
     $s =~ s/\t/\\t/g;
     $s =~ s/\r/\\r/g;
     return qq{"$s"};
+}
+
+sub get_lua_path {
+    my $lua_path;
+
+    if (!defined $lua51 && !defined $luajit20) {
+        die "Neither --lua51 nor --luajit20 options are specified.\n";
+    }
+
+    my $maps_file = "/proc/$pid/maps";
+    open my $in, $maps_file
+        or die "Cannot open $maps_file for reading: $!\n";
+
+    while (<$in>) {
+        if (m{\S+\bliblua-(\d+\.\d+)\.so(?:\.\d+)*$}) {
+            my ($path, $ver) = ($&, $1);
+
+            if ($luajit20) {
+                die "The --luajit20 option is specified but seen standard Lua library: $path\n";
+            }
+
+            if ($ver ne '5.1') {
+                die "Nginx server $pid uses a Lua $ver library ",
+                    "but only Lua 5.1 is supported.\n";
+            }
+
+            $lua_path = $path;
+            last;
+
+        } elsif (m{\S+\bliblua\.so(?:\.\d+)*$}) {
+            my $path = $&;
+
+            if ($luajit20) {
+                die "The --luajit20 option is specified but seen standard Lua library: $path\n";
+            }
+
+            $lua_path = $path;
+            last;
+
+        } elsif (m{\S+\blibluajit-(\d+\.\d+)\.so(?:\.\d+)*$}) {
+            my ($path, $ver) = ($&, $1);
+
+            if ($lua51) {
+                die "The --lua51 option is specified but seen the LuaJIT library: $path\n";
+            }
+
+            if ($ver ne '5.1') {
+                die "Nginx server $pid uses a Lua $ver compatible LuaJIT library ",
+                    "but only Lua 5.1 is supported.\n";
+            }
+
+            $lua_path = $path;
+            last;
+        }
+    }
+
+    close $in;
+
+    if (!defined $lua_path) {
+        #warn "FALL BACK TO NGINX PATH";
+        $lua_path = $nginx_path;
+    }
+
+    return $lua_path;
 }
 
 sub crc32 {
