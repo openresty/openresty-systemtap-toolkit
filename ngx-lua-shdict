@@ -413,6 +413,7 @@ Options:
 Examples:
      ngx-lua-shdict -p 12345
      ngx-lua-shdict -p 12345 -f --dict dogs --key Jim --luajit
+     ngx-lua-shdict -p 12345 -f --dict dogs --key Jim --luajit --raw
      ngx-lua-shdict -p 12345 -w --key Jim --luajit
 _EOC_
 }
