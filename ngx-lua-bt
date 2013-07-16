@@ -911,5 +911,5 @@ sub gen_pid_test_condition {
     for my $pid (@$pids) {
         push @c, "my_pid == $pid";
     }
-    return join " || ", @c;
+    return '(' . (join " || ", @c) . ')';
 }
