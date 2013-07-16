@@ -397,8 +397,10 @@ $probes
                 stack .= frame . "\\n"
             }
 
-            print(stack)
-            exit()
+            if (stack != "") {
+                print(stack)
+                exit()
+            }
         }
     }
 }
@@ -840,8 +842,10 @@ $probes
                 stack .= frame . "\\n"
             }
 
-            print(stack)
-            exit()
+            if (stack != "") {
+                print(stack)
+                exit()
+            }
         }
     }
 }
