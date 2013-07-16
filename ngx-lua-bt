@@ -705,12 +705,12 @@ function lj_debug_line(pt, pc) {
             return first
         }
         if ($pt->numline < 256) {
-            return first + \@cast(lineinfo, "uint8_t")[pc]
+            return first + \@cast(lineinfo, "uint8_t", "$lua_path")[pc]
         }
         if ($pt->numline < 65536) {
-            return first + \@cast(lineinfo, "uint16_t")[pc]
+            return first + \@cast(lineinfo, "uint16_t", "$lua_path")[pc]
         }
-        return first + \@cast(lineinfo, "uint32_t")[pc]
+        return first + \@cast(lineinfo, "uint32_t", "$lua_path")[pc]
     }
     return 0
 }
