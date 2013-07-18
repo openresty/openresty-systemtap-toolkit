@@ -48,7 +48,7 @@ for my $file (sort keys %files) {
     }
 
     if ($lines <= 3) {
-        warn "File $file has no debug info.\n";
+        warn "File $file has no debug info embedded.\n";
 
     } else {
         #warn "File $file checked.\n";
