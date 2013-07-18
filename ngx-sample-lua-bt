@@ -763,7 +763,14 @@ if (%so_files) {
     $d_so_args = '';
 }
 
-open my $in, "|stap --skip-badvars --all-modules -d '$nginx_path' --ldd $d_so_args $stap_args -"
+my $extra_args = '';
+if (@$child_pids == 1) {
+    $extra_args .= " -x " . $child_pids->[0];
+}
+
+my $cmd = "stap --skip-badvars --all-modules -d '$nginx_path' --ldd $d_so_args $extra_args $stap_args -";
+#warn $cmd;
+open my $in, "|$cmd"
     or die "Cannot run stap: $!\n";
 
 print $in $stap_src;
