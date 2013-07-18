@@ -1,0 +1,63 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+use Getopt::Std qw( getopts );
+
+my %opts;
+
+getopts("hp:", \%opts)
+    or die usage();
+
+my $pid = $opts{p}
+    or die "No -p <pid> option specified.\n";
+
+my $exec_file = "/proc/$pid/exe";
+if (!-f $exec_file) {
+    die "User process $pid is not running or ",
+        "you do not have enough permissions.\n";
+}
+
+my $path = readlink $exec_file;
+
+my %files = ($path => 1);
+
+{
+    my $maps_file = "/proc/$pid/maps";
+    open my $in, $maps_file
+        or die "Cannot open $maps_file for reading: $!\n";
+
+    while (<$in>) {
+        if (/\s+(\/\S+\.so)$/) {
+            if (!exists $files{$1}) {
+                $files{$1} = 1;
+                #warn $1, "\n";
+            }
+        }
+    }
+
+    close $in;
+}
+
+for my $file (sort keys %files) {
+    my $lines = `objdump --dwarf=str $file|wc -l`;
+    if ($? != 0) {
+        warn "Failed to check file $file: $?\n";
+        next;
+    }
+
+    if ($lines <= 3) {
+        warn "File $file has no debug info.\n";
+
+    } else {
+        #warn "File $file checked.\n";
+    }
+}
+
+sub usage {
+    print <<_EOC_
+Usage:
+    check-debug-info -p <pid>
+_EOC_
+}
