@@ -1026,13 +1026,21 @@ This tool requires a Linux kernel compiled by gcc 4.5+ (preferrably gcc 4.7+) be
 ngx-lua-shdict
 -------
 
-This tool fetches the data from the shared memory dict by the specified dict and key.
+This tool analyzes shared memory dict and tracks dict operations in the specified running nginx process.
 
+You can specify the `-f` option to fetches the data from the shared memory dict by the specified dict and key.
 Specify the `--raw` option when you need dump the raw value of the given key.
 
+Similarly, you can specify the `-w` option to track dict writing:
+
+Specify the `--lua51` option when you're using the standard Lua 5.1 interpreter in your Nginx build, or `--luajit20` if LuaJIT 2.0 is used instead. Currently only LuaJIT is supported.
+
+Here's a sample command:
+
+Fetches the data from the shared memory dict
     # assuming the nginx worker pid is 5050
 
-    $ ./ngx-lua-shdict -p 5050 --dict dogs --key Jim
+    $ ./ngx-lua-shdict -p 5050 -f --dict dogs --key Jim --luajit20
     Tracing 5050 (/opt/nginx/sbin/nginx)...
 
     type: LUA_TBOOLEAN
@@ -1041,6 +1049,16 @@ Specify the `--raw` option when you need dump the raw value of the given key.
     flags: 0xa
 
     6 microseconds elapsed in the probe handler.
+
+Traces writes to the dict.
+    $./ngx-lua-shdict -p 5050 -w --key Jim --luajit20
+    Tracing 5050 (/opt/nginx/sbin/nginx)...
+
+    Hit Ctrl-C to end
+
+    set Jim exptime=4626322717216342016
+    replace Jim exptime=4626322717216342016
+    ^C
 
 Community
 =========

@@ -13,7 +13,7 @@ GetOptions("a=s",       \(my $stap_args),
            "d",         \(my $dump_src),
            "h",         \(my $help),
            "lua51",     \(my $lua51),
-           "luajit",    \(my $luajit20),
+           "luajit20",  \(my $luajit20),
            "w",         \(my $trace_write),
            "f",         \(my $find_value),
            "p=i",       \(my $pid),
@@ -405,15 +405,15 @@ Options:
     -f                  Find value of specify key.
     -w                  Trace writes to the dict.
     --lua51             The target Nginx is using the standard Lua 5.1 interpreter.
-    --luajit            The target Nginx is using the LuaJIT 2.0.
+    --luajit20          The target Nginx is using the LuaJIT 2.0.
     --dict <dict>       Specify the dict.
     --key  <key>        Specify the key.
     --raw               Raw output.
 
 Examples:
      ngx-lua-shdict -p 12345
-     ngx-lua-shdict -p 12345 -f --dict dogs --key Jim --luajit
-     ngx-lua-shdict -p 12345 -f --dict dogs --key Jim --luajit --raw
+     ngx-lua-shdict -p 12345 -f --dict dogs --key Jim --luajit20
+     ngx-lua-shdict -p 12345 -f --dict dogs --key Jim --luajit20 --raw
      ngx-lua-shdict -p 12345 -w --key Jim --luajit
 _EOC_
 }
