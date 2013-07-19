@@ -1037,9 +1037,9 @@ Specify the `--lua51` option when you're using the standard Lua 5.1 interpreter 
 
 Here's a sample command:
 
-Fetches the data from the shared memory dict
-    # assuming the nginx worker pid is 5050
+Fetches the data from the shared memory dict:
 
+    # assuming the nginx worker pid is 5050
     $ ./ngx-lua-shdict -p 5050 -f --dict dogs --key Jim --luajit20
     Tracing 5050 (/opt/nginx/sbin/nginx)...
 
@@ -1050,7 +1050,8 @@ Fetches the data from the shared memory dict
 
     6 microseconds elapsed in the probe handler.
 
-Traces writes to the dict.
+Traces writes to the dict:
+
     $./ngx-lua-shdict -p 5050 -w --key Jim --luajit20
     Tracing 5050 (/opt/nginx/sbin/nginx)...
 
