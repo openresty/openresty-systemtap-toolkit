@@ -69,12 +69,7 @@ if (!-f $exec_file) {
 
 my $nginx_path = readlink $exec_file;
 
-my $child_pids = get_child_processes($pid);
-if (@$child_pids == 0) {
-    push @$child_pids, $pid;
-}
-
-my $condition = gen_pid_test_condition($child_pids);
+my $condition = "target() == pid()";
 
 my $ver = `stap --version 2>&1`;
 if (!defined $ver) {
@@ -91,8 +86,6 @@ if ($ver =~ /version\s+(\d+\.\d+)/i) {
     die "ERROR: unknown version of systemtap:\n$ver\n";
 }
 
-#warn "Nginx worker processes: @$child_pids\n";
-
 my $context;
 if ($lua51) {
     $context = "standard Lua 5.1";
@@ -103,7 +96,7 @@ if ($lua51) {
 
 my $preamble = <<_EOC_;
 probe begin {
-    warn("Tracing @$child_pids ($nginx_path) for $context...\\n")
+    warn("Tracing $pid ($nginx_path) for $context...\\n")
 }
 _EOC_
 
@@ -362,7 +355,6 @@ probe
 process("$lua_path").function("str_find"),
 $probes
 {
-    my_pid = pid()
     if (\@defined(\$L) && $condition) {
         L = \$L
         //printf("HERE: %d\\n", L)
@@ -397,8 +389,10 @@ $probes
                 stack .= frame . "\\n"
             }
 
-            print(stack)
-            exit()
+            if (stack != "") {
+                print(stack)
+                exit()
+            }
         }
     }
 }
@@ -711,12 +705,12 @@ function lj_debug_line(pt, pc) {
             return first
         }
         if ($pt->numline < 256) {
-            return first + \@cast(lineinfo, "uint8_t")[pc]
+            return first + \@cast(lineinfo, "uint8_t", "$lua_path")[pc]
         }
         if ($pt->numline < 65536) {
-            return first + \@cast(lineinfo, "uint16_t")[pc]
+            return first + \@cast(lineinfo, "uint16_t", "$lua_path")[pc]
         }
-        return first + \@cast(lineinfo, "uint32_t")[pc]
+        return first + \@cast(lineinfo, "uint32_t", "$lua_path")[pc]
     }
     return 0
 }
@@ -798,7 +792,6 @@ probe
 process("$lua_path").function("lj_cf_string_find"),
 $probes
 {
-    my_pid = pid()
     if (\@defined(\$L) && $condition) {
         L = \$L
         //printf("HERE: %d\\n", L)
@@ -840,8 +833,10 @@ $probes
                 stack .= frame . "\\n"
             }
 
-            print(stack)
-            exit()
+            if (stack != "") {
+                print(stack)
+                exit()
+            }
         }
     }
 }
@@ -853,7 +848,7 @@ if ($dump_src) {
     exit;
 }
 
-open my $in, "|stap --skip-badvars --all-modules -d '$nginx_path' --ldd $stap_args -"
+open my $in, "|stap --skip-badvars --all-modules -d '$nginx_path' -x $pid --ldd $stap_args -"
     or die "Cannot run stap: $!\n";
 
 print $in $stap_src;
@@ -878,38 +873,4 @@ Examples:
     ngx-lua-bt --lua51 -p 12345
     ngx-lua-bt --luajit20 -p 12345 -a '-DMAXACTION=100000'
 _EOC_
-}
-
-sub get_child_processes {
-    my $pid = shift;
-    my @files = glob "/proc/[0-9]*/stat";
-    my @children;
-    for my $file (@files) {
-        #print "file: $file\n";
-        if ($file =~ m{^/proc/$pid/}) {
-            next;
-        }
-
-        open my $in, $file or next;
-        my $line = <$in>;
-        close $in;
-        if ($line =~ /^(\d+) \S+ \S+ (\d+)/) {
-            my ($child, $parent) = ($1, $2);
-            if ($parent eq $pid) {
-                push @children, $child;
-            }
-        }
-    }
-
-    @children = sort { $a <=> $b } @children;
-    return \@children;
-}
-
-sub gen_pid_test_condition {
-    my $pids = shift;
-    my @c;
-    for my $pid (@$pids) {
-        push @c, "my_pid == $pid";
-    }
-    return join " || ", @c;
 }

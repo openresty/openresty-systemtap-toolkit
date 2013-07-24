@@ -507,7 +507,7 @@ See also `ngx-sample-lua-bt`.
 ngx-lua-bt
 ----------
 
-This tool dump out the current Lua-land backtrace in the current running Nginx worker process.
+This tool dumps out the current Lua-land backtrace in the current running Nginx worker process.
 
 This tool is very useful in locating the infinite Lua loop that keeps the Nginx worker
 spinning with 100% CPU usage.
@@ -1031,13 +1031,9 @@ This tool analyzes shared memory dict and tracks dict operations in the specifie
 You can specify the `-f` option to fetches the data from the shared memory dict by the specified dict and key.
 Specify the `--raw` option when you need dump the raw value of the given key.
 
-Similarly, you can specify the `-w` option to track dict writing:
-
 Specify the `--lua51` option when you're using the standard Lua 5.1 interpreter in your Nginx build, or `--luajit20` if LuaJIT 2.0 is used instead. Currently only LuaJIT is supported.
 
-Here's a sample command:
-
-Fetches the data from the shared memory dict:
+Here's a sample command to fetch the data from the shared memory dict:
 
     # assuming the nginx worker pid is 5050
     $ ./ngx-lua-shdict -p 5050 -f --dict dogs --key Jim --luajit20
@@ -1050,7 +1046,7 @@ Fetches the data from the shared memory dict:
 
     6 microseconds elapsed in the probe handler.
 
-Traces writes to the dict:
+Similarly, you can specify the `-w` option to track dict writing:
 
     $./ngx-lua-shdict -p 5050 -w --key Jim --luajit20
     Tracing 5050 (/opt/nginx/sbin/nginx)...
@@ -1060,6 +1056,78 @@ Traces writes to the dict:
     set Jim exptime=4626322717216342016
     replace Jim exptime=4626322717216342016
     ^C
+
+ngx-lua-conn-pools
+----------------
+
+Dumps connections pools status of [ngx_lua](http://wiki.nginx.org/HttpLuaModule), reports the number of both out-of-pool and in-pool connections, calculates connections reused times statistics of in-pool connections, and prints the capacity of each pool.
+
+Specify the `--lua51` option when you're using the standard Lua 5.1 interpreter in your Nginx build, or `--luajit20` if LuaJIT 2.0 is used instead.
+
+Here's a sample command:
+
+    # assuming the nginx worker pid is 19773
+    $ ./ngx-lua-conn-pools -p 19773 --luajit
+
+    Tracing 19773 (/opt/nginx/sbin/nginx)...
+    pool "127.0.0.1:11213"
+        out-of-pool connections: 185
+        in-pool connections: 183
+            reused times (max/min/avg): 9322 1042 3748
+        pool capacity: 1024
+
+    pool "127.0.0.1:11212"
+        out-of-pool connections: 184
+        in-pool connections: 182
+            reused times (max/min/avg): 10283 414 3408
+        pool capacity: 1024
+
+    pool "127.0.0.1:11211"
+        out-of-pool connections: 185
+        in-pool connections: 183
+            reused times (max/min/avg): 7109 651 3867
+        pool capacity: 1024
+
+    pool "127.0.0.1:11214"
+        out-of-pool connections: 185
+        in-pool connections: 183
+            reused times (max/min/avg): 7051 810 3807
+        pool capacity: 1024
+
+    pool "127.0.0.1:11215"
+        out-of-pool connections: 185
+        in-pool connections: 183
+            reused times (max/min/avg): 7275 1127 3839
+        pool capacity: 1024
+
+    For total 5 connection pool(s) found.
+    324 microseconds elapsed in the probe handler.
+
+check-debug-info
+----------------
+
+This tool checks which executable files do not contain debug info in any running process that you specify.
+
+Basically, just run it like this:
+
+    ./check-debug-info -p <pid>
+
+The executable file associated with the process and all the .so files already loaded by the process will be checked for dwarf info.
+
+The process is not required to be nginx, but can be any user processes.
+
+Here is a complete example:
+
+    $ ./check-debug-info -p 26482
+    File /usr/lib64/ld-2.15.so has no debug info embedded.
+    File /usr/lib64/libc-2.15.so has no debug info embedded.
+    File /usr/lib64/libdl-2.15.so has no debug info embedded.
+    File /usr/lib64/libm-2.15.so has no debug info embedded.
+    File /usr/lib64/libpthread-2.15.so has no debug info embedded.
+    File /usr/lib64/libresolv-2.15.so has no debug info embedded.
+    File /usr/lib64/librt-2.15.so has no debug info embedded.
+
+For now, this tool does not support separate .debug files yet.
 
 Community
 =========

@@ -74,7 +74,8 @@ if ($zone) {
 $preamble
 
 probe process("$nginx_path").function("ngx_process_events_and_timers"),
-    process("$nginx_path").function("ngx_http_init_request")
+    process("$nginx_path").function("ngx_http_init_request") !,
+    process("$nginx_path").function("ngx_http_create_request")
 {
     if (pid() == target()) {
 
@@ -111,10 +112,13 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
 
             init = \@cast(zone, "ngx_shm_zone_t")[i]->init
             addr = \@cast(shm, "ngx_shm_t")->addr
+            addr2 = \@cast(addr, "ngx_slab_pool_t")->addr
 
-            if (addr != \@cast(addr, "ngx_slab_pool_t")->addr) {
-                error("shm zone \\"" . zone_name . "\\" is corrupted: "
-                      . "pool != pool->addr")
+            if (addr != addr2) {
+                error("shm zone \\"" . zone_name . "\\" is corrupted or "
+                      . "not yet loaded into the process memory space: "
+                      . "pool != pool->addr "
+                      . sprintf("(pool->addr: %p)", addr2))
                 exit()
             }
 
@@ -129,10 +133,17 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
             free = &\@cast(addr, "ngx_slab_pool_t")->free
             blocks = 0
 
+            /*
+            printf("shm: %p, shm->addr: %p, free: %p, addr2: %p, next: %p\\n",
+                   shm, addr, free, addr2,
+                   \@cast(free, "ngx_slab_page_t")->next)
+            */
+
             for (page = \@cast(free, "ngx_slab_page_t")->next;
-                 page != free;
+                 page && page != free;
                  page = \@cast(page, "ngx_slab_page_t")->next)
             {
+                //printf("page: %p\\n", page)
                 pages += \@cast(page, "ngx_slab_page_t")->slab
                 if (++blocks % 1000 == 0) {
                     printf("\\r    free pages: %d KB (%d pages, %d blocks)",
@@ -194,10 +205,15 @@ probe process("$nginx_path").function("ngx_process_events_and_timers"),
             zone_name = user_string_n(\@cast(name, "ngx_str_t")->data,
                                       \@cast(name, "ngx_str_t")->len)
 
-            if (addr != \@cast(addr, "ngx_slab_pool_t")->addr) {
-                printf("shm zone \\"%s\\" is corrupted: pool != pool->addr\\n",
-                       zone_name)
-                continue;
+            addr2 = \@cast(addr, "ngx_slab_pool_t")->addr
+
+            if (addr != addr2) {
+                println("WARNING: shm zone \\"" . zone_name . "\\" is "
+                      . "corrupted or "
+                      . "not yet loaded into the process memory space: "
+                      . "pool != pool->addr "
+                      . sprintf("(pool->addr: %p)", addr2))
+                exit()
             }
 
             init_name = usymname(init)
@@ -222,6 +238,10 @@ _EOC_
 if ($opts{d}) {
     print $stap_src;
     exit;
+}
+
+if (!$zone) {
+    $stap_args .= " --skip-badvars"
 }
 
 open my $in, "|stap $stap_args -x $pid -"

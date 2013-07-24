@@ -32,7 +32,7 @@ if ($luajit20 && $lua51) {
 }
 
 if (!defined $pid) {
-    die "No nginx master process pid specified by the -p option.\n";
+    die "No nginx process pid specified by the -p option.\n";
 }
 
 if (!defined $time) {
@@ -120,7 +120,8 @@ _EOC_
 my $stap_src;
 
 my $postamble = <<_EOC_;
-probe timer.s($time) {
+probe timer.s($time)
+{
     warn("Time's up. Quitting now...\\n")
     foreach (bt in bts- limit $limit) {
         printf("%s\\t%d\\n", bt, \@count(bts[bt]))
@@ -208,7 +209,8 @@ probe process("$lua_path").function("lua_resume"),
 }
 
 
-probe process("$lua_path").function("lua_yield") {
+probe process("$lua_path").function("lua_yield")
+{
     //printf("L = %p\\n", \$L)
     my_pid = pid()
     if ($condition) {
@@ -217,7 +219,8 @@ probe process("$lua_path").function("lua_yield") {
 }
 
 
-probe process("$nginx_path").function("ngx_http_lua_del_thread") {
+probe process("$nginx_path").function("ngx_http_lua_del_thread")
+{
     my_pid = pid()
     if ($condition) {
         lua_states[my_pid] = 0
@@ -732,7 +735,42 @@ if ($dump_src) {
     exit;
 }
 
-open my $in, "|stap --skip-badvars --all-modules -d '$nginx_path' --ldd $stap_args -"
+my %so_files;
+{
+    for my $pid (@$child_pids) {
+        my $maps_file = "/proc/$pid/maps";
+        open my $in, $maps_file
+            or die "Cannot open $maps_file for reading: $!\n";
+
+        while (<$in>) {
+            if (/\s+(\/\S+\.so)$/) {
+                if (!exists $so_files{$1}) {
+                    $so_files{$1} = 1;
+                    #warn $1, "\n";
+                }
+            }
+        }
+
+        close $in;
+    }
+}
+
+my $d_so_args;
+if (%so_files) {
+    $d_so_args = join " ", map { "-d $_" } sort keys %so_files;
+
+} else {
+    $d_so_args = '';
+}
+
+my $extra_args = '';
+if (@$child_pids == 1) {
+    $extra_args .= " -x " . $child_pids->[0];
+}
+
+my $cmd = "stap --skip-badvars --all-modules -d '$nginx_path' --ldd $d_so_args $extra_args $stap_args -";
+#warn $cmd;
+open my $in, "|$cmd"
     or die "Cannot run stap: $!\n";
 
 print $in $stap_src;
@@ -753,7 +791,7 @@ Options:
     --lua51             Specify that the Nginx is using the standard Lua 5.1.
                         interpreter.
     --luajit20          Specify that the Nginx is using LuaJIT 2.0.
-    -p <pid>            Specify the user process pid.
+    -p <pid>            Specify the nginx process pid.
     -t <seconds>        Specify the number of seconds for sampling.
 
 Examples:
