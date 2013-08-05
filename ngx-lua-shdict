@@ -90,6 +90,9 @@ my $stap_src;
 my $preamble;
 
 if ($trace_write) {
+    if ($dict) {
+        die "ERROR: specify a dict when tracing writes is not supported\n";
+    }
     my $o = qq{\@cast(o, "TValue", "$lua_path")};
     my $L = qq{\@cast(L, "lua_State", "$lua_path")};
     my $gcr = qq{\@cast(gcr, "GCRef", "$lua_path")};

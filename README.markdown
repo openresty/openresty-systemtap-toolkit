@@ -1028,7 +1028,7 @@ ngx-lua-shdict
 
 This tool analyzes shared memory dict and tracks dict operations in the specified running nginx process.
 
-You can specify the `-f` option to fetches the data from the shared memory dict by the specified dict and key.
+You can specify the `-f` option to fetch the data from the shared memory dict name by the specified dict and key.
 Specify the `--raw` option when you need dump the raw value of the given key.
 
 Specify the `--lua51` option when you're using the standard Lua 5.1 interpreter in your Nginx build, or `--luajit20` if LuaJIT 2.0 is used instead. Currently only LuaJIT is supported.
@@ -1046,7 +1046,7 @@ Here's a sample command to fetch the data from the shared memory dict:
 
     6 microseconds elapsed in the probe handler.
 
-Similarly, you can specify the `-w` option to track dict writing:
+Similarly, you can specify the `-w` option to track dict writes for the given key:
 
     $./ngx-lua-shdict -p 5050 -w --key Jim --luajit20
     Tracing 5050 (/opt/nginx/sbin/nginx)...
@@ -1056,6 +1056,8 @@ Similarly, you can specify the `-w` option to track dict writing:
     set Jim exptime=4626322717216342016
     replace Jim exptime=4626322717216342016
     ^C
+
+If you don't specify `-f` or `-w`, this tool will fetch the data by default.
 
 ngx-lua-conn-pools
 ----------------
