@@ -1023,6 +1023,42 @@ Successfully tested on Linux kernel 3.7 and should work for other versions of ke
 
 This tool requires a Linux kernel compiled by gcc 4.5+ (preferrably gcc 4.7+) because gcc versions older than 4.5 generated incomplete DWARF debug info for C inlined functions. It is also recommended to enable DWARF format version 3 or above when compiling the kernel (by passing the `-gdwarf-3` or `-gdwarf-4` option to the `gcc` command line).
 
+ngx-lua-shdict
+-------
+
+This tool analyzes shared memory dict and tracks dict operations in the specified running nginx process.
+
+You can specify the `-f` option to fetch the data from the shared memory dict name by the specified dict and key.
+Specify the `--raw` option when you need dump the raw value of the given key.
+
+Specify the `--lua51` option when you're using the standard Lua 5.1 interpreter in your Nginx build, or `--luajit20` if LuaJIT 2.0 is used instead. Currently only LuaJIT is supported.
+
+Here's a sample command to fetch the data from the shared memory dict:
+
+    # assuming the nginx worker pid is 5050
+    $ ./ngx-lua-shdict -p 5050 -f --dict dogs --key Jim --luajit20
+    Tracing 5050 (/opt/nginx/sbin/nginx)...
+
+    type: LUA_TBOOLEAN
+    value: true
+    expires: 1372719243270
+    flags: 0xa
+
+    6 microseconds elapsed in the probe handler.
+
+Similarly, you can specify the `-w` option to track dict writes for the given key:
+
+    $./ngx-lua-shdict -p 5050 -w --key Jim --luajit20
+    Tracing 5050 (/opt/nginx/sbin/nginx)...
+
+    Hit Ctrl-C to end
+
+    set Jim exptime=4626322717216342016
+    replace Jim exptime=4626322717216342016
+    ^C
+
+If you don't specify `-f` or `-w`, this tool will fetch the data by default.
+
 ngx-lua-conn-pools
 ----------------
 
