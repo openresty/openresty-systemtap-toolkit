@@ -118,6 +118,7 @@ probe timer.s($time) {
 _EOC_
 
 my $stap_src;
+my $d_so_args = '';
 
 if ($check_distr) {
     $stap_src = <<_EOC_;
@@ -235,6 +236,28 @@ probe scheduler.cpu_on {
 
 $postamble
 _EOC_
+
+    my %so_files;
+    {
+        my $maps_file = "/proc/$pid/maps";
+        open my $in, $maps_file
+            or die "Cannot open $maps_file for reading: $!\n";
+
+        while (<$in>) {
+            if (/\s+(\/\S+\.so)$/) {
+                if (!exists $so_files{$1}) {
+                    $so_files{$1} = 1;
+                    #warn $1, "\n";
+                }
+            }
+        }
+
+        close $in;
+    }
+
+    if (%so_files) {
+        $d_so_args = join " ", map { "-d $_" } sort keys %so_files;
+    }
 }
 
 if ($dump_src) {
@@ -242,7 +265,10 @@ if ($dump_src) {
     exit;
 }
 
-open my $in, "|stap --skip-badvars --all-modules -x $pid -d '$nginx_path' --ldd $stap_args -"
+
+#warn "$d_so_args\n";
+
+open my $in, "|stap --skip-badvars --all-modules -x $pid -d '$nginx_path' --ldd $d_so_args $stap_args -"
     or die "Cannot run stap: $!\n";
 
 print $in $stap_src;
