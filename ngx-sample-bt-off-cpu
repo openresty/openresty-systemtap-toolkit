@@ -55,7 +55,7 @@ if ($stap_args !~ /\b-D\s*MAXACTION=/) {
 }
 
 if ($stap_args !~ /\b-D\s*MAXMAPENTRIES=/) {
-    $stap_args .= " -DMAXMAPENTRIES=5000";
+    $stap_args .= " -DMAXMAPENTRIES=3000";
 }
 
 if ($stap_args !~ /\b-D\s*MAXBACKTRACE=/) {
