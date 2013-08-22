@@ -1097,7 +1097,7 @@ For now, this tool does not support separate .debug files yet.
 
 ngx-phase-handlers
 ----------------
-This tool dumps all the handlers regisitered by all the nginx modules for every nginx running phase in the order they actually run.
+This tool dumps all the handlers registered by all the nginx modules for every nginx running phase in the order they actually run.
 
 Here's a sample command:
 
