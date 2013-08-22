@@ -117,7 +117,7 @@ probe kernel.function("tcp_v4_conn_request") {
 
         if (max_syn_qlen == 0) {
             max_qlen_log = \@cast(\$sk, "struct inet_connection_sock")->icsk_accept_queue->listen_opt->max_qlen_log
-            max_syn_qlen = (2 << max_qlen_log)
+            max_syn_qlen = (1 << max_qlen_log)
             printf("SYN queue length limit: %d\\n", max_syn_qlen)
         }
 

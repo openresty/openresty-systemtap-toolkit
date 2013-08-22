@@ -208,10 +208,10 @@ function traverse_queue(queue) {
     }
 
     if (!is_queue_empty) {
-        printf("\\t    reused times (max/min/avg): %d %d %d\\n",
+        printf("\\t    reused times (max/avg/min): %d %d %d\\n",
                \@max(reused_time),
-               \@min(reused_time),
-               \@avg(reused_time))
+               \@avg(reused_time),
+               \@min(reused_time))
 
         $print_dist_func_def
     }
@@ -243,12 +243,12 @@ function hash_mod(table, key) {
 $ngx_queue_stat_func_def
 
 function print_pools_stat(pools) {
-    pool_num = 0
+    pool_count = 0
     for (i = 0; i < size_node(pools); i++) {
         node = &\@cast(pools, "Table", "$lua_path")->node[i]
         i_val = &$node->i_val
         if (\@cast(i_val, "TValue", "$lua_path")->tt == $USERDATA_TYPE) {
-            pool_num++
+            pool_count++
             pool = &$node->i_val->value->gc->u
             pool += $sizeof_Udata
             pool_key = &$pool->key
@@ -264,8 +264,8 @@ function print_pools_stat(pools) {
                    queue_len(cache) + queue_len(free))
         }
     }
-    if (pool_num > 0) {
-        printf("Total number of pools: %d\\n", pool_num)
+    if (pool_count > 0) {
+        printf("For total %d connection pool(s) found.\\n", pool_count)
         exit()
     }
 }
@@ -282,13 +282,13 @@ probe process("$nginx_path").function("ngx_http_lua_socket_tcp_send")
         table = &\@cast(registrytv, "TValue")->value->gc->h
         index = hash_mod(table, key)
         pools_table = &\@cast(table, "Table")->node[index]->i_val->value->gc->h
-        pool_num = 0
+        pool_count = 0
 
         if (pools_table) {
-            pool_num = print_pools_stat(pools_table)
+            pool_count = print_pools_stat(pools_table)
         }
 
-        if (pool_num > 0) {
+        if (pool_count > 0) {
             elapsed = gettimeofday_us() - begin
             printf("%d microseconds elapsed in the probe handler.\\n", elapsed)
         }
@@ -362,13 +362,13 @@ function lj_tab_get(t, key) {
 $ngx_queue_stat_func_def
 
 function print_pools_stat(pools) {
-    pool_num = 0
+    pool_count = 0
     n = $pools->node->ptr32
     hmask = $pools->hmask
     for (i = 0; i <= hmask; i++) {
         node = n + ($sizeof_node * i)
         if ($node->val->it == $USERDATA_TYPE) {
-            pool_num++
+            pool_count++
             pool_obj = $node->val->gcr->gcptr32
             pool = &\@cast(pool_obj, "GCobj", "$lua_path")->ud
             pool += $sizeof_ud
@@ -385,11 +385,11 @@ function print_pools_stat(pools) {
         }
     }
 
-    if (pool_num > 0) {
-        printf("Total number of pools: %d\\n", pool_num)
+    if (pool_count > 0) {
+        printf("For total %d connection pool(s) found.\\n", pool_count)
         exit()
     }
-    return pool_num
+    return pool_count
 }
 
 probe process("$nginx_path").function("ngx_http_lua_socket_tcp_send")
@@ -404,15 +404,15 @@ probe process("$nginx_path").function("ngx_http_lua_socket_tcp_send")
         gcptr = \@cast(registrytv, "TValue", "$lua_path")->gcr->gcptr32
         table = &\@cast(gcptr, "GCobj", "$lua_path")->tab
         pools_table = lj_tab_get(table, key)
-        pool_num = 0
+        pool_count = 0
 
         if (pools_table) {
-            pools_obj = \@cast(pools_table, "cTValue", "$lua_path")->gcr->gcptr32
+            pools_obj = \@cast(pools_table, "TValue", "$lua_path")->gcr->gcptr32
             pools = &\@cast(pools_obj, "GCobj", "$lua_path")->tab
-            pool_num = print_pools_stat(pools)
+            pool_count = print_pools_stat(pools)
         }
 
-        if (pool_num > 0) {
+        if (pool_count > 0) {
             elapsed = gettimeofday_us() - begin
             printf("%d microseconds elapsed in the probe handler.\\n", elapsed)
         }

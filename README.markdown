@@ -507,7 +507,7 @@ See also `ngx-sample-lua-bt`.
 ngx-lua-bt
 ----------
 
-This tool dump out the current Lua-land backtrace in the current running Nginx worker process.
+This tool dumps out the current Lua-land backtrace in the current running Nginx worker process.
 
 This tool is very useful in locating the infinite Lua loop that keeps the Nginx worker
 spinning with 100% CPU usage.
@@ -1066,8 +1066,34 @@ Here's a sample command:
             reused times (max/min/avg): 7275 1127 3839
         pool capacity: 1024
 
-    Total number of pools: 5
+    For total 5 connection pool(s) found.
     324 microseconds elapsed in the probe handler.
+
+check-debug-info
+----------------
+
+This tool checks which executable files do not contain debug info in any running process that you specify.
+
+Basically, just run it like this:
+
+    ./check-debug-info -p <pid>
+
+The executable file associated with the process and all the .so files already loaded by the process will be checked for dwarf info.
+
+The process is not required to be nginx, but can be any user processes.
+
+Here is a complete example:
+
+    $ ./check-debug-info -p 26482
+    File /usr/lib64/ld-2.15.so has no debug info embedded.
+    File /usr/lib64/libc-2.15.so has no debug info embedded.
+    File /usr/lib64/libdl-2.15.so has no debug info embedded.
+    File /usr/lib64/libm-2.15.so has no debug info embedded.
+    File /usr/lib64/libpthread-2.15.so has no debug info embedded.
+    File /usr/lib64/libresolv-2.15.so has no debug info embedded.
+    File /usr/lib64/librt-2.15.so has no debug info embedded.
+
+For now, this tool does not support separate .debug files yet.
 
 Community
 =========
