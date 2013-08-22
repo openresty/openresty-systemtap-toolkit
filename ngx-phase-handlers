@@ -1,0 +1,191 @@
+#!/usr/bin/env perl
+
+# Copyright (C) Yichun Zhang (agentzh)
+# Copyright (C) Guanlan Dai
+
+use 5.006001;
+use strict;
+use warnings;
+
+use Getopt::Std qw( getopts );
+
+my %opts;
+
+getopts("a:dhp:", \%opts)
+    or die usage();
+
+if ($opts{h}) {
+    print usage();
+    exit;
+}
+
+my $pid = $opts{p}
+    or die "No nginx process pid specified by the -p option\n";
+
+if ($pid !~ /^\d+$/) {
+    die "Bad -p option value \"$pid\": not look like a pid\n";
+}
+
+my $stap_args = $opts{a} || '';
+
+if ($^O ne 'linux') {
+    die "Only linux is supported but I am on $^O.\n";
+}
+
+my $exec_file = "/proc/$pid/exe";
+if (!-f $exec_file) {
+    die "Nginx process $pid is not running or ",
+        "you do not have enough permissions.\n";
+}
+
+my $nginx_path = readlink $exec_file;
+
+my $ver = `stap --version 2>&1`;
+if (!defined $ver) {
+    die "Systemtap not installed or its \"stap\" utility is not visible to the PATH environment: $!\n";
+}
+
+if ($ver =~ /version\s+(\d+\.\d+)/i) {
+    my $v = $1;
+    if ($v < 2.1) {
+        die "ERROR: at least systemtap 2.1 is required but found $v\n";
+    }
+
+} else {
+    die "ERROR: unknown version of systemtap:\n$ver\n";
+}
+
+my $stap_src;
+
+my $cmcf = qq{\@cast(cmcf, "ngx_http_core_main_conf_t", "$nginx_path")};
+my $ph = qq{\@cast(ph, "ngx_http_phase_handler_t", "$nginx_path")};
+my $handler_addr = qq{\@cast(handler_addr, "ngx_http_handler_pt", "$nginx_path")};
+my $NGX_HTTP_LOG_PHASE = 10;
+my $sizeof_ngx_http_phase_handler_t = qq{&\@cast(0,
+                                                "ngx_http_phase_handler_t",
+                                                "$nginx_path")[1]};
+my $sizeof_ngx_http_handler_pt = qq{&\@cast(0, "ngx_int_t", "$nginx_path")[1]};
+my $preamble = <<_EOC_;
+probe begin {
+    printf("Tracing %d ($nginx_path)...\\n", target())
+}
+_EOC_
+chop $preamble;
+
+$stap_src = <<_EOC_;
+$preamble
+
+function print_phase(cmcf, phase_num) {
+    n = $cmcf->phases[phase_num]->handlers->nelts
+    handler_addr = $cmcf->phases[phase_num]->handlers->elts
+    handler = $handler_addr
+    for (i = 0; i < n; i++) {
+        printf("\\t%s\\n", usymname(handler))
+        handler_addr += $sizeof_ngx_http_handler_pt
+        handler = $handler_addr
+    }
+}
+
+probe process("$nginx_path").function("ngx_http_core_run_phases")
+{
+    if (pid() == target()) {
+        r = \$r
+        begin = gettimeofday_us()
+        ngx_http_core_module = &\@var("ngx_http_core_module")
+        ctx_index = \@cast(ngx_http_core_module, "ngx_module_t")->ctx_index
+        cmcf = \@cast(r, "ngx_http_request_t")->main_conf[ctx_index]
+        ph = $cmcf->phase_engine->handlers
+        last_checker = $ph->checker
+        is_server_rewrite = 1
+        while (1) {
+            last_checker = checker
+            checker = $ph->checker
+            handler = $ph->handler
+            ph += $sizeof_ngx_http_phase_handler_t
+
+            if (!checker) {
+                break
+            }
+
+            if (!handler) {
+                continue
+            }
+
+            if (checker != last_checker) {
+                checker_name = usymname(checker)
+                if (checker_name == "ngx_http_core_rewrite_phase") {
+
+                    if (is_server_rewrite) {
+                        printf("\\nserver rewrite phase\\n")
+                        is_server_rewrite = 0
+
+                    } else {
+                        printf("\\nrewrite phase\\n")
+                    }
+
+                } else if (checker_name == "ngx_http_core_generic_phase") {
+                        printf("\\npre-access phase\\n")
+
+                } else if (checker_name == "ngx_http_core_find_config_phase") {
+                        printf("\\nfind config phase\\n")
+
+                } else if (checker_name == "ngx_http_core_post_access_phase") {
+                        printf("\\npost access phase\\n")
+
+                } else if (checker_name == "ngx_http_core_post_rewrite_phase") {
+                        printf("\\npost rewrite phase\\n")
+
+                } else if (checker_name == "ngx_http_core_access_phase") {
+                        printf("\\naccess phase\\n")
+
+                } else if (checker_name == "ngx_http_core_try_files_phase") {
+                    printf("\\try file phase\\n")
+
+                } else if (checker_name == "ngx_http_core_content_phase") {
+                        printf("\\ncontent phase\\n")
+
+                } else {
+                    printf("\\nunkown phase: %s\\n", checker_name)
+                }
+            }
+            printf("\\t%s\\n", usymname(handler))
+        }
+
+        printf("\\nlog phase\\n")
+        print_phase(cmcf, $NGX_HTTP_LOG_PHASE)
+
+        elapsed = gettimeofday_us() - begin
+        printf("\\n%d microseconds elapsed in the probe handler.\\n", elapsed)
+        exit()
+    }
+}
+_EOC_
+
+if ($opts{d}) {
+    print $stap_src;
+    exit;
+}
+
+open my $in, "|stap --skip-badvars $stap_args -x $pid -"
+    or die "Cannot run stap: $!\n";
+
+print $in $stap_src;
+
+close $in;
+
+sub usage {
+    return <<'_EOC_';
+Usage:
+    ngx-phase-handlers [optoins]
+
+Options:
+    -a <args>           Pass extra arguments to the stap utility.
+    -d                  Dump out the systemtap script source.
+    -h                  Print this usage.
+    -p <pid>            Specify the nginx worker process pid.
+
+Examples:
+    ngx-phase-handlers -p 12345
+_EOC_
+}
+
