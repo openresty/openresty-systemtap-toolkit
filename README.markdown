@@ -1099,6 +1099,8 @@ ngx-phase-handlers
 ------------------
 This tool dumps all the handlers registered by all the nginx modules for every nginx running phase in the order they actually run.
 
+This is very useful in debugging Nginx configuration issues caused by misinterpreting the running order of the Nginx configuration directives.
+
 Here is an example for an Nginx worker process with very few Nginx modules enabled:
 
     # assuming the nginx worker pid is 4876
