@@ -1120,7 +1120,7 @@ Here is an example for an Nginx worker process with very few Nginx modules enabl
 
 Here is another example for an Nginx worker process with quite a few Nginx modules enabled:
 
-    $ ./ngx-phase-handlers -p 4876
+    $ ./ngx-phase-handlers -p 24980
     Tracing 24980 (/opt/nginx/sbin/nginx)...
     post-read phase
         ngx_http_realip_handler
