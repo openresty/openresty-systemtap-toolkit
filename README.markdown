@@ -1095,6 +1095,64 @@ Here is a complete example:
 
 For now, this tool does not support separate .debug files yet.
 
+ngx-phase-handlers
+------------------
+This tool dumps all the handlers registered by all the nginx modules for every nginx running phase in the order they actually run.
+
+Here is an example for an Nginx worker process with very few Nginx modules enabled:
+
+    # assuming the nginx worker pid is 4876
+    $ ./ngx-phase-handlers -p 4876
+    Tracing 4876 (/opt/nginx/sbin/nginx)...
+    pre-access phase
+        ngx_http_limit_req_handler
+        ngx_http_limit_conn_handler
+
+    content phase
+        ngx_http_index_handler
+        ngx_http_autoindex_handler
+        ngx_http_static_handler
+
+    log phase
+        ngx_http_log_handler
+
+    22 microseconds elapsed in the probe handler.
+
+Here is another example for an Nginx worker process with quite a few Nginx modules enabled:
+
+    $ ./ngx-phase-handlers -p 4876
+    Tracing 24980 (/opt/nginx/sbin/nginx)...
+    post-read phase
+        ngx_http_realip_handler
+
+    server-rewrite phase
+        ngx_coolkit_override_method_handler
+        ngx_http_rewrite_handler
+
+    rewrite phase
+        ngx_coolkit_override_method_handler
+        ngx_http_rewrite_handler
+
+    pre-access phase
+        ngx_http_realip_handler
+        ngx_http_limit_req_handler
+        ngx_http_limit_conn_handler
+
+    access phase
+        ngx_http_auth_request_handler
+        ngx_http_access_handler
+
+    content phase
+        ngx_http_lua_content_handler (request content handler)
+        ngx_http_index_handler
+        ngx_http_autoindex_handler
+        ngx_http_static_handler
+
+    log phase
+        ngx_http_log_handler
+
+    44 microseconds elapsed in the probe handler.
+
 Community
 =========
 
