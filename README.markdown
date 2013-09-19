@@ -1218,6 +1218,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 See Also
 ========
+* You can find even more tools in the stap++ project: https://github.com/agentzh/stapxx
 * SystemTap Wiki Home: http://sourceware.org/systemtap/wiki
 * Nginx home: http://nginx.org
 * Perl Systemtap Toolkit: https://github.com/agentzh/perl-systemtap-toolkit
