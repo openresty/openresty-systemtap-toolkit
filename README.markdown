@@ -1069,7 +1069,7 @@ Specify the `--lua51` option when you're using the standard Lua 5.1 interpreter 
 Here's a sample command:
 
     # assuming the nginx worker pid is 19773
-    $ ./ngx-lua-conn-pools -p 19773 --luajit
+    $ ./ngx-lua-conn-pools -p 19773 --luajit20
     Tracing 19773 (/opt/nginx/sbin/nginx)...
 
     pool "127.0.0.1:11213"
@@ -1104,6 +1104,28 @@ Here's a sample command:
 
     For total 5 connection pool(s) found.
     324 microseconds elapsed in the probe handler.
+
+You can specify the `--distr` option to get the distribution of numbers of resued times:
+
+    $ ./ngx-lua-conn-pools -p 19773 --luajit20 --distr
+    Tracing 15001 (/opt/nginx/sbin/nginx) for LuaJIT 2.0...
+
+    pool "127.0.0.1:6379"
+        out-of-pool reused connections: 1
+        in-pool connections: 19
+            reused times (max/avg/min): 2607/2503/2360
+            reused times distribution:
+    value |-------------------------------------------------- count
+      512 |                                                    0
+     1024 |                                                    0
+     2048 |@@@@@@@@@@@@@@@@@@@                                19
+     4096 |                                                    0
+     8192 |                                                    0
+
+        pool capacity: 1000
+
+    For total 1 connection pool(s) found.
+    218 microseconds elapsed in the probe handler.
 
 check-debug-info
 ----------------

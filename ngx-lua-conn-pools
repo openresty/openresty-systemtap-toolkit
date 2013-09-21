@@ -14,7 +14,7 @@ GetOptions("a=s",       \(my $stap_args),
            "d",         \(my $dump_src),
            "h",         \(my $help),
            "p=i",       \(my $pid),
-           "dist",      \(my $dist),
+           "distr",     \(my $distr),
            "lua51",     \(my $lua51),
            "luajit20",  \(my $luajit20))
     or die usage();
@@ -160,7 +160,8 @@ my $pool_offset = qq{&\@cast(0,
                              "$nginx_path")->queue};
 
 my $print_dist_func_def;
-if ($dist) {
+
+if ($distr) {
     $print_dist_func_def = <<_EOC_;
 printf("\t    reused times distribution:\\n")
 print(\@hist_log(reused_time))
@@ -271,13 +272,14 @@ function print_pools_stat(pools) {
     }
 }
 
-probe process("$nginx_path").function("ngx_http_lua_socket_tcp_send")
+probe process("$nginx_path").function("ngx_http_lua_socket_tcp_send"),
+      process("$lua_path").function("lua_resume")
 {
     L = \$L
     if (L) {
         begin = gettimeofday_us()
 
-        key = &\@var("ngx_http_lua_socket_pool_key")
+        key = &\@var("ngx_http_lua_socket_pool_key", "$nginx_path")
         lg = \@cast(L, "lua_State", "$lua_path")->l_G
         registrytv = &\@cast(lg, "global_State", "$lua_path")->l_registry
         table = &\@cast(registrytv, "TValue", "$lua_path")->value->gc->h
@@ -350,12 +352,18 @@ function hashgcref(t, key) {
 }
 
 function lj_tab_get(t, key) {
+    MAXACTION = 1000
     node = hashgcref(t, key)
     node_key = $node->key->gcr->gcptr32
+    find_count = 0
 
     while (node_key != key) {
         node = $node->next->ptr32
         node_key = $node->key->gcr->gcptr32
+        find_count++
+        if (find_count > MAXACTION) {
+            return 0
+        }
     }
     return node
 }
@@ -401,7 +409,7 @@ probe process("$nginx_path").function("ngx_http_lua_socket_tcp_send")
     if (L) {
         begin = gettimeofday_us()
 
-        key = &\@var("ngx_http_lua_socket_pool_key")
+        key = &\@var("ngx_http_lua_socket_pool_key\@ngx_http_lua_util.c", "$nginx_path")
         lg = \@cast(L, "lua_State", "$lua_path")->glref->ptr32
         registrytv = &\@cast(lg, "global_State", "$lua_path")->registrytv
         gcptr = \@cast(registrytv, "TValue", "$lua_path")->gcr->gcptr32
@@ -444,7 +452,7 @@ Options:
     -p <pid>            Specify the nginx worker process pid.
     -a <args>           Pass extra arguments to the stap utility.
     -d                  Dump out the systemtap script source.
-    --dist              Print the distribution of reused times of sockets.
+    --distr             Print the distribution of reused times of sockets.
     --lua51             Specify that the Nginx is using the standard Lua 5.1.
                         interpreter.
     --luajit20          Specify that the Nginx is using LuaJIT 2.0.
