@@ -148,7 +148,7 @@ my $stap_src;
 my $preamble = <<_EOC_;
 probe begin
 {
-    printf("\\nTracing %d ($nginx_path) for $context...\\n", target())
+    printf("Tracing %d ($nginx_path) for $context...\\n\\n", target())
 }
 _EOC_
 chop $preamble;
@@ -208,7 +208,7 @@ function traverse_queue(queue) {
     }
 
     if (!is_queue_empty) {
-        printf("\\t    reused times (max/avg/min): %d %d %d\\n",
+        printf("\\t    reused times (max/avg/min): %d/%d/%d\\n",
                \@max(reused_time),
                \@avg(reused_time),
                \@min(reused_time))
@@ -254,11 +254,12 @@ function print_pools_stat(pools) {
             pool_key = &$pool->key
             cache = &$pool->cache
             free = &$pool->free
-            conn_num =  $pool->active_connections
+            active_cnt = $pool->active_connections
+            in_pool_cnt = queue_len(cache)
 
             printf("pool \\"%s\\"\\n", text_str(user_string(pool_key)))
-            printf("\tout-of-pool connections: %d\\n", conn_num)
-            printf("\tin-pool connections: %d\\n", queue_len(cache))
+            printf("\tout-of-pool reused connections: %d\\n", active_cnt - in_pool_cnt)
+            printf("\tin-pool connections: %d\\n", in_pool_cnt)
             traverse_queue(cache)
             printf("\tpool capacity: %d\\n\\n",
                    queue_len(cache) + queue_len(free))
@@ -375,10 +376,12 @@ function print_pools_stat(pools) {
             pool_key = &$pool->key
             cache = &$pool->cache
             free = &$pool->free
-            conn_num =  $pool->active_connections
+            active_cnt = $pool->active_connections
+            in_pool_cnt = queue_len(cache)
+
             printf("pool \\"%s\\"\\n", text_str(user_string(pool_key)))
-            printf("\tout-of-pool connections: %d\\n", conn_num)
-            printf("\tin-pool connections: %d\\n", queue_len(cache))
+            printf("\tout-of-pool reused connections: %d\\n", active_cnt - in_pool_cnt)
+            printf("\tin-pool connections: %d\\n", in_pool_cnt)
             traverse_queue(cache)
             printf("\tpool capacity: %d\\n\\n",
                    queue_len(cache) + queue_len(free))
