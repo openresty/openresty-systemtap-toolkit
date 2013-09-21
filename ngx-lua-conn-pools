@@ -278,11 +278,11 @@ probe process("$nginx_path").function("ngx_http_lua_socket_tcp_send")
         begin = gettimeofday_us()
 
         key = &\@var("ngx_http_lua_socket_pool_key")
-        lg = \@cast(L, "lua_State")->l_G
-        registrytv = &\@cast(lg, "global_State")->l_registry
-        table = &\@cast(registrytv, "TValue")->value->gc->h
+        lg = \@cast(L, "lua_State", "$lua_path")->l_G
+        registrytv = &\@cast(lg, "global_State", "$lua_path")->l_registry
+        table = &\@cast(registrytv, "TValue", "$lua_path")->value->gc->h
         index = hash_mod(table, key)
-        pools_table = &\@cast(table, "Table")->node[index]->i_val->value->gc->h
+        pools_table = &\@cast(table, "Table", "$lua_path")->node[index]->i_val->value->gc->h
         pool_count = 0
 
         if (pools_table) {
