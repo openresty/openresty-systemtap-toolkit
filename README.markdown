@@ -339,20 +339,17 @@ and checks whether the compiled regexes being executed is JIT'd or not.
     ngx_http_regex_exec: 0 of 1000 are PCRE JIT'd.
 
 When statically linking PCRE with your Nginx, it is important to enable
-debug symbols *and* avoid `-O2` or above
-in your PCRE compilation. That is, you should build your Nginx and PCRE like this:
+debug symbols in your PCRE compilation.
+That is, you should build your Nginx and PCRE like this:
 
     ./configure --with-pcre=/path/to/my/pcre-8.31 \
         --with-pcre-jit \
-        --prefix=/opt/nginx \
-        -opt="-g -O1"
+        --with-pcre-opt=-g \
+        --prefix=/opt/nginx
     make -j8
     make install
 
-Otherwise SystemTap will get confused.
-
-For dynamically-linked PCRE, you are still recommended to use `-O1` or below. And
-you still need
+For dynamically-linked PCRE, you are still need
 to install the debug symbols for your PCRE (or the debuginfo RPM package for Yum-based systems).
 
 ngx-sample-bt
@@ -723,7 +720,8 @@ performance in a running Nginx worker process.
 This tool requires uretprobes support in the Linux kernel.
 
 Also, you need to ensure that debug symbols are enabled in your
-Nginx build, PCRE build, and LuaJIT build.
+Nginx build, PCRE build, and LuaJIT build. For example, if you build PCRE from source with your Nginx or OpenResty by specifying the
+`--with-pcre=PATH` option, then you should also specify the `--with-pcre-opt=-g` option at the same time.
 
 Below is an example that analyzes the PCRE regex executation time distribution for a given Nginx worker process. Note that, the time is given in microseconds (`us`), i.e., 1e-6 seconds. The `--exec-time-dist` option is used here.
 
