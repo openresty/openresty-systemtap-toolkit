@@ -680,11 +680,17 @@ This tool can be used to inspect any user process (not only Nginx processes) wit
 ngx-accessed-files
 ------------------
 
+This tool has been renamed to [accessed-files](#accessed-files) because this tool is not specific to Nginx
+in any way and it makes no sense to keep the `ngx-` prefix in its name.
+
+accessed-files
+--------------
+
 Find out the names of the files most frequently read from or written to in any user process (yes, not only nginx!) specified by the `-p` option.
 
 The `-r` option can be specified to analyze files that are read from. For example,
 
-    $ ./ngx-accessed-files -p 8823 -r
+    $ ./accessed-files -p 8823 -r
     Tracing 8823 (/opt/nginx/sbin/nginx)...
     Hit Ctrl-C to end.
     ^C
@@ -695,7 +701,7 @@ The `-r` option can be specified to analyze files that are read from. For exampl
 
 And the `-w` option can be used to analyze files that are written to instead:
 
-    $ ./ngx-accessed-files -p 8823 -w
+    $ ./accessed-files -p 8823 -w
     Tracing 8823 (/opt/nginx/sbin/nginx)...
     Hit Ctrl-C to end.
     ^C
@@ -704,7 +710,7 @@ And the `-w` option can be used to analyze files that are written to instead:
 
 And you can specify both the `-r` and `-w` options:
 
-    $ ./ngx-accessed-files -p 8823 -w -r
+    $ ./accessed-files -p 8823 -w -r
     Tracing 8823 (/opt/nginx/sbin/nginx)...
     Hit Ctrl-C to end.
     ^C
@@ -716,7 +722,7 @@ And you can specify both the `-r` and `-w` options:
 
 By default, hitting Ctrl-C will end the sampling process. And the `-t` option can be specified to control the sampling period by exact number of seconds, as in
 
-    $ ./ngx-accessed-files -p 8823 -r -t 5
+    $ ./accessed-files -p 8823 -r -t 5
     Tracing 8823 (/opt/nginx/sbin/nginx)...
     Please wait for 5 seconds.
 
@@ -727,7 +733,7 @@ By default, hitting Ctrl-C will end the sampling process. And the `-t` option ca
 
 By default, at most 10 different file names are printed out. You can control this upper limit by specifying the `-l` option. For instance,
 
-    $ ./ngx-accessed-files -p 8823 -r -l 20
+    $ ./accessed-files -p 8823 -r -l 20
 
 ngx-pcre-stats
 --------------

@@ -24,7 +24,7 @@ if ($help) {
 }
 
 if (!$pid) {
-    die "No nginx process pid specified by the -p option\n";
+    die "No user process pid specified by the -p option\n";
 }
 
 if (!$limit) {
@@ -139,7 +139,7 @@ close $in;
 sub usage {
     return <<'_EOC_';
 Usage:
-    ngx-accessed-files [optoins]
+    accessed-files [optoins]
 
 Options:
     -a <args>           Pass extra arguments to the stap utility.
@@ -147,14 +147,14 @@ Options:
     -h                  Print this usage.
     -l <count>          Limiting the number of different file names printed.
                         (Default to 10.)
-    -p <pid>            Specify the nginx worker process pid.
+    -p <pid>            Specify the user worker process pid.
     -r                  Trace file reads.
     -w                  Trace file writes.
     -t <seconds>        Specify the time period in seconds for  sampling
 
 Examples:
-    ngx-accessed-files -p 12345 -t 5 -r
-    ngx-accessed-files -p 12345 -w -l 20
-    ngx-accessed-files -p 12345 -w -r -a '-DMAXACTION=100000'
+    accessed-files -p 12345 -t 5 -r
+    accessed-files -p 12345 -w -l 20
+    accessed-files -p 12345 -w -r -a '-DMAXACTION=100000'
 _EOC_
 }
