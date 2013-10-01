@@ -74,11 +74,11 @@ if ($^O ne 'linux') {
 
 my $exec_file = "/proc/$pid/exe";
 if (!-f $exec_file) {
-    die "Nginx process $pid is not running or ",
+    die "User process $pid is not running or ",
         "you do not have enough permissions.\n";
 }
 
-my $nginx_path = readlink $exec_file;
+my $exec_path = readlink $exec_file;
 
 my $ver = `stap --version 2>&1`;
 if (!defined $ver) {
@@ -100,7 +100,7 @@ global quit = 0;
 global found
 
 probe begin {
-    warn(sprintf("Tracing %d ($nginx_path)...\\n", target()))
+    warn(sprintf("Tracing %d ($exec_path)...\\n", target()))
 }
 _EOC_
 
@@ -142,7 +142,7 @@ probe end {
 probe scheduler.cpu_off {
     if ($condition) {
         if (!quit) {
-            start_time = gettimeofday_us()
+            start_time[tid()] = gettimeofday_us()
 
         } else {
             exit()
@@ -151,14 +151,16 @@ probe scheduler.cpu_off {
 }
 
 probe scheduler.cpu_on {
-    if ($condition && start_time > 0) {
-        if (!quit) {
-            elapsed = gettimeofday_us() - start_time
+    if ($condition && !quit) {
+        t = tid()
+        begin = start_time[t]
+        if (begin > 0) {
+            elapsed = gettimeofday_us() - begin
             if (elapsed >= $min_elapsed) {
                 found = 1
                 elapsed_times <<< elapsed
             }
-            start_time = 0
+            delete start_time[t]
         }
     }
 }
@@ -214,7 +216,7 @@ $preamble
 probe scheduler.cpu_off {
     if ($condition) {
         if (!quit) {
-            start_time = gettimeofday_us()
+            start_time[tid()] = gettimeofday_us()
 
         } else {
 $print_bt_code
@@ -224,13 +226,17 @@ $print_bt_code
 }
 
 probe scheduler.cpu_on {
-    if ($condition && start_time > 0) {
-        elapsed = gettimeofday_us() - start_time
-        if (elapsed >= $min_elapsed) {
-            bts[$gen_bt_code] <<< elapsed
-            found = 1
+    if ($condition && !quit) {
+        t = tid()
+        begin = start_time[t]
+        if (begin > 0) {
+            elapsed = gettimeofday_us() - begin
+            if (elapsed >= $min_elapsed) {
+                bts[$gen_bt_code] <<< elapsed
+                found = 1
+            }
+            delete start_time[t]
         }
-        start_time = 0
     }
 }
 
@@ -268,7 +274,7 @@ if ($dump_src) {
 
 #warn "$d_so_args\n";
 
-open my $in, "|stap --skip-badvars --all-modules -x $pid -d '$nginx_path' --ldd $d_so_args $stap_args -"
+open my $in, "|stap --skip-badvars --all-modules -x $pid -d '$exec_path' --ldd $d_so_args $stap_args -"
     or die "Cannot run stap: $!\n";
 
 print $in $stap_src;
