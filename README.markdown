@@ -355,6 +355,12 @@ to install the debug symbols for your PCRE (or the debuginfo RPM package for Yum
 ngx-sample-bt
 -------------
 
+This tool has been renamed to [sample-bt](#sample-bt) because this tool is not specific to Nginx
+in any way and it makes no sense to keep the `ngx-` prefix in its name.
+
+sample-bt
+---------
+
 This script can be used to sample backtraces in either user space or kernel space
 or both for *any* user process that you specify (yes, not just Nginx!).
 It outputs the aggregated backgraces (by count).
@@ -362,7 +368,7 @@ It outputs the aggregated backgraces (by count).
 For example, to sample a running Nginx worker process (whose pid is 8736) in user space
 only for total 5 seconds:
 
-    $ ./ngx-sample-bt -p 8736 -t 5 -u > a.bt
+    $ ./sample-bt -p 8736 -t 5 -u > a.bt
     WARNING: Tracing 8736 (/opt/nginx/sbin/nginx) in user-space only...
     WARNING: Missing unwind data for module, rerun with 'stap -d stap_df60590ce8827444bfebaf5ea938b5a_11577'
     WARNING: Time's up. Quitting now...(it may take a while)
@@ -387,7 +393,7 @@ For more information on the Flame Graph thing, please check out Brendan Gregg's 
 
 You can also sample the backtraces in the kernel-space by specifying the `-k` option, as in
 
-    $ ./ngx-sample-bt -p 8736 -t 5 -k > a.bt
+    $ ./sample-bt -p 8736 -t 5 -k > a.bt
     WARNING: Tracing 8736 (/opt/nginx/sbin/nginx) in kernel-space only...
     WARNING: Missing unwind data for module, rerun with 'stap -d stap_bf5516bdbf2beba886507025110994e_11738'
     WARNING: Time's up. Quitting now...(it may take a while)
@@ -401,7 +407,7 @@ http://agentzh.org/misc/nginx/kernel-flamegraph.svg
 
 You can also sample in both the user space and kernel space by specifying the `-k` and `-u` options at the same time, as in
 
-    $ ./ngx-sample-bt -p 8736 -t 5 -uk > a.bt
+    $ ./sample-bt -p 8736 -t 5 -uk > a.bt
     WARNING: Tracing 8736 (/opt/nginx/sbin/nginx) in both user-space and kernel-space...
     WARNING: Missing unwind data for module, rerun with 'stap -d stap_90327f3a19b0e42dffdef38d53a5860_11799'
     WARNING: Time's up. Quitting now...(it may take a while)
@@ -417,7 +423,7 @@ In fact, this script is general enough and can be used to sample user processes 
 ngx-sample-lua-bt
 -----------------
 
-Similar to the `ngx-sample-bt` script, but samples the Lua language level backtraces.
+Similar to the [sample-bt](#sample-bt) script, but samples the Lua language level backtraces.
 
 Specify the `--lua51` option when you're using the standard Lua 5.1 interpreter in your Nginx build, or `--luajit20` if LuaJIT 2.0 is used instead.
 
@@ -529,7 +535,7 @@ If the standard Lua 5.1 interpreter is used instead, specify the --lua51 option:
 ngx-sample-bt-off-cpu
 ---------------------
 
-Similar to `ngx-sample-bt` but analyzes the off-CPU time for a particular user process (not only Nginx, but also any other applications).
+Similar to [sample-bt](#sample-bt) but analyzes the off-CPU time for a particular user process (not only Nginx, but also any other applications).
 
 Why does off-CPU time matter? Check out Brendan Gregg's excellent blog post "Off-CPU Performance Analysis" for details:
 
@@ -592,7 +598,7 @@ You can specify the `-k` option to sample the kernel space backtraces instead of
 ngx-sample-bt-vfs
 -----------------
 
-Similar to `ngx-sample-bt` but samples the userspace backtraces on the Virtual File System (VFS) level for rendering File I/O Flame Graphs, which can show exactly how file I/O data volumn or file I/O latency is distributed among different userspace code paths within any running user process.
+Similar to [sample-bt](#sample-bt) but samples the userspace backtraces on the Virtual File System (VFS) level for rendering File I/O Flame Graphs, which can show exactly how file I/O data volumn or file I/O latency is distributed among different userspace code paths within any running user process.
 
 By default, 1 sample of backtrace corresponds of 1 byte of data volumn (read or written). And by default, both `vfs_read` and `vfs_write` are tracked. For example,
 
