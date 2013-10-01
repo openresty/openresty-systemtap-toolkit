@@ -832,6 +832,12 @@ hit Ctrl-C to end sampling:
 ngx-accept-queue
 ----------------
 
+This tool has been renamed to [tcp-accept-queue](#tcp-accept-queue) because this tool is not specific to Nginx
+in any way and it makes no sense to keep the `ngx-` prefix in its name.
+
+tcp-accept-queue
+----------------
+
 This tool samples the SYN queue and ACK backlog queue for the sockets listening on the local port specified by the `--port` option
 for the time interval when it is running. It can work on any server processes even it is not Nginx.
 
@@ -841,7 +847,7 @@ SYN queue or ACK backlog queue overflowing often results in connecting timeout e
 
 By default, the tool prints out up to 10 queue overflow events and then quits immediately. For example:
 
-    $ ./ngx-accept-queue --port=80
+    $ ./tcp-accept-queue --port=80
     WARNING: Tracing SYN & ACK backlog queue overflows on the listening port 80...
     [Tue May 14 12:29:15 2013 PDT] ACK backlog queue is overflown: 129 > 128
     [Tue May 14 12:29:15 2013 PDT] ACK backlog queue is overflown: 129 > 128
@@ -858,7 +864,7 @@ From the output, we can see a lot of ACK backlog queue overflows happening when 
 
 You can specify the `--limit` option to control the maximal number of issues reported:
 
-    $ ./ngx-accept-queue --port=80 --limit=3
+    $ ./tcp-accept-queue --port=80 --limit=3
     WARNING: Tracing SYN & ACK backlog queue overflows on the listening port 80...
     [Tue May 14 12:29:25 2013 PDT] ACK backlog queue is overflown: 129 > 128
     [Tue May 14 12:29:25 2013 PDT] ACK backlog queue is overflown: 129 > 128
@@ -869,7 +875,7 @@ Or just hit Ctrl-C to end.
 You can also specify the `--distr` option to make this tool just print out a histogram for the distribution
 of the queue lengths:
 
-    $ ./ngx-accept-queue --port=80 --distr
+    $ ./tcp-accept-queue --port=80 --distr
     WARNING: Tracing SYN & ACK backlog queue length distribution on the listening port 80...
     Hit Ctrl-C to end.
     SYN queue length limit: 512
@@ -905,7 +911,7 @@ From the outputs, we can see that for 106 samples (i.e., 106 new connecting requ
 
 You need to hit Ctrl-C to make this tool print out the histgram when the `--distr` option is specified. Alternatively, you can specify the `--time` option to specify the exact number of seconds for real-time sampling:
 
-    $ ./ngx-accept-queue --port=80 --distr --time=3
+    $ ./tcp-accept-queue --port=80 --distr --time=3
     WARNING: Tracing SYN & ACK backlog queue length distribution on the listening port 80...
     Sampling for 3 seconds.
     SYN queue length limit: 512
@@ -932,7 +938,7 @@ You need to hit Ctrl-C to make this tool print out the histgram when the `--dist
 
 Even though the accept queue is not overflowing, long latency involved in accept queueing can also lead to client connecting timeout. The `--latency` option can be specified to analyze the accept queueing latency for a given listening port:
 
-    $ ./ngx-accept-queue -port=80 --latency
+    $ ./tcp-accept-queue -port=80 --latency
     WARNING: Tracing accept queueing latency on the listening port 80...
     Hit Ctrl-C to end.
     ^C
@@ -962,7 +968,7 @@ Even though the accept queue is not overflowing, long latency involved in accept
 
 The `--time` option can also be specified to control the sampling time in seconds:
 
-    $ ./ngx-accept-queue --port=80 --latency --time=5
+    $ ./tcp-accept-queue --port=80 --latency --time=5
     WARNING: Tracing accept queueing latency on the listening port 80...
     Sampling for 5 seconds.
 
