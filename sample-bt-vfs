@@ -70,7 +70,7 @@ if (!-f $exec_file) {
         "you do not have enough permissions.\n";
 }
 
-my $nginx_path = readlink $exec_file;
+my $exec_path = readlink $exec_file;
 
 my $ver = `stap --version 2>&1`;
 if (!defined $ver) {
@@ -92,7 +92,7 @@ global bts;
 global quit = 0;
 
 probe begin {
-    warn(sprintf("Tracing %d ($nginx_path)...\\n", target()))
+    warn(sprintf("Tracing %d ($exec_path)...\\n", target()))
 }
 _EOC_
 
@@ -201,7 +201,7 @@ if ($dump_src) {
     exit;
 }
 
-open my $in, "|stap --skip-badvars --all-modules -x $pid -d '$nginx_path' --ldd $stap_args -"
+open my $in, "|stap --skip-badvars --all-modules -x $pid -d '$exec_path' --ldd $stap_args -"
     or die "Cannot run stap: $!\n";
 
 print $in $stap_src;
@@ -211,7 +211,7 @@ close $in;
 sub usage {
     return <<'_EOC_';
 Usage:
-    ngx-sample-bt-vfs [optoins]
+    sample-bt-vfs [optoins]
 
 Options:
     -a <args>           Pass extra arguments to the stap utility.
@@ -227,7 +227,7 @@ Options:
     -t <seconds>        Specify the number of seconds for sampling.
 
 Examples:
-    ngx-sample-bt-vfs -p 12345 -t 10
-    ngx-sample-bt-vfs -p 12345 -t 5 -a '-DMAXACTION=100000'
+    sample-bt-vfs -p 12345 -t 10
+    sample-bt-vfs -p 12345 -t 5 -a '-DMAXACTION=100000'
 _EOC_
 }

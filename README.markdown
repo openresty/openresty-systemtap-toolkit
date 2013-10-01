@@ -604,11 +604,17 @@ You can specify the `-k` option to sample the kernel space backtraces instead of
 ngx-sample-bt-vfs
 -----------------
 
+This tool has been renamed to [sample-bt-vfs](#sample-bt-vfs) because this tool is not specific to Nginx
+in any way and it makes no sense to keep the `ngx-` prefix in its name.
+
+sample-bt-vfs
+-------------
+
 Similar to [sample-bt](#sample-bt) but samples the userspace backtraces on the Virtual File System (VFS) level for rendering File I/O Flame Graphs, which can show exactly how file I/O data volumn or file I/O latency is distributed among different userspace code paths within any running user process.
 
 By default, 1 sample of backtrace corresponds of 1 byte of data volumn (read or written). And by default, both `vfs_read` and `vfs_write` are tracked. For example,
 
-    $ ./ngx-sample-bt-vfs -p 12345 -t 3 > a.bt
+    $ ./sample-bt-vfs -p 12345 -t 3 > a.bt
     WARNING: Tracing 20636 (/opt/nginx/sbin/nginx)...
     WARNING: Time's up. Quitting now...(it may take a while)
     WARNING: Number of errors: 0, skipped probes: 2
@@ -630,7 +636,7 @@ This graph was rendered when the Nginx worker process is loaded by requests to i
 
 You can also track file reading only by specifying the `-r` option:
 
-    $ ./ngx-sample-bt-vfs -p 12345 -t 3 -r > a.bt
+    $ ./sample-bt-vfs -p 12345 -t 3 -r > a.bt
 
 Here is an example of "file reading flamegraph" by sampling a Nginx loaded by requests accessing its default index page:
 
@@ -641,7 +647,7 @@ We can see that only the standard nginx "static" module is the only thing shown 
 Similarly, you can specify the `-w` option to track file writing only:
 
 
-    $ ./ngx-sample-bt-vfs -p 12345 -t 3 -w > a.bt
+    $ ./sample-bt-vfs -p 12345 -t 3 -w > a.bt
 
 Here is a sample "file writing flamegraph" for Nginx (with debugging logs enabled):
 
@@ -657,7 +663,7 @@ Do not confuse file I/O here with disk I/O because we are only probing on the (h
 
 Generally, we are more interested in the latency (i.e, time) spent on the VFS reads and writes. You can specify the `--latency` option to track kernel call latency instead of the data volumn:
 
-    $ ./ngx-sample-bt-vfs -p 12345 -t 3 --latency > a.bt
+    $ ./sample-bt-vfs -p 12345 -t 3 --latency > a.bt
 
 In this case, 1 sample corresponds to 1 microsends of file I/O time (or to be more correct, the `vfs_read` or `vfs_write` calls' time).
 
