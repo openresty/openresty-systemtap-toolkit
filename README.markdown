@@ -535,6 +535,12 @@ If the standard Lua 5.1 interpreter is used instead, specify the --lua51 option:
 ngx-sample-bt-off-cpu
 ---------------------
 
+This tool has been renamed to [sample-bt-off-cpu](#sample-bt-off-cpu) because this tool is not specific to Nginx
+in any way and it makes no sense to keep the `ngx-` prefix in its name.
+
+sample-bt-off-cpu
+-----------------
+
 Similar to [sample-bt](#sample-bt) but analyzes the off-CPU time for a particular user process (not only Nginx, but also any other applications).
 
 Why does off-CPU time matter? Check out Brendan Gregg's excellent blog post "Off-CPU Performance Analysis" for details:
@@ -546,7 +552,7 @@ By default, this tool samples the userspace backtraces. And 1 (logical) sample o
 Here is an example to demonstrate this tool's usage:
 
     # assuming the nginx worker process to be analyzed is 10901.
-    $ ./ngx-sample-bt-off-cpu -p 10901 -t 5 > a.bt
+    $ ./sample-bt-off-cpu -p 10901 -t 5 > a.bt
     WARNING: Tracing 10901 (/opt/nginx/sbin/nginx)...
     WARNING: _stp_read_address failed to access memory location
     WARNING: Time's up. Quitting now...(it may take a while)
@@ -554,7 +560,7 @@ Here is an example to demonstrate this tool's usage:
 
 where the `-t 5` option makes the tool sample for 5 seconds.
 
-The resulting `a.bt` file can be used to render Flame Graphs just as with `ngx-sample-bt` and its other friends. And this type of flamegraphs can be called "off-CPU Flame Graphs" while the classic flamegraphs are essentially "on-CPU Flame Graphs".
+The resulting `a.bt` file can be used to render Flame Graphs just as with [sample-bt](#sample-bt) and its other friends. And this type of flamegraphs can be called "off-CPU Flame Graphs" while the classic flamegraphs are essentially "on-CPU Flame Graphs".
 
 Below is such a "off-CPU flamegraph" for a loaded Nginx worker process accessing MySQL with the lua-resty-mysql library:
 
@@ -562,7 +568,7 @@ http://agentzh.org/misc/flamegraph/off-cpu-lua-resty-mysql.svg
 
 By default, off-CPU time intervals shorter than 4 us (microseconds) are discarded. You can control this threshold via the `--min` option, as in
 
-    $ ./ngx-sample-bt-off-cpu -p 12345 --min 10 -t 10
+    $ ./sample-bt-off-cpu -p 12345 --min 10 -t 10
 
 where we ignore off-CPU time intervals shorter than 10 us and sample the user process with the pid 12345 for total 10 seconds.
 
@@ -570,7 +576,7 @@ The `-l` option can be control the upper limit of different backtraces to be out
 
 The `--distr` option can be specified to print out a base-2 logarithmic histogram for all the off-CPU time intervals (larger than the threshold specified by the `--min` option). For example,
 
-    $ ./ngx-sample-bt-off-cpu -p 10901 -t 3 --distr --min=1
+    $ ./sample-bt-off-cpu -p 10901 -t 3 --distr --min=1
     WARNING: Tracing 10901 (/opt/nginx/sbin/nginx)...
     Exiting...Please wait...
     === Off-CPU time distribution (in us) ===

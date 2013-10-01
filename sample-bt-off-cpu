@@ -278,7 +278,7 @@ close $in;
 sub usage {
     return <<'_EOC_';
 Usage:
-    ngx-sample-bt-off-cpu [optoins]
+    sample-bt-off-cpu [optoins]
 
 Options:
     -a <args>           Pass extra arguments to the stap utility.
@@ -295,8 +295,8 @@ Options:
     -u                  Analyze userspace backtraces.
 
 Examples:
-    ngx-sample-bt-off-cpu -p 12345 -t 10
-    ngx-sample-bt-off-cpu -p 12345 -t 5 -a '-DMAXACTION=100000'
-    ngx-sample-bt-off-cpu --distr -p 12345 -t 10 --min=1
+    sample-bt-off-cpu -p 12345 -t 10
+    sample-bt-off-cpu -p 12345 -t 5 -a '-DMAXACTION=100000'
+    sample-bt-off-cpu --distr -p 12345 -t 10 --min=1
 _EOC_
 }
