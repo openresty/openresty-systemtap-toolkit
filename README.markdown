@@ -986,6 +986,12 @@ This tool requires a Linux kernel compiled by gcc 4.5+ (preferrably gcc 4.7+) be
 ngx-recv-queue
 --------------
 
+This tool has been renamed to [tcp-recv-queue](#tcp-recv-queue) because this tool is not specific to Nginx
+in any way and it makes no sense to keep the `ngx-` prefix in its name.
+
+tcp-recv-queue
+--------------
+
 This tool can analyze the queueing latency involved in the TCP receive queue.
 
 The queueing latency defined here is the delay between the following two events:
@@ -1001,7 +1007,7 @@ You are only required to specify the destination port number for the receiving p
 
 Here is an example for analyzing the MySQL server listening on the 3306 port:
 
-    $ ./ngx-recv-queue --dport=3306
+    $ ./tcp-recv-queue --dport=3306
     WARNING: Tracing the TCP receive queues for packets to the port 3306...
     Hit Ctrl-C to end.
     ^C
@@ -1022,7 +1028,7 @@ We can see that most of the latency times fall into the interval `[2us, 4us)`. A
 
 You can also specify the exact sampling time interval (in seconds) via the `--time` option. For example, to analyze the Nginx server listening on the port 8080 for 5 seconds:
 
-    $ ./ngx-recv-queue --dport=1984 --time=5
+    $ ./tcp-recv-queue --dport=1984 --time=5
     WARNING: Tracing the TCP receive queues for packets to the port 1984...
     Sampling for 5 seconds.
 
@@ -1052,7 +1058,7 @@ Successfully tested on Linux kernel 3.7 and should work for other versions of ke
 This tool requires a Linux kernel compiled by gcc 4.5+ (preferrably gcc 4.7+) because gcc versions older than 4.5 generated incomplete DWARF debug info for C inlined functions. It is also recommended to enable DWARF format version 3 or above when compiling the kernel (by passing the `-gdwarf-3` or `-gdwarf-4` option to the `gcc` command line).
 
 ngx-lua-shdict
--------
+--------------
 
 This tool analyzes shared memory dict and tracks dict operations in the specified running nginx process.
 

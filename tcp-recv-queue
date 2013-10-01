@@ -167,7 +167,7 @@ close $in;
 sub usage {
     return <<'_EOC_';
 Usage:
-    ngx-recv-queue [optoins]
+    tcp-recv-queue [optoins]
 
 Options:
     -a <args>           Pass extra arguments to the stap utility.
@@ -178,7 +178,7 @@ Options:
                         (Only meaningful with --distr)
 
 Examples:
-    ngx-recv-queue --dport=11211
-    ngx-recv-queue --dport=6379 --time=10 -a '-DMAXACTION=100000'
+    tcp-recv-queue --dport=11211
+    tcp-recv-queue --dport=6379 --time=10 -a '-DMAXACTION=100000'
 _EOC_
 }
