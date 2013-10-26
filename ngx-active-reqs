@@ -159,7 +159,7 @@ _EOC_
             last = $u->buffer->last
             end = $u->buffer->end
             size = last - pos
-            if (size) {
+            if (size && pos) {
                 if (size > 40) {
                     data = text_str(user_string_n(pos, 20) . "..." . user_string_n(last - 20 , 20))
 
@@ -361,7 +361,7 @@ $check_pool_init_code
                 args_data = \@cast(args, "ngx_str_t")->data
                 args_len = \@cast(args, "ngx_str_t")->len
 
-                if (args_len == 0) {
+                if (args_len == 0 || args_data == 0) {
                     args_str = ""
 
                 } else {
@@ -381,7 +381,7 @@ $check_pool_init_code
                 /* get host */
 
                 host = $r->headers_in->host
-                if (host) {
+                if (host && $r->headers_in->host->value->data) {
                     host_name = user_string_n($r->headers_in->host->value->data, $r->headers_in->host->value->len)
 
                 } else {
@@ -398,21 +398,21 @@ $check_pool_init_code
 
                 main = $r->main
 
-                printf("%s \\"%s %s\?%s\\", r=%p, keepalive=%d, spdy=%d, host=%s, status=%d, time=%d.%03ds, buffered=%x, conn: ssl=%d, from=%s, reqs=%d, err=%d, fd=%d, buffered=%x, %s\\n",
+                printf("%s \\"%s %s\?%s\\", r=%p, count=%d, keepalive=%d, spdy=%d, host=%s, status=%d, time=%d.%03ds, buffered=%x, conn: ssl=%d, from=%s, reqs=%d, err=%d, fd=%d, buffered=%x, %s\\n",
                        main == r ? "req" : "subreq",
-                       user_string_n(method_data, method_len),
-                       user_string_n(uri_data, uri_len), args_str,
-                       r,
+                       method_data ? user_string_n(method_data, method_len) : "",
+                       uri_data ? user_string_n(uri_data, uri_len) : "", args_str,
+                       r, $r->main->count,
                        $r->keepalive,
                        \@defined($r->spdy_stream) ? $r->spdy_stream != 0 : 0,
                        host_name, $r->headers_out->status,
                        ms / 1000, ms % 1000,
                        $r->buffered,
                        \@defined($c->ssl) ? $c->ssl : 0,
-                       user_string_n($c->addr_text->data, $c->addr_text->len),
+                       $c->addr_text->data ? user_string_n($c->addr_text->data, $c->addr_text->len) : "",
                        reqs, $c->error, fd,
                        $c->buffered,
-                       user_string($c->log->action))
+                       $c->log->action ? user_string($c->log->action) : "")
 
 $check_pool_code
 $check_upstream_code
