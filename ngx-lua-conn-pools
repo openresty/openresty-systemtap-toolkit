@@ -76,6 +76,21 @@ if (!-f $nginx_file) {
         "you do not have enough permissions.\n";
 }
 
+my $ver = `stap -V 2>&1`;
+if (!defined $ver) {
+    die "Systemtap not installed or its \"stap\" utility is not visible to the PATH environment: $!\n";
+}
+
+if ($ver =~ /version\s+(\d+\.\d+)/i) {
+    my $v = $1;
+    if ($v < 2.3) {
+        die "ERROR: at least systemtap 2.3 is required but found $v\n";
+    }
+
+} else {
+    die "ERROR: unknown version of systemtap:\n$ver\n";
+}
+
 my $context;
 if ($lua51) {
     $context = "standard Lua 5.1";
