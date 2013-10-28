@@ -86,7 +86,8 @@ $preamble
 global reqs
 global conns
 
-probe process("$nginx_path").function("ngx_http_init_request")
+probe process("$nginx_path").function("ngx_http_create_request")!,
+      process("$nginx_path").function("ngx_http_init_request")
 {
     my_pid = pid()
     if ($condition) {
@@ -119,7 +120,8 @@ _EOC_
 $preamble
 global reqs
 
-probe process("$nginx_path").function("ngx_http_init_request")
+probe process("$nginx_path").function("ngx_http_create_request")!,
+      process("$nginx_path").function("ngx_http_init_request")
 {
     my_pid = pid()
     if ($condition) {
@@ -196,4 +198,3 @@ sub gen_pid_test_condition {
     }
     return '(' . join(" || ", @c) . ')';
 }
-
