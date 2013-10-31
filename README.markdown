@@ -3,6 +3,52 @@ NAME
 
 nginx-systemtap-toolkit - Real-time analyzing and diagnosing tools for Nginx based on [SystemTap](http://sourceware.org/systemtap/wiki)
 
+Table of Contents
+=================
+
+* [NAME](#name)
+* [Status](#status)
+* [Prerequisites](#prerequisites)
+* [Permissions](#permissions)
+* [Tools](#tools)
+    * [ngx-active-reqs](#ngx-active-reqs)
+    * [ngx-req-distr](#ngx-req-distr)
+    * [ngx-shm](#ngx-shm)
+    * [ngx-cycle-pool](#ngx-cycle-pool)
+    * [ngx-leaked-pools](#ngx-leaked-pools)
+    * [ngx-backtrace](#ngx-backtrace)
+    * [ngx-body-filters](#ngx-body-filters)
+    * [ngx-header-filters](#ngx-header-filters)
+    * [ngx-pcrejit](#ngx-pcrejit)
+    * [ngx-sample-bt](#ngx-sample-bt)
+    * [sample-bt](#sample-bt)
+    * [ngx-sample-lua-bt](#ngx-sample-lua-bt)
+    * [fix-lua-bt](#fix-lua-bt)
+    * [ngx-lua-bt](#ngx-lua-bt)
+    * [ngx-sample-bt-off-cpu](#ngx-sample-bt-off-cpu)
+    * [sample-bt-off-cpu](#sample-bt-off-cpu)
+    * [ngx-sample-bt-vfs](#ngx-sample-bt-vfs)
+    * [sample-bt-vfs](#sample-bt-vfs)
+    * [ngx-accessed-files](#ngx-accessed-files)
+    * [accessed-files](#accessed-files)
+    * [ngx-pcre-stats](#ngx-pcre-stats)
+    * [ngx-accept-queue](#ngx-accept-queue)
+    * [tcp-accept-queue](#tcp-accept-queue)
+    * [ngx-recv-queue](#ngx-recv-queue)
+    * [tcp-recv-queue](#tcp-recv-queue)
+    * [ngx-lua-shdict](#ngx-lua-shdict)
+    * [ngx-lua-conn-pools](#ngx-lua-conn-pools)
+    * [check-debug-info](#check-debug-info)
+    * [ngx-phase-handlers](#ngx-phase-handlers)
+* [Community](#community)
+    * [English Mailing List](#english-mailing-list)
+    * [Chinese Mailing List](#chinese-mailing-list)
+* [Bugs and Patches](#bugs-and-patches)
+* [TODO](#todo)
+* [Author](#author)
+* [Copyright & License](#copyright--license)
+* [See Also](#see-also)
+
 Status
 ======
 
@@ -31,8 +77,12 @@ But if the user account running the Nginx process is different from your current
 user account, then you will still be required to run "sudo" or other means to run these tools
 with root access.
 
+[Back to TOC](#table-of-contents)
+
 Tools
 =====
+
+[Back to TOC](#table-of-contents)
 
 ngx-active-reqs
 ---------------
@@ -94,6 +144,8 @@ The `-m` option will tell this tool to analyze the request memory pools for each
 For Nginx servers that are not busy enough, it is handy to specify the Nginx master process pid as the `-p` option value.
 Another useful option is `-k`, which will keep probing when there's no active requests found in the current event cycle.
 
+[Back to TOC](#table-of-contents)
+
 ngx-req-distr
 -------------
 
@@ -128,6 +180,8 @@ among all the nginx worker processes for the specified nginx master process.
     worker 4399:    2200 reqs,      22 conns
     worker 4400:    800 reqs,       8 conns
     worker 4401:    2200 reqs,      22 conns
+
+[Back to TOC](#table-of-contents)
 
 ngx-shm
 -------
@@ -175,6 +229,8 @@ This tool analyzes all the shared memory zones in the specified running nginx pr
 
     22 microseconds elapsed in the probe.
 
+[Back to TOC](#table-of-contents)
+
 ngx-cycle-pool
 --------------
 
@@ -204,6 +260,8 @@ the intermal implementation of glibc's `malloc` on Linux. If you have replaced t
 then this tool is very likely to quit with memory access errors
 or to give meaningless numbers for the "large blocks" total size
 (but even in such bad cases, SystemTap should not affect the nginx process being analyzed at all).
+
+[Back to TOC](#table-of-contents)
 
 ngx-leaked-pools
 ----------------
@@ -250,6 +308,8 @@ This script requires Nginx instances that have applied the latest dtrace patch. 
 
 The bundle [ngx_openresty](http://openresty.org/) 1.2.3.3+ includes the right dtrace patch by default. And you just need to build it with the `--with-dtrace-probes` configure option.
 
+[Back to TOC](#table-of-contents)
+
 ngx-backtrace
 -------------
 
@@ -274,6 +334,8 @@ Prints out a human readable form for the raw backtraces consisting of hexidecima
     src/http/ngx_http_core_module.c:890
     ngx_http_handler
     src/http/ngx_http_core_module.c:872
+
+[Back to TOC](#table-of-contents)
 
 ngx-body-filters
 ----------------
@@ -300,6 +362,8 @@ Print out all the output body filters in the order that they actually run.
 
     113 microseconds elapsed in the probe handler.
 
+[Back to TOC](#table-of-contents)
+
 ngx-header-filters
 ------------------
 
@@ -321,6 +385,8 @@ Print out all the output header filters in the order that they actually run.
     ngx_http_header_filter
 
     137 microseconds elapsed in the probe handler.
+
+[Back to TOC](#table-of-contents)
 
 ngx-pcrejit
 -----------
@@ -352,11 +418,15 @@ That is, you should build your Nginx and PCRE like this:
 For dynamically-linked PCRE, you are still need
 to install the debug symbols for your PCRE (or the debuginfo RPM package for Yum-based systems).
 
+[Back to TOC](#table-of-contents)
+
 ngx-sample-bt
 -------------
 
 This tool has been renamed to [sample-bt](#sample-bt) because this tool is not specific to Nginx
 in any way and it makes no sense to keep the `ngx-` prefix in its name.
+
+[Back to TOC](#table-of-contents)
 
 sample-bt
 ---------
@@ -420,6 +490,8 @@ http://agentzh.org/misc/nginx/user-kernel-flamegraph.svg
 
 In fact, this script is general enough and can be used to sample user processes other than Nginx.
 
+[Back to TOC](#table-of-contents)
+
 ngx-sample-lua-bt
 -----------------
 
@@ -477,6 +549,8 @@ For more information on the Flame Graph thing, please check out Brendan Gregg's 
 If the pid of the Nginx master proces is specified as the `-t` option value,
 then this tool will automatically probe all its worker processes at the same time.
 
+[Back to TOC](#table-of-contents)
+
 fix-lua-bt
 ----------
 
@@ -507,6 +581,8 @@ where the input file `tmp.bt` is generated by `ngx-sample-lua-bt` earlier.
 
 See also `ngx-sample-lua-bt`.
 
+[Back to TOC](#table-of-contents)
+
 ngx-lua-bt
 ----------
 
@@ -532,11 +608,15 @@ If the standard Lua 5.1 interpreter is used instead, specify the --lua51 option:
     [tail]
     content_by_lua:1
 
+[Back to TOC](#table-of-contents)
+
 ngx-sample-bt-off-cpu
 ---------------------
 
 This tool has been renamed to [sample-bt-off-cpu](#sample-bt-off-cpu) because this tool is not specific to Nginx
 in any way and it makes no sense to keep the `ngx-` prefix in its name.
+
+[Back to TOC](#table-of-contents)
 
 sample-bt-off-cpu
 -----------------
@@ -601,11 +681,15 @@ Here we can see that most of the samples (for total 259 samples) fall in the off
 
 You can specify the `-k` option to sample the kernel space backtraces instead of sampling userland backtraces. If you want to sample both the userland and kernelspace, then you can specify both the `-k` and `-u` options.
 
+[Back to TOC](#table-of-contents)
+
 ngx-sample-bt-vfs
 -----------------
 
 This tool has been renamed to [sample-bt-vfs](#sample-bt-vfs) because this tool is not specific to Nginx
 in any way and it makes no sense to keep the `ngx-` prefix in its name.
+
+[Back to TOC](#table-of-contents)
 
 sample-bt-vfs
 -------------
@@ -677,11 +761,15 @@ One can also combine either the `-r` or `-w` option with the `--latency` option 
 
 This tool can be used to inspect any user process (not only Nginx processes) with debug symbols enabled.
 
+[Back to TOC](#table-of-contents)
+
 ngx-accessed-files
 ------------------
 
 This tool has been renamed to [accessed-files](#accessed-files) because this tool is not specific to Nginx
 in any way and it makes no sense to keep the `ngx-` prefix in its name.
+
+[Back to TOC](#table-of-contents)
 
 accessed-files
 --------------
@@ -734,6 +822,8 @@ By default, hitting Ctrl-C will end the sampling process. And the `-t` option ca
 By default, at most 10 different file names are printed out. You can control this upper limit by specifying the `-l` option. For instance,
 
     $ ./accessed-files -p 8823 -r -l 20
+
+[Back to TOC](#table-of-contents)
 
 ngx-pcre-stats
 --------------
@@ -829,11 +919,15 @@ hit Ctrl-C to end sampling:
     4. pattern "b": 19us (total data size: 12)
     5. pattern "a": 9us (total data size: 12)
 
+[Back to TOC](#table-of-contents)
+
 ngx-accept-queue
 ----------------
 
 This tool has been renamed to [tcp-accept-queue](#tcp-accept-queue) because this tool is not specific to Nginx
 in any way and it makes no sense to keep the `ngx-` prefix in its name.
+
+[Back to TOC](#table-of-contents)
 
 tcp-accept-queue
 ----------------
@@ -983,11 +1077,15 @@ The `--time` option can also be specified to control the sampling time in second
 
 This tool requires a Linux kernel compiled by gcc 4.5+ (preferrably gcc 4.7+) because gcc versions older than 4.5 generated incomplete DWARF debug info for C inlined functions. It is also recommended to enable DWARF format version 3 or above when compiling the kernel (by passing the `-gdwarf-3` or `-gdwarf-4` option to the `gcc` command line).
 
+[Back to TOC](#table-of-contents)
+
 ngx-recv-queue
 --------------
 
 This tool has been renamed to [tcp-recv-queue](#tcp-recv-queue) because this tool is not specific to Nginx
 in any way and it makes no sense to keep the `ngx-` prefix in its name.
+
+[Back to TOC](#table-of-contents)
 
 tcp-recv-queue
 --------------
@@ -1057,6 +1155,8 @@ Successfully tested on Linux kernel 3.7 and should work for other versions of ke
 
 This tool requires a Linux kernel compiled by gcc 4.5+ (preferrably gcc 4.7+) because gcc versions older than 4.5 generated incomplete DWARF debug info for C inlined functions. It is also recommended to enable DWARF format version 3 or above when compiling the kernel (by passing the `-gdwarf-3` or `-gdwarf-4` option to the `gcc` command line).
 
+[Back to TOC](#table-of-contents)
+
 ngx-lua-shdict
 --------------
 
@@ -1092,6 +1192,8 @@ Similarly, you can specify the `-w` option to track dict writes for the given ke
     ^C
 
 If you don't specify `-f` or `-w`, this tool will fetch the data by default.
+
+[Back to TOC](#table-of-contents)
 
 ngx-lua-conn-pools
 ----------------
@@ -1161,6 +1263,8 @@ You can specify the `--distr` option to get the distribution of numbers of resue
     For total 1 connection pool(s) found.
     218 microseconds elapsed in the probe handler.
 
+[Back to TOC](#table-of-contents)
+
 check-debug-info
 ----------------
 
@@ -1186,6 +1290,8 @@ Here is a complete example:
     File /usr/lib64/librt-2.15.so has no debug info embedded.
 
 For now, this tool does not support separate .debug files yet.
+
+[Back to TOC](#table-of-contents)
 
 ngx-phase-handlers
 ------------------
@@ -1247,18 +1353,26 @@ Here is another example for an Nginx worker process with quite a few Nginx modul
 
     44 microseconds elapsed in the probe handler.
 
+[Back to TOC](#table-of-contents)
+
 Community
 =========
+
+[Back to TOC](#table-of-contents)
 
 English Mailing List
 --------------------
 
 The [openresty-en](https://groups.google.com/group/openresty-en) mailing list is for English speakers.
 
+[Back to TOC](#table-of-contents)
+
 Chinese Mailing List
 --------------------
 
 The [openresty](https://groups.google.com/group/openresty) mailing list is for Chinese speakers.
+
+[Back to TOC](#table-of-contents)
 
 Bugs and Patches
 ================
@@ -1268,13 +1382,19 @@ Please submit bug reports, wishlists, or patches by
 1. creating a ticket on the [GitHub Issue Tracker](http://github.com/agentzh/nginx-systemtap-toolkit/issues),
 1. or posting to the [OpenResty community](http://wiki.nginx.org/HttpLuaModule#Community).
 
+[Back to TOC](#table-of-contents)
+
 TODO
 ====
+
+[Back to TOC](#table-of-contents)
 
 Author
 ======
 
 Yichun "agentzh" Zhang (章亦春), CloudFlare Inc.
+
+[Back to TOC](#table-of-contents)
 
 Copyright & License
 ===================
@@ -1308,9 +1428,13 @@ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+[Back to TOC](#table-of-contents)
+
 See Also
 ========
 * You can find even more tools in the stap++ project: https://github.com/agentzh/stapxx
 * SystemTap Wiki Home: http://sourceware.org/systemtap/wiki
 * Nginx home: http://nginx.org
 * Perl Systemtap Toolkit: https://github.com/agentzh/perl-systemtap-toolkit
+[Back to TOC](#table-of-contents)
+
