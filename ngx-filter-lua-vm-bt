@@ -1,0 +1,29 @@
+my @bt;
+my $bt;
+my $found;
+while (<>) {
+    if (/^\t\d+$/) {
+        if ($found) {
+            print $_;
+        }
+        undef $bt;
+        undef $found;
+        next;
+    }
+
+    if (!$found) {
+        if (/\b(?:ngx_http_run_thread|ngx_http_lua_log_by_chunk)/) {
+            $bt .= $_;
+            print $bt;
+            undef $bt;
+            $found = 1;
+            next;
+        }
+
+        $bt .= $_;
+
+    } else {
+        # ignore
+        next;
+    }
+}
