@@ -273,8 +273,9 @@ probe process("$nginx_path").function("ngx_http_lua_ngx_re_gmatch").return
     }
 }
 
-probe process("$nginx_path").function("ngx_http_lua_ngx_re_match"),
-      process("$nginx_path").function("ngx_http_lua_ngx_re_sub_helper")
+probe process("$nginx_path").function("ngx_http_lua_ngx_re_sub_helper"),
+      process("$nginx_path").function("ngx_http_lua_ngx_re_match_helper") !,
+      process("$nginx_path").function("ngx_http_lua_ngx_re_match")
 {
     if (target() == pid()) {
         L = \$L
