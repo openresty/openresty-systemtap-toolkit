@@ -1,0 +1,9 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+while (<>) {
+    s/^ (0x[0-9a-f]+)\s+:\s+\1/ $1  :  <unknown>/;
+    print;
+}
