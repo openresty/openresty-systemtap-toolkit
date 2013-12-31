@@ -13,8 +13,8 @@ open my $in, $infile
     or die "Cannot open $infile for reading: $!\n";
 
 while (<$in>) {
-    if (/\@(.*):(\d+)/) {
-        my ($path, $ln) = ($1, $2);
+    if (/^((?:\w+:)?)\@(.*):(\d+)/) {
+        my ($prefix, $path, $ln) = ($1, $2, $3);
         my $key = "$path:$ln";
         my $func = $funcs{$key};
         if (defined $func) {
@@ -27,7 +27,7 @@ while (<$in>) {
 
         my $file;
         if ($path =~ m{lib((?:\/[-\w]+)+)\.lua}) {
-           $file = $1; 
+           $file = $1;
            $file =~ s/^\///g;
            $file =~ s/\//\./g;
            $file =~ s/-/_/g;
@@ -70,7 +70,7 @@ while (<$in>) {
 
         $funcs{$key} = "$file:$func";
 
-        print "$file:$func\n";
+        print "$prefix$file:$func\n";
 
     } else {
         print $_;
