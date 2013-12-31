@@ -495,6 +495,10 @@ In fact, this script is general enough and can be used to sample user processes 
 ngx-sample-lua-bt
 -----------------
 
+*WARNING* This tool can only work with interpreted Lua code and has various limitations. For
+LuaJIT 2.1, it is recommended to use the new [ngx-lj-lua-stacks](https://github.com/agentzh/stapxx#ngx-lj-lua-stacks)
+tool for sampling both interpreted and/or compiled Lua code.
+
 Similar to the [sample-bt](#sample-bt) script, but samples the Lua language level backtraces.
 
 Specify the `--lua51` option when you're using the standard Lua 5.1 interpreter in your Nginx build, or `--luajit20` if LuaJIT 2.0 is used instead.
