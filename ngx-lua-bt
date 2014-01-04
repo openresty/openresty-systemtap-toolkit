@@ -654,11 +654,11 @@ function debug_framepc(L, fn, nextframe) {
         //printf("frame is lua, ins = %p\\n", ins)
 
     } else if (frame_iscont(nextframe)) {
-        println("frame is cont")
+        //println("frame is cont")
         ins = frame_contpc(nextframe)
 
     } else {
-        println("frame is raw cframe")
+        //println("frame is raw cframe")
         cf = cframe_raw($L->cframe)
         if (cf == 0) {
             return $NO_BCPOS
