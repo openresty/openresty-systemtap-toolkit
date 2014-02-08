@@ -44,7 +44,7 @@ while (<$in>) {
                 or die "failed to open $path for reading: $!\n";
             while (<$in>) {
                 if ($. == $ln) {
-                    if (/function\s+(\w+)\s*\(/) {
+                    if (/function\s+((?:\w+\.)*\w+)\s*\(/) {
                         $func = $1;
 
                     } elsif (/(\S+)\s*=\s*function\s*\(/) {
