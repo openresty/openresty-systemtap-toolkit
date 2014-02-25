@@ -455,7 +455,7 @@ close $in;
 sub usage {
     return <<'_EOC_';
 Usage:
-    ngx-active-reqs [optoins]
+    ngx-active-reqs [options]
 
 Options:
     -a <args>           Pass extra arguments to the stap utility.
