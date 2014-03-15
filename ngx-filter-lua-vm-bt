@@ -25,6 +25,14 @@ while (<>) {
             next;
         }
 
+        if (/<unknown>/ && $bt && $bt =~ /\blj_\w+/s) {
+            $bt .= $_;
+            print $bt;
+            undef $bt;
+            $found = 1;
+            next;
+        }
+
         $bt .= $_;
 
     } else {
