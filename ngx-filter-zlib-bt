@@ -1,0 +1,34 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+my @bt;
+my $bt;
+my $found;
+while (<>) {
+    if (/^\t\d+$/) {
+        if ($found) {
+            print $_;
+        }
+        undef $bt;
+        undef $found;
+        next;
+    }
+
+    if (!$found) {
+        if (/\b(?:ngx_http_gzip_body_filter)/) {
+            $bt .= $_;
+            print $bt;
+            undef $bt;
+            $found = 1;
+            next;
+        }
+
+        $bt .= $_;
+
+    } else {
+        # ignore
+        next;
+    }
+}
