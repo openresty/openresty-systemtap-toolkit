@@ -1,0 +1,12 @@
+#!/usr/bin/env perl
+
+my @bt;
+while (<>) {
+    if (/^\t\d+/) {
+        print reverse @bt;
+        undef @bt;
+        print;
+    } else {
+        push @bt, $_;
+    }
+}
