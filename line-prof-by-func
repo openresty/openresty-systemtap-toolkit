@@ -1,0 +1,110 @@
+#!/usr/bin/env perl
+
+use strict;
+#use warnings;
+
+use Getopt::Std qw( getopts );
+
+my %opts;
+getopts("l:f:p:h", \%opts) or usage();
+
+if ($opts{h}) {
+    usage();
+}
+
+my %addr2line;
+my %hits;
+my $addr;
+
+my $func = $opts{f} or die "No -f <func> specified.\n";
+if ($func !~ /^[_a-zA-Z]\w+$/) {
+    die "Bad function name: $func\n";
+}
+
+my $lib = $opts{l} or die "No -l <lib> specified.\n";
+
+my $pid = $opts{p} or die "No -p <pid> specified.\n";
+
+my $mapsfile = "/proc/$pid/maps";
+open my $maps, "<$mapsfile"
+    or die "Cannot open $mapsfile for reading: $!\n";
+
+my $libfile;
+my @maps;
+while (<$maps>) {
+    if (/^([a-f0-9]+)-([a-f0-9]+) [-r][-w]xp .*? (\/\S*?\Q$lib\E\S*)$/) {
+        push @maps, [hex($1), hex($2)];
+        if (!defined $libfile) {
+            $libfile = $3;
+            print "Found library $libfile for $lib.\n";
+        }
+    }
+}
+
+close $maps;
+
+if (!@maps) {
+    die "No $lib maps found in process $pid.\n";
+}
+
+my $infile = shift or die "No input file specified.\n";
+
+open my $in, "<$infile"
+    or die "Cannot open $infile for reading: $!\n";
+
+while (<$in>) {
+    if (/^ (0x[a-f0-9]+) : $func\b/) {
+        $addr = $1;
+
+    } elsif (/^\t(\d+)$/) {
+        my $cnt = $1;
+        if ($addr) {
+            $addr = hex($addr);
+            my $line = $addr2line{$addr};
+            if (!$line) {
+                my $startaddr;
+                for my $map (@maps) {
+                    if ($addr >= $map->[0] && $addr <= $map->[1]) {
+                        $startaddr = $map->[0];
+                    }
+                }
+                if (!$startaddr) {
+                    warn "Addr $addr not found in memory maps.\n";
+                    undef $addr;
+                    next;
+                }
+
+                my $a = sprintf("%#x", $addr - $startaddr);
+                #warn "addr: $a\n";
+                $line = `addr2line -s -i -e $libfile $a`;
+                chomp $line;
+                $line =~ s/\n+/ < /g;
+                #warn "line: $line\n";
+                $addr2line{$addr} = $line;
+            }
+
+            $hits{$line} += $cnt;
+            undef $addr;
+        }
+    }
+}
+
+close $in;
+
+my (@entries, $total);
+$total = 0;
+while (my ($k, $v) = each %hits) {
+    push @entries, [$k, $v];
+    $total += $v;
+}
+
+@entries = sort { $b->[1] <=> $a->[1] } @entries;
+for (@entries) {
+    my $cnt = $_->[1];
+    my $ratio = $cnt * 100 / $total;
+    printf "%.02f%% (%d)  %s\n", $ratio, $cnt, $_->[0];
+}
+
+sub usage {
+    die "Usage: $0 -f <func> -l <lib> -p <pid> <bt-file>\n";
+}
