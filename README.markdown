@@ -490,6 +490,8 @@ http://agentzh.org/misc/nginx/user-kernel-flamegraph.svg
 
 In fact, this script is general enough and can be used to sample user processes other than Nginx.
 
+The overhead exposed on the target process is usually small. For example, the throughput (req/sec) limit of an nginx worker process doing simplest "hello world" requests drops by only 11% (only when this tool is running), as measured by `ab -k -c2 -n100000` when using Linux kernel 3.6.10 and systemtap 2.5. The impact on full-fledged production processes is usually smaller than even that, for instance, only 6% drop in the throughput limit is observed in a production-level Lua CDN application.
+
 [Back to TOC](#table-of-contents)
 
 ngx-sample-lua-bt
