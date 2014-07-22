@@ -57,7 +57,7 @@ These scripts are considered production-ready.
 Prerequisites
 =============
 
-You need at least systemtap 2.1+ and perl 5.6.1+ on your Linux system.
+You need at least systemtap 2.1+ and perl 5.6.1+ on your Linux system. For building latest systemtap from source, please refer to this document: http://openresty.org/#BuildSystemtap
 
 Also, you should ensure the (DWARF) debuginfo for your Nginx (and other dependencies) is already enabled (or installed separately)
 if you did not compile your Nginx from source.
