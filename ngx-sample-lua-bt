@@ -251,7 +251,7 @@ function f_isLua(ci) {
 
 
 function getstr(ts) {
-    return user_string(&\@cast(ts, "TString", "$lua_path")[1])
+    return user_string_warn(&\@cast(ts, "TString", "$lua_path")[1])
 }
 
 
