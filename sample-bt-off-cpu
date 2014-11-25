@@ -250,7 +250,7 @@ _EOC_
             or die "Cannot open $maps_file for reading: $!\n";
 
         while (<$in>) {
-            if (/\s+(\/\S+\.so)$/) {
+            if (/\s+(\/\S+\.so(?:\.\S+)?)$/) {
                 if (!exists $so_files{$1}) {
                     $so_files{$1} = 1;
                     #warn $1, "\n";
