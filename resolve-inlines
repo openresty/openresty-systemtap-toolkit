@@ -3,11 +3,14 @@
 use strict;
 use warnings;
 
-my $infile = shift;
+my $infile = shift
+    or die "No backtrace file specified.\n";
+
 open my $in, $infile or
     die "Cannot open $infile for reading: $!\n";
 
-my $execfile = shift;
+my $execfile = shift
+    or die "No exec file path specified.\n";
 
 my $cached_limit = 10000;
 my $cached_count = 0;
