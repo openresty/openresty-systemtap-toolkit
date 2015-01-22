@@ -926,6 +926,8 @@ hit Ctrl-C to end sampling:
     4. pattern "b": 19us (total data size: 12)
     5. pattern "a": 9us (total data size: 12)
 
+LuaJIT 2.1 is also supported when the `--luajit20` is specified (yeah, I know the option name is confusing).
+
 [Back to TOC](#table-of-contents)
 
 ngx-accept-queue
