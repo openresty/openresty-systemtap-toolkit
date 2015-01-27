@@ -1,0 +1,80 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+my $infile = shift
+    or die "No backtrace file specified.\n";
+
+open my $in, $infile or
+    die "Cannot open $infile for reading: $!\n";
+
+my $execfile = shift
+    or die "No exec file path specified.\n";
+
+my $cached_limit = 10000;
+my $cached_count = 0;
+my %cached;
+my $tip = 1;
+while (<$in>) {
+    if (/^\t\d+$/) {
+        $tip = 1;
+        print;
+        next;
+    }
+    if (/^ (0x[0-9a-f]+)\b/i) {
+        my $stack = $1;
+        my $line = $_;
+
+        my $frames = $cached{$stack};
+        if (!$frames) {
+            $frames = [];
+            my $addr;
+            if (!$tip) {
+                no warnings 'portable';
+                $addr = hex($stack);
+                # XXX I don't know why I need to substract by 1,
+                # but I need it to get the correct result at least with
+                # gcc 4.8
+                $addr = sprintf("%x", $addr - 1);
+
+            } else {
+                $addr = $stack;
+            }
+            my $out = `addr2line -fsip -e $execfile $addr`;
+            #warn "$addr: $out";
+            open my $t, "<", \$out;
+            while (<$t>) {
+                if (/(\w+) at (\S+:\d+)/) {
+                    push @$frames, [$1, $2];
+                    #warn "$1\n";
+                }
+            }
+            close $t;
+            if (++$cached_count > $cached_limit) {
+                # prevent the cache from growing forever...
+                %cached = ();
+            }
+            $cached{$stack} = $frames;
+        }
+        if (@$frames) {
+            #warn "HIT";
+            for my $fr (@$frames) {
+                my ($func, $loc) = @$fr;
+                print " $stack : $func($loc)+0x0/0x0 [$loc]\n";
+            }
+
+
+        } else {
+            print $line;
+        }
+        #print "@frames\n";
+        #print "$cnt\n";
+
+    } else {
+        print;
+    }
+    undef $tip;
+}
+
+close $in;

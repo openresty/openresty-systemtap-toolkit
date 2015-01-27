@@ -41,6 +41,7 @@ Table of Contents
     * [check-debug-info](#check-debug-info)
     * [ngx-phase-handlers](#ngx-phase-handlers)
     * [resolve-inlines](#resolve-inlines)
+    * [resolve-src-lines](#resolve-src-lines)
 * [Community](#community)
     * [English Mailing List](#english-mailing-list)
     * [Chinese Mailing List](#chinese-mailing-list)
@@ -1378,6 +1379,13 @@ resolve-inlines a.bt /path/to/nginx > new-a.bt
 ```
 
 Right now, inlined functions in PIC (Position-Indenpendent Code) are not yet supported but are technically feasiable. (Patches welcome!)
+
+[Back to TOC](#table-of-contents)
+
+resolve-src-lines
+-----------------
+
+Similar to [resolve-inlines](#resolve-inlines) but expand function frames to both their function names and source line positions (i.e., source file names and source line numbers).
 
 [Back to TOC](#table-of-contents)
 
