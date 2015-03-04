@@ -9,6 +9,7 @@ Table of Contents
 * [NAME](#name)
 * [Status](#status)
 * [Prerequisites](#prerequisites)
+    * [For old Linux systems](#for-old-linux-systems)
 * [Permissions](#permissions)
 * [Tools](#tools)
     * [ngx-active-reqs](#ngx-active-reqs)
@@ -64,10 +65,17 @@ You need at least systemtap 2.1+ and perl 5.6.1+ on your Linux system. For build
 Also, you should ensure the (DWARF) debuginfo for your Nginx (and other dependencies) is already enabled (or installed separately)
 if you did not compile your Nginx from source.
 
+Finally, you need to install the kernel debug symbols and kernel headers as well. Usually you just need the `kernel-devel` and `kernel-debuginfo` packages (matching your current `kernel` package) from your Linux distributions, respectively.
+
+For old Linux systems
+---------------------
+
 If you are on Linux kernels older than 3.5, then you may have to apply the [utrace patch](http://sourceware.org/systemtap/wiki/utrace) (if not yet) to your kernel to get
 user-space tracing support for your systemtap installation. But if you are using Linux distributions in the RedHat family (like RHEL, CentOS, and Fedora), then your old kernel should already has the utrace patch applied.
 
 The mainstream Linux kernel 3.5+ does have support for the uprobes API for userspace tracing.
+
+[Back to TOC](#table-of-contents)
 
 Permissions
 ===========
