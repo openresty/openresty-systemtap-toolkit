@@ -296,7 +296,7 @@ code file names, source line numbers, as well as function names.
     Run the command "./ngx-backtrace -p 5043 <backtrace>" to get details.
     For total 200 pools allocated.
 
-    $ ./ngx-backtrace -p 5043  -p 5043 0x4121aa 0x44d7bd 0x44e425 0x44fcc1 0x47996d 0x43908a 0x4342c3 0x4343bd
+    $ ./ngx-backtrace -p 5043 0x4121aa 0x44d7bd 0x44e425 0x44fcc1 0x47996d 0x43908a 0x4342c3 0x4343bd
     ngx_create_pool
     src/core/ngx_palloc.c:44
     ngx_http_upstream_connect
