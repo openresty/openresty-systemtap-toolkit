@@ -508,7 +508,7 @@ ngx-sample-lua-bt
 -----------------
 
 *WARNING* This tool can only work with interpreted Lua code and has various limitations. For
-LuaJIT 2.1, it is recommended to use the new [ngx-lj-lua-stacks](https://github.com/agentzh/stapxx#ngx-lj-lua-stacks)
+LuaJIT 2.1, it is recommended to use the new [ngx-lj-lua-stacks](https://github.com/openresty/stapxx#ngx-lj-lua-stacks)
 tool for sampling both interpreted and/or compiled Lua code.
 
 Similar to the [sample-bt](#sample-bt) script, but samples the Lua language level backtraces.
@@ -1474,7 +1474,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 See Also
 ========
-* You can find even more tools in the stap++ project: https://github.com/agentzh/stapxx
+* You can find even more tools in the stap++ project: https://github.com/openresty/stapxx
 * SystemTap Wiki Home: http://sourceware.org/systemtap/wiki
 * Nginx home: http://nginx.org
 * Perl Systemtap Toolkit: https://github.com/agentzh/perl-systemtap-toolkit
