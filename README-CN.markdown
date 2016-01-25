@@ -147,11 +147,9 @@ ngx-active-reqs
 
 ngx-req-distr
 -------------
+这个工具分析（下游）请求和连接，在指定的 NGINX master 进程的所有 NGINX worker 进程中的分布。
 
-This tool analyzes the (downstream) request and connection distributions
-among all the nginx worker processes for the specified nginx master process.
-
-    # here the nginx master pid is stored in the pid file
+    # NGINX master 进程的 pid 存放在这个 pid 文件中
     #   /opt/nginx/logs/nginx.pid
 
     $ ./ngx-req-distr -m `cat /opt/nginx/logs/nginx.pid`
