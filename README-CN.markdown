@@ -76,18 +76,12 @@ The mainstream Linux kernel 3.5+ does have support for the uprobes API for users
 
 权限
 ===========
-运行基于 systemtap 的工具集需要特殊的用户权限。为了避免用 root 用户运行这些工具集，你可以把自己的用户名（非 root 用户），加入到 `stapusr` 和 `staprun` 用户组中。
-
-Running systemtap-based tools requires special user permissions. To prevent running
-these tools with the root account,
-you can add your own (non-root) account name to the `stapusr` and `staprun` user groups.
-But if the user account running the Nginx process is different from your current
-user account, then you will still be required to run "sudo" or other means to run these tools
-with root access.
+运行基于 systemtap 的工具集需要特别的用户权限。为了避免用 root 用户运行这些工具集，你可以把自己的用户名（非 root 用户），加入到 `stapusr` 和 `staprun` 用户组中。
+但是如果你自己的账户名和 正在运行 NGINX 进程的账户名不同，那么你还是需要运行 "sudo" 或者其他同样效果的命令，让这些工具集带有 root 访问权限的运行起来。
 
 [Back to TOC](#table-of-contents)
 
-Tools
+工具集
 =====
 
 [Back to TOC](#table-of-contents)
