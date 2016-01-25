@@ -98,7 +98,7 @@ ngx-active-reqs
 ---------------
 
 This tool lists detailed information about all the active requests that
-are currently being processed by the specified Nginx worker or master process. When the mater process pid is specified, all its worker processes will be monitored.
+are currently being processed by the specified Nginx worker or master process. When the master process pid is specified, all its worker processes will be monitored.
 
 Here is an example:
 
@@ -1479,4 +1479,3 @@ See Also
 * Nginx home: http://nginx.org
 * Perl Systemtap Toolkit: https://github.com/agentzh/perl-systemtap-toolkit
 [Back to TOC](#table-of-contents)
-
