@@ -69,8 +69,7 @@ Table of Contents
 ---------------------
 如果你的 Linux 内核版本低于 3.5，那么你可能需要给内核打上这个补丁（如果你之前没有打的话）：[utrace  patch](http://sourceware.org/systemtap/wiki/utrace)，这样才能让你的 systemtap 安装得到用户空间追踪的支持。但是如果你使用的是 RedHat 系列的 Linux 发行版本（比如RHEL, CentOS 和 Fedora），那么旧的内核也应该已经安装了 utrace 这个补丁。
 
-
-The mainstream Linux kernel 3.5+ does have support for the uprobes API for userspace tracing.
+3.5+ 的主流 Linux 内核，都会有探针 API 的支持，以便对用户空间进行追踪。
 
 [Back to TOC](#table-of-contents)
 
@@ -89,12 +88,11 @@ The mainstream Linux kernel 3.5+ does have support for the uprobes API for users
 ngx-active-reqs
 ---------------
 
-This tool lists detailed information about all the active requests that
-are currently being processed by the specified Nginx worker or master process. When the mater process pid is specified, all its worker processes will be monitored.
+这个工具会列出来指定的 NGINX worker 或者 master 进程正在处理的所有活跃请求的详细信息。
+当指定为 master 进程的 pid 时，它所有的 worker 进程都会被监控。
 
-Here is an example:
-
-    # assuming the nginx worker pid is 32027
+这里有一个例子：
+    # 假设 NGINX worker 的 pid 是 32027
 
     $ ./ngx-active-reqs -p 32027
     Tracing 32027 (/opt/nginx/sbin/nginx)...
@@ -113,11 +111,10 @@ Here is an example:
     found 10 active requests.
     212 microseconds elapsed in the probe handler.
 
-The `time` field is the elapsed time (in seconds) since the current request started.
-The `conn reqs` field lists the requests that have been processed on the current (keep-alive) downstream connection.
-The `fd` field is the file descriptor ID for the current downstream connection.
-
-The `-m` option will tell this tool to analyze the request memory pools for each active request:
+`time` 字段是当前请求从开始到现在的时间（单位是秒）。
+`conn reqs` 字段列出来当前（keep-alive）下游连接已经处理的请求数。
+`fd` 字段是当前下游连接的文件描述符 ID。
+`-m` 选型会让这个工具去分析每一个活跃请求的请求内存池：
 
     $ ./ngx-active-reqs -p 12141 -m
     Tracing 12141 (/opt/nginx/sbin/nginx)...
@@ -143,8 +140,8 @@ The `-m` option will tell this tool to analyze the request memory pools for each
     total memory used for all 3 active requests: 9312 bytes
     274 microseconds elapsed in the probe handler.
 
-For Nginx servers that are not busy enough, it is handy to specify the Nginx master process pid as the `-p` option value.
-Another useful option is `-k`, which will keep probing when there's no active requests found in the current event cycle.
+对于并不十分忙碌的 NGINX 服务器，可以用 `-p` 选项值，方便的指定 NGINX 的 master 进程 pid。
+另外一个有用的选项是 `-k`，它会在当前事件循环中没有活跃请求的时候，一直保持探测。
 
 [Back to TOC](#table-of-contents)
 
