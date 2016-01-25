@@ -147,6 +147,7 @@ ngx-active-reqs
 
 ngx-req-distr
 -------------
+
 这个工具分析（下游）请求和连接，在指定的 NGINX master 进程的所有 NGINX worker 进程中的分布。
 
     # NGINX master 进程的 pid 存放在这个 pid 文件中
@@ -183,16 +184,16 @@ ngx-req-distr
 ngx-shm
 -------
 
-This tool analyzes all the shared memory zones in the specified running nginx process.
+这个工具分析在指定的正在运行的 NGINX 进程中，所有的共享内存区域。
 
-    # you should ensure the worker is still handling requests
-    # otherwise the timer_resoluation must be set in your nginx.conf
+    # 你需要确保指定的 worker 仍然在处理请求
+    # 否则必须在你的 nginx.conf 里面设置 timer_resoluation
 
-    # assuming the nginx worker pid is 15218
+    # 假设 NGINX worker 的 pid 是 15218
 
     $ cd /path/to/nginx-systemtap-toolkit/
 
-    # list the zones
+    # 列出内存区域
     $ ./ngx-shm -p 15218
     Tracing 15218 (/opt/nginx/sbin/nginx)...
 
