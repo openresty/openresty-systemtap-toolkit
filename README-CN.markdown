@@ -232,16 +232,15 @@ ngx-shm
 ngx-cycle-pool
 --------------
 
-This tool computes the real-time memory usage of the nginx global "cycle pool"
-in the specified nginx (worker) process.
+这个工具计算在指定的 NGINX （worker）进程内，NGINX 全局 "cycle pool" 的内存占用。
 
-The "cycle pool" is mainly for configuration related data block allocation and other long-lived
-data blocks with a lifetime as long as the nginx server configuration (like the compiled PCRE data stored in the regex cache for the ngx_lua module).
+"cycle pool" 主要是提供给配置相关的数据块分配，以及 NGINX 服务器配置生命周期中其他长期使用的数据块
+（比如为 ngx_lua 模块，而存储在正则表达式缓存中编译好的 PCRE 数据）。
 
-    # you should ensure the worker is handling requests
-    # or the timer_resoluation is set in your nginx.conf
+    # 你需要确保 worker 正在处理请求
+    # 或者 nginx.conf 里面设置了 timer_resoluation
 
-    # assuming the nginx worker pid is 15004
+    # 假设 NGINX worker pid 是 15004
 
     $ ./ngx-cycle-pool -p 15004
     Tracing 15004 (/usr/local/nginx/sbin/nginx)...
@@ -253,11 +252,9 @@ data blocks with a lifetime as long as the nginx server configuration (like the 
 
     12 microseconds elapsed in the probe handler.
 
-The memory block size for the "large blocks" is approximated based on
-the intermal implementation of glibc's `malloc` on Linux. If you have replaced the `malloc` with other allocator,
-then this tool is very likely to quit with memory access errors
-or to give meaningless numbers for the "large blocks" total size
-(but even in such bad cases, SystemTap should not affect the nginx process being analyzed at all).
+"large blocks" 的内存块大小，近似以 Linux 上 glibc 的 `malloc` 初始化实现为基准。
+如果你用其他分配器取代了 `malloc`，然后这个工具很有可能内存访问错误而退出，
+或者给出一个毫无意义的 "large blocks" 总大小（但即使在这样恶劣的情况下，SystemTap 也不会对正在分析的 NGINX 进程有任何影响）。
 
 [Back to TOC](#table-of-contents)
 
