@@ -261,14 +261,12 @@ ngx-cycle-pool
 ngx-leaked-pools
 ----------------
 
-Tracks creations and destructions of Nginx memory pools and report the top 10 leaked pools'
-backtraces.
+跟踪 NGINX 内存池的创建和销毁，以及给出泄露池前 10 的调用栈。
 
-The backtraces are in the raw form of hexidecimal addresses.
-You can use the `ngx-backtrace` tool to print out the source
-code file names, source line numbers, as well as function names.
+调用栈是 16 进制地址的原始格式。
+可以使用 `ngx-backtrace` 工具打印出源代码文件名，源码所在行数以及函数名。
 
-    # assuming the nginx worker pid is 5043
+    # 假设 NGINX worker pid 是 5043
 
     $ ./ngx-leaked-pools -p 5043
     Tracing 5043 (/opt/nginx/sbin/nginx)...
@@ -299,9 +297,10 @@ code file names, source line numbers, as well as function names.
     ngx_http_handler
     src/http/ngx_http_core_module.c:872
 
-This script requires Nginx instances that have applied the latest dtrace patch. See the [dtrace-nginx](https://github.com/agentzh/nginx-dtrace) project for more details.
+这个脚本需要 NGINX 实例已经打上最新的 dtrace 补丁。可以从 [dtrace-nginx](https://github.com/agentzh/nginx-dtrace) 项目里获得更多细节。
 
-The bundle [ngx_openresty](http://openresty.org/) 1.2.3.3+ includes the right dtrace patch by default. And you just need to build it with the `--with-dtrace-probes` configure option.
+[ngx_openresty](http://openresty.org/) 1.2.3.3+ 版本的安装包，默认已经包含了正确的 dtrace 补丁。
+你只用在 build 的时候，加上 `--with-dtrace-probes` 这个配置选项。
 
 [Back to TOC](#table-of-contents)
 
