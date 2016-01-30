@@ -443,7 +443,7 @@ sample-bt
 
 This script can be used to sample backtraces in either user space or kernel space
 or both for *any* user process that you specify (yes, not just Nginx!).
-It outputs the aggregated backgraces (by count).
+It outputs the aggregated backtraces (by count).
 
 For example, to sample a running Nginx worker process (whose pid is 8736) in user space
 only for total 5 seconds:
