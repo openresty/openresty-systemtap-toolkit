@@ -314,9 +314,9 @@ code file names, source line numbers, as well as function names.
     ngx_http_handler
     src/http/ngx_http_core_module.c:872
 
-This script requires Nginx instances that have applied the latest dtrace patch. See the [dtrace-nginx](https://github.com/agentzh/nginx-dtrace) project for more details.
+This script requires Nginx instances that have applied the latest dtrace patch. See the [nginx-dtrace](https://github.com/openresty/nginx-dtrace) project for more details.
 
-The bundle [ngx_openresty](http://openresty.org/) 1.2.3.3+ includes the right dtrace patch by default. And you just need to build it with the `--with-dtrace-probes` configure option.
+The bundle [OpenResty](http://openresty.org/) 1.2.3.3+ includes the right dtrace patch by default. And you just need to build it with the `--with-dtrace-probes` configure option.
 
 [Back to TOC](#table-of-contents)
 
@@ -1421,7 +1421,7 @@ Bugs and Patches
 
 Please submit bug reports, wishlists, or patches by
 
-1. creating a ticket on the [GitHub Issue Tracker](http://github.com/agentzh/nginx-systemtap-toolkit/issues),
+1. creating a ticket on the [GitHub Issue Tracker](http://github.com/openresty/nginx-systemtap-toolkit/issues),
 1. or posting to the [OpenResty community](http://wiki.nginx.org/HttpLuaModule#Community).
 
 [Back to TOC](#table-of-contents)
@@ -1443,7 +1443,7 @@ Copyright & License
 
 This module is licenced under the BSD license.
 
-Copyright (C) 2012-2013 by Yichun Zhang (agentzh) <agentzh@gmail.com>, CloudFlare Inc.
+Copyright (C) 2012-2016 by Yichun Zhang (agentzh) <agentzh@gmail.com>, CloudFlare Inc.
 
 All rights reserved.
 
@@ -1477,5 +1477,5 @@ See Also
 * You can find even more tools in the stap++ project: https://github.com/openresty/stapxx
 * SystemTap Wiki Home: http://sourceware.org/systemtap/wiki
 * Nginx home: http://nginx.org
-* Perl Systemtap Toolkit: https://github.com/agentzh/perl-systemtap-toolkit
+* Perl Systemtap Toolkit: https://github.com/openresty/perl-systemtap-toolkit
 [Back to TOC](#table-of-contents)
