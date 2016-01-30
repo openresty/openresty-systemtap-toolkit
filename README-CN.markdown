@@ -297,9 +297,9 @@ ngx-leaked-pools
     ngx_http_handler
     src/http/ngx_http_core_module.c:872
 
-这个脚本需要 NGINX 实例已经打上最新的 dtrace 补丁。可以从 [dtrace-nginx](https://github.com/agentzh/nginx-dtrace) 项目里获得更多细节。
+这个脚本需要 NGINX 实例已经打上最新的 dtrace 补丁。可以从 [nginx-dtrace](https://github.com/openresty/nginx-dtrace) 项目里获得更多细节。
 
-[ngx_openresty](http://openresty.org/) 1.2.3.3+ 版本的安装包，默认已经包含了正确的 dtrace 补丁。
+[OpenResty](http://openresty.org/) 1.2.3.3+ 版本的安装包，默认已经包含了正确的 dtrace 补丁。
 你只用在 build 的时候，加上 `--with-dtrace-probes` 这个配置选项。
 
 [Back to TOC](#table-of-contents)
@@ -422,6 +422,7 @@ sample-bt
 ---------
 
 这个脚本可以对你指定的 *任意* 用户进程（没错，不仅仅是 NGINX！）进行调用栈的采样。调用栈可以是用户空间，可以是内核空间，或者是两者兼得。
+它的输出是汇总后的
 This script can be used to sample backtraces in either user space or kernel space
 or both for *any* user process that you specify (yes, not just Nginx!).
 It outputs the aggregated backgraces (by count).
