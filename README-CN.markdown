@@ -422,13 +422,9 @@ sample-bt
 ---------
 
 这个脚本可以对你指定的 *任意* 用户进程（没错，不仅仅是 NGINX！）进行调用栈的采样。调用栈可以是用户空间，可以是内核空间，或者是两者兼得。
-它的输出是汇总后的
-This script can be used to sample backtraces in either user space or kernel space
-or both for *any* user process that you specify (yes, not just Nginx!).
-It outputs the aggregated backgraces (by count).
+它的输出是汇总后的调用栈（按照总数）。
 
-For example, to sample a running Nginx worker process (whose pid is 8736) in user space
-only for total 5 seconds:
+例如，采样一个正在运行的 NGINX worker 进程（pid 是 8736）的用户空间 5 秒钟：
 
     $ ./sample-bt -p 8736 -t 5 -u > a.bt
     WARNING: Tracing 8736 (/opt/nginx/sbin/nginx) in user-space only...
@@ -436,13 +432,13 @@ only for total 5 seconds:
     WARNING: Time's up. Quitting now...(it may take a while)
     WARNING: Number of errors: 0, skipped probes: 24
 
-The resulting output file `a.bt` can then be used to generate a Flame Graph by using Brendan Gregg's [FlameGraph tools](https://github.com/brendangregg/FlameGraph):
+结果的输出文件 `a.bt` 可以使用 Brendan Gregg 的 [FlameGraph 工具集](https://github.com/brendangregg/FlameGraph) 来生成火焰图:
 
     stackcollapse-stap.pl a.bt > a.cbt
     flamegraph.pl a.cbt > a.svg
 
-where both the `stackcollapse-stap.pl` and `flamegraph.pl` are from the FlameGraph toolkit.
-If everything goes right, you can now use your web browser to open the `a.svg` file.
+这里的 `stackcollapse-stap.pl` 和 `flamegraph.pl` 都来自 FlameGraph 工具集。
+如果一切顺利，你可以用你的浏览器打开这个 `a.svg` 文件。
 
 A sample flame graph for user-space-only sampling can be seen here (please open the link with a modern web browser that supports SVG rendering):
 
