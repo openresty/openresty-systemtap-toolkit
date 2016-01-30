@@ -421,6 +421,7 @@ ngx-sample-bt
 sample-bt
 ---------
 
+这个脚本可以对你指定的 *任意* 用户进程（没错，不仅仅是 NGINX！）进行调用栈的采样。调用栈可以是用户空间，可以是内核空间，或者是两者兼得。
 This script can be used to sample backtraces in either user space or kernel space
 or both for *any* user process that you specify (yes, not just Nginx!).
 It outputs the aggregated backgraces (by count).
