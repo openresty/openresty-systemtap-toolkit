@@ -360,7 +360,7 @@ ngx-body-filters
 ngx-header-filters
 ------------------
 
-Print out all the output header filters in the order that they actually run.
+按照实际运行的顺序，打印出所有输出头过滤器。
 
     $ ./ngx-header-filters -p 30132
     Tracing 30132 (/opt/nginx/sbin/nginx)...
