@@ -384,11 +384,10 @@ ngx-header-filters
 ngx-pcrejit
 -----------
 
-This script tracks the PCRE compiled regex execution (i.e., the `pcre_exec` calls)
-in the specified Nginx worker process,
-and checks whether the compiled regexes being executed is JIT'd or not.
+这个脚本跟踪指定 NGINX worker 进程里面 PCRE 编译的正则表达式的执行（比如 `pcre_exec` 的调用），
+并且检测它们是否被 JIT 执行。
 
-    # assuming the Nginx worker process handling the traffic is 31360.
+    # 假设正在处理请求的 NGINX worker 进程是 31360.
 
     $ ./ngx-pcrejit -p 31360
     Tracing 31360 (/opt/nginx/sbin/nginx)...
@@ -397,9 +396,9 @@ and checks whether the compiled regexes being executed is JIT'd or not.
     ngx_http_lua_ngx_re_match: 1000 of 2000 are PCRE JIT'd.
     ngx_http_regex_exec: 0 of 1000 are PCRE JIT'd.
 
-When statically linking PCRE with your Nginx, it is important to enable
-debug symbols in your PCRE compilation.
-That is, you should build your Nginx and PCRE like this:
+当 PCRE 是静态链接到你的 NGINX 时，记得在你的 PCRE 编译时打开调试符号。
+
+所以你应该这样子 build 你的 NGINX 和 PCRE：
 
     ./configure --with-pcre=/path/to/my/pcre-8.31 \
         --with-pcre-jit \
@@ -408,8 +407,7 @@ That is, you should build your Nginx and PCRE like this:
     make -j8
     make install
 
-For dynamically-linked PCRE, you are still need
-to install the debug symbols for your PCRE (or the debuginfo RPM package for Yum-based systems).
+对于动态链接 PCRE 的情况，你仍然需要为 PCRE 安装调试符号（或者是 debuginfo RPM 包，对于基于 Yum 的系统）。
 
 [Back to TOC](#table-of-contents)
 
