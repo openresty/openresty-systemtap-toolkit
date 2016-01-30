@@ -334,9 +334,8 @@ ngx-backtrace
 ngx-body-filters
 ----------------
 
-Print out all the output body filters in the order that they actually run.
-
-    # assuming the nginx worker process pid is 30132
+按照实际运行的顺序，打印出所有输出体过滤器。
+    # 假设 NGINX worker 进程 pid 是 30132
 
     $ ./ngx-body-filters -p 30132
     Tracing 30132 (/opt/nginx/sbin/nginx)...
