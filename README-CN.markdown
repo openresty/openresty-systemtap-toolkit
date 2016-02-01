@@ -471,13 +471,13 @@ http://agentzh.org/misc/nginx/kernel-flamegraph.svg
     WARNING: Number of errors: 0, skipped probes: 38
     WARNING: There were 73 transport failures.
 
-A sample flame graph for kenerl-and-user-space sampling can be seen here:
+一个用户和内核空间采样的火焰图示例在这里:
 
 http://agentzh.org/misc/nginx/user-kernel-flamegraph.svg
 
-In fact, this script is general enough and can be used to sample user processes other than Nginx.
+实际上，这个脚本非常通用，也可以采样 NGINX 之外的其他用户进程。
 
-The overhead exposed on the target process is usually small. For example, the throughput (req/sec) limit of an nginx worker process doing simplest "hello world" requests drops by only 11% (only when this tool is running), as measured by `ab -k -c2 -n100000` when using Linux kernel 3.6.10 and systemtap 2.5. The impact on full-fledged production processes is usually smaller than even that, for instance, only 6% drop in the throughput limit is observed in a production-level Lua CDN application.
+它对目标进程的开销通常比较小。比如，在 Linux 内核 3.6.10 和 systemtap 2.5 的环境中，使用 `ab -k -c2 -n100000` 来进行测试，NGINX worker 进程处理最简单的 "hello world" 请求，吞吐量（req/sec）只下降了 11%（只有这个工具运行时）。对于非常成熟的生产环境的程序来说，这个影响会更小。比如在一个生产水平的 Lua CDN 应用中，只观察到 6% 的吞吐量下降。
 
 [Back to TOC](#table-of-contents)
 
