@@ -440,30 +440,29 @@ sample-bt
 这里的 `stackcollapse-stap.pl` 和 `flamegraph.pl` 都来自 FlameGraph 工具集。
 如果一切顺利，你可以用你的浏览器打开这个 `a.svg` 文件。
 
-A sample flame graph for user-space-only sampling can be seen here (please open the link with a modern web browser that supports SVG rendering):
+这里有一个采样用户空间的火焰图示例（请用一个支持 SVG 渲染的现代浏览器打开这个链接）:
 
 http://agentzh.org/misc/nginx/user-flamegraph.svg
 
-For more information on the Flame Graph thing, please check out Brendan Gregg's blog posts below:
+想获得更多火焰图相关的信息，可以看下 Brendan Gregg 的这些博客:
 
 * [Flame Graphs](http://dtrace.org/blogs/brendan/2011/12/16/flame-graphs/)
 * [Linux Kernel Performance: Flame Graphs](http://dtrace.org/blogs/brendan/2012/03/17/linux-kernel-performance-flame-graphs/)
 
-You can also sample the backtraces in the kernel-space by specifying the `-k` option, as in
+你也可以指定 `-k` 选项，来采样内核空间的调用栈，比如
 
     $ ./sample-bt -p 8736 -t 5 -k > a.bt
     WARNING: Tracing 8736 (/opt/nginx/sbin/nginx) in kernel-space only...
     WARNING: Missing unwind data for module, rerun with 'stap -d stap_bf5516bdbf2beba886507025110994e_11738'
     WARNING: Time's up. Quitting now...(it may take a while)
 
-Only the kernel-space code in the context of the specified nginx worker process
-will be sampled.
+只有指定的 NGINX worker 进程的内核空间代码会被采样。
 
-A sample flame graph for kernel-space-only sample can be seen here:
+一个只有内核空间采样的火焰图示例在这里:
 
 http://agentzh.org/misc/nginx/kernel-flamegraph.svg
 
-You can also sample in both the user space and kernel space by specifying the `-k` and `-u` options at the same time, as in
+你也可以指定 `-k` 和 `-u` 选项，来同时采样用户空间和内核空间，比如
 
     $ ./sample-bt -p 8736 -t 5 -uk > a.bt
     WARNING: Tracing 8736 (/opt/nginx/sbin/nginx) in both user-space and kernel-space...
