@@ -484,15 +484,13 @@ http://agentzh.org/misc/nginx/user-kernel-flamegraph.svg
 ngx-sample-lua-bt
 -----------------
 
-*WARNING* This tool can only work with interpreted Lua code and has various limitations. For
-LuaJIT 2.1, it is recommended to use the new [ngx-lj-lua-stacks](https://github.com/openresty/stapxx#ngx-lj-lua-stacks)
-tool for sampling both interpreted and/or compiled Lua code.
+*警告* 这个工具只能和解释后的 Lua 代码工作，并且有很多的限制。对于 LuaJIT 2.1，推荐使用新的 [ngx-lj-lua-stacks](https://github.com/openresty/stapxx#ngx-lj-lua-stacks) 工具来采样解释后 和/或 编译后的 Lua 代码。
 
-Similar to the [sample-bt](#sample-bt) script, but samples the Lua language level backtraces.
+和 [sample-bt](#sample-bt) 这个脚本类似, 不过采样的是 Lua 语言等级的调用栈。
 
-Specify the `--lua51` option when you're using the standard Lua 5.1 interpreter in your Nginx build, or `--luajit20` if LuaJIT 2.0 is used instead.
+当你在 NGINX 里面使用标准的 Lua 5.1 解释器时，需要指定 `--lua51` 选项；如果用的是 LuaJIT 2.0 就指定 `--luajit20`。
 
-You need to enable or install the debug symbols for your Lua library, in addition to your Nginx executable.
+除了 NGINX 可执行文件之外，你还需要为 Lua 库打开或者安装调试符号。
 
 Also, you should not omit frame pointers while building your Lua library.
 
