@@ -612,15 +612,15 @@ ngx-sample-bt-off-cpu
 sample-bt-off-cpu
 -----------------
 
-Similar to [sample-bt](#sample-bt) but analyzes the off-CPU time for a particular user process (not only Nginx, but also any other applications).
+类似 [sample-bt](#sample-bt)，不过是用来分析某个用户进程 off-CPU time（不只是 NGINX，其他的应用也可以分析）。
 
-Why does off-CPU time matter? Check out Brendan Gregg's excellent blog post "Off-CPU Performance Analysis" for details:
+为什么 off-CPU time 这么重要? 可以从 Brendan Gregg 这篇非常棒的博客 "Off-CPU Performance Analysis" 里面看到细节:
 
 http://dtrace.org/blogs/brendan/2011/07/08/off-cpu-performance-analysis/
 
-By default, this tool samples the userspace backtraces. And 1 (logical) sample of backtraces in the output corresponds to 1 microsecond of off-CPU time.
+这个工具默认是采样用户空间调用栈。 并且输出里面 1 个逻辑上的采样，对应 1 微秒的 off-CPU time。
 
-Here is an example to demonstrate this tool's usage:
+这里有个例子来演示这个工具的用法:
 
     # assuming the nginx worker process to be analyzed is 10901.
     $ ./sample-bt-off-cpu -p 10901 -t 5 > a.bt
@@ -629,9 +629,10 @@ Here is an example to demonstrate this tool's usage:
     WARNING: Time's up. Quitting now...(it may take a while)
     WARNING: Number of errors: 0, skipped probes: 23
 
-where the `-t 5` option makes the tool sample for 5 seconds.
+这里 `-t 5` 选项让工具采样 5 秒钟。
 
-The resulting `a.bt` file can be used to render Flame Graphs just as with [sample-bt](#sample-bt) and its other friends. And this type of flamegraphs can be called "off-CPU Flame Graphs" while the classic flamegraphs are essentially "on-CPU Flame Graphs".
+产生的 `a.bt` 文件， 就像 [sample-bt](#sample-bt) 以及其他脚本生成的文件一样，可以拿来生成火焰图。
+这个类型的火焰图叫做 "off-CPU Flame Graphs"，而经典的火焰图本质上是 "on-CPU Flame Graphs"。
 
 Below is such a "off-CPU flamegraph" for a loaded Nginx worker process accessing MySQL with the lua-resty-mysql library:
 
