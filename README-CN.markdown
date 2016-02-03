@@ -579,12 +579,11 @@ fix-lua-bt
 ngx-lua-bt
 ----------
 
-This tool dumps out the current Lua-land backtrace in the current running Nginx worker process.
+这个工具可以把 NGINX worker 进程中 Lua 的当前调用栈 dump 出来。
 
-This tool is very useful in locating the infinite Lua loop that keeps the Nginx worker
-spinning with 100% CPU usage.
+这个工具在定位 Lua 热循环引起的 NGINX worker 持续 100% CPU 占用问题的时候非常有效。
 
-If LuaJIT 2.0 is used, specify the --luajit20 option, like this:
+如果用的是 LuaJIT 2.0, 请指定 --luajit20 选项, 像这样:
 
     $ ./ngx-lua-bt -p 7599 --luajit20
     WARNING: Tracing 7599 (/opt/nginx/sbin/nginx) for LuaJIT 2.0...
@@ -592,7 +591,7 @@ If LuaJIT 2.0 is used, specify the --luajit20 option, like this:
     content_by_lua:2
     content_by_lua:1
 
-If the standard Lua 5.1 interpreter is used instead, specify the --lua51 option:
+如果用的是标准 Lua 5.1 解释器, 请指定 --lua51 选项:
 
     $ ./ngx-lua-bt -p 13611 --lua51
     WARNING: Tracing 13611 (/opt/nginx/sbin/nginx) for standard Lua 5.1...
