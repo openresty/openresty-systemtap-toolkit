@@ -28,7 +28,7 @@ if (!defined $stap_args) {
     $stap_args = '';
 }
 
-if ($stap_args !~ /\b-D\s*MAXACTION=/) {
+if ($stap_args !~ /(?:^|\s)-D\s*MAXACTION=/) {
     $stap_args .= " -DMAXACTION=100000";
 }
 
