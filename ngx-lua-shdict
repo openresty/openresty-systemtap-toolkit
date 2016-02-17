@@ -35,23 +35,23 @@ if (!defined $stap_args) {
     $stap_args = '';
 }
 
-if ($stap_args !~ /\b-D\s*MAXACTION=/) {
+if ($stap_args !~ /(?:^|\s)-D\s*MAXACTION=/) {
     $stap_args .= " -DMAXACTION=100000"
 }
 
-if ($stap_args !~ /\b-D\s*MAXMAPENTRIES=/) {
+if ($stap_args !~ /(?:^|\s)-D\s*MAXMAPENTRIES=/) {
     $stap_args .= " -DMAXMAPENTRIES=5000"
 }
 
-if ($stap_args !~ /\b-D\s*MAXBACKTRACE=/) {
+if ($stap_args !~ /(?:^|\s)-D\s*MAXBACKTRACE=/) {
     $stap_args .= " -DMAXBACKTRACE=200"
 }
 
-if ($stap_args !~ /\b-D\s*MAXSTRINGLEN=2048/) {
+if ($stap_args !~ /(?:^|\s)-D\s*MAXSTRINGLEN=2048/) {
     $stap_args .= " -DMAXSTRINGLEN=2048"
 }
 
-if ($stap_args !~ /\b-D\s*MAXSKIPPED=1024/) {
+if ($stap_args !~ /(?:^|\s)-D\s*MAXSKIPPED=1024/) {
     $stap_args .= " -DMAXSKIPPED=1024"
 }
 
