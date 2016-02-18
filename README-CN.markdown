@@ -669,9 +669,9 @@ http://agentzh.org/misc/flamegraph/off-cpu-lua-resty-mysql.svg
      2048 |                                                     0
      4096 |                                                     0
 
-Here we can see that most of the samples (for total 259 samples) fall in the off-CPU time interval range `[4us, 8us)`. And the largest off-CPU time interval is 1739us, i.e., 1.739ms.
+通过这个图，我们可以看到大部分采样都落在 `[4us, 8us)` 的 off-CPU 时间间隔范围内。最大的 off-CPU 时间间隔是 1739 微秒，也就是 1.739 毫秒。
 
-You can specify the `-k` option to sample the kernel space backtraces instead of sampling userland backtraces. If you want to sample both the userland and kernelspace, then you can specify both the `-k` and `-u` options.
+你可以指定 `-k` 选项来采样内核空间的调用栈，而不是采样用户空间调用栈。如果你两个都想采样，你可以把 `-k` 和 `-u` 这两个选项都加上。
 
 [Back to TOC](#table-of-contents)
 
