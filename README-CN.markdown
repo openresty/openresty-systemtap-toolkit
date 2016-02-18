@@ -634,19 +634,19 @@ http://dtrace.org/blogs/brendan/2011/07/08/off-cpu-performance-analysis/
 产生的 `a.bt` 文件， 就像 [sample-bt](#sample-bt) 以及其他脚本生成的文件一样，可以拿来生成火焰图。
 这个类型的火焰图叫做 "off-CPU Flame Graphs"，而经典的火焰图本质上是 "on-CPU Flame Graphs"。
 
-Below is such a "off-CPU flamegraph" for a loaded Nginx worker process accessing MySQL with the lua-resty-mysql library:
+下面是一个 "off-CPU 火焰图" 的例子， NGINX worker 进程正在用 lua-resty-mysql 访问 MySQL：
 
 http://agentzh.org/misc/flamegraph/off-cpu-lua-resty-mysql.svg
 
-By default, off-CPU time intervals shorter than 4 us (microseconds) are discarded. You can control this threshold via the `--min` option, as in
+默认的，off-CPU 时间间隔小于 4 us（微秒，*其实 us 代表的是 μs，代码里面不好敲，改为 us*）的会被丢弃，不显示出来。你可以用 `--min` 来修改这个阈值：
 
     $ ./sample-bt-off-cpu -p 12345 --min 10 -t 10
 
-where we ignore off-CPU time intervals shorter than 10 us and sample the user process with the pid 12345 for total 10 seconds.
+这个命令的意思是对 pid 为 12345 的用户进程进行一共 10 秒钟的采样，并且忽略 off-CPU 时间间隔小于 10 微秒的采样。
 
-The `-l` option can be control the upper limit of different backtraces to be outputed. By default, the hottest 1024 different backtraces are dumped.
+`-l` 选项可以控制导出不同调用栈的上限。默认情况下，会导出 1024 个不同的最热的调用栈。
 
-The `--distr` option can be specified to print out a base-2 logarithmic histogram for all the off-CPU time intervals (larger than the threshold specified by the `--min` option). For example,
+`--distr` 选项可以指定为所有比 `--min` 这个阈值大的 off-CPU 时间间隔，打印出一个以2为底数的对数柱状图。比如，
 
     $ ./sample-bt-off-cpu -p 10901 -t 3 --distr --min=1
     WARNING: Tracing 10901 (/opt/nginx/sbin/nginx)...
