@@ -678,29 +678,28 @@ http://agentzh.org/misc/flamegraph/off-cpu-lua-resty-mysql.svg
 ngx-sample-bt-vfs
 -----------------
 
-This tool has been renamed to [sample-bt-vfs](#sample-bt-vfs) because this tool is not specific to Nginx
-in any way and it makes no sense to keep the `ngx-` prefix in its name.
+这个工具已经被重命名为 [sample-bt-vfs](#sample-bt-vfs)，因为这个工具并不只针对 NGINX，所以保留 `ngx-` 这个前缀没有什么意义。
 
 [Back to TOC](#table-of-contents)
 
 sample-bt-vfs
 -------------
 
-Similar to [sample-bt](#sample-bt) but samples the userspace backtraces on the Virtual File System (VFS) level for rendering File I/O Flame Graphs, which can show exactly how file I/O data volumn or file I/O latency is distributed among different userspace code paths within any running user process.
+类似 [sample-bt](#sample-bt)，但是这个工具是在虚拟文件系统（VFS）之上采样用户空间调用栈，以便渲染出文件 I/O 火焰图，这个火焰图可以准确的反映出在任意正在运行的用户进程中，文件 I/O 数据量或者文件 I/O 延迟在不同的用户空间代码路径的分布。
 
-By default, 1 sample of backtrace corresponds of 1 byte of data volumn (read or written). And by default, both `vfs_read` and `vfs_write` are tracked. For example,
+默认的，一个调用栈的采用对应的是一个字节的数据量（读或者写）。默认情况下，`vfs_read` 和 `vfs_write` 都会被追踪。比如，
 
     $ ./sample-bt-vfs -p 12345 -t 3 > a.bt
     WARNING: Tracing 20636 (/opt/nginx/sbin/nginx)...
     WARNING: Time's up. Quitting now...(it may take a while)
     WARNING: Number of errors: 0, skipped probes: 2
 
-We can then render a flamegraph for read/write VFS I/O like this:
+我们可以这样渲染出一个读/写 VFS I/O 火焰图：
 
     $ stackcollapse-stap.pl a.bt > a.cbt
     $ flamegraph.pl a.cbt > a.svg
 
-where the tools `stackcollapse-stap.pl` and `flamegraph.pl` are from Brendan Gregg's FlameGraph toolkit:
+这里的工具 `stackcollapse-stap.pl` 和 `flamegraph.pl` 都来自 Brendan Gregg 的 FlameGraph 工具集:
 
 https://github.com/brendangregg/FlameGraph
 
