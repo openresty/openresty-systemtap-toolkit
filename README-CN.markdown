@@ -703,13 +703,14 @@ sample-bt-vfs
 
 https://github.com/brendangregg/FlameGraph
 
-One sample "file I/O flamegraph" is here:
+这里有一个 "文件 I/O 火焰图" 的例子:
 
 http://agentzh.org/misc/flamegraph/vfs-index-page-rw.svg
 
-This graph was rendered when the Nginx worker process is loaded by requests to its default index page (i.e., `/index.html`). We can see both the file writes in the standard access logging module and the file reads in the standard "static" module. The total sample space in this graph, 1481361, means for total 1481361 bytes of data actually read or written on VFS.
+这个火焰图呈现的是一个 NGINX worker 进程处理请求而加载默认的起始页面（比如 `/index.html`）。我们可以看到在标准访问日志模块里面的文件写操作，以及在标准静态模块里面的文件读操作。
+这个火焰图里面所有的采样空间是 1481361，也就是说在 VFS 中一共有 1481361 个字节的实际读写数据。
 
-You can also track file reading only by specifying the `-r` option:
+你可以指定 `-r` 选项来只跟踪文件读操作：
 
     $ ./sample-bt-vfs -p 12345 -t 3 -r > a.bt
 
