@@ -741,17 +741,17 @@ http://agentzh.org/misc/flamegraph/vfs-access-log-only.svg
 
     $ ./sample-bt-vfs -p 12345 -t 3 --latency > a.bt
 
-这个例子里面，1个采样相当于1毫秒In this case, 1 sample corresponds to 1 microsends of file I/O time (or to be more correct, the `vfs_read` or `vfs_write` calls' time).
+这个例子里面，1个采样相当于1毫秒的文件 I/O 时间（或者更准确的说，是 `vfs_read` 或者 `vfs_write` 的调用时间）。
 
-Here is an example for this:
+这里有一个对应的示例:
 
 http://agentzh.org/misc/flamegraph/vfs-latency-index-page-rw.svg
 
-The total samples shown in the graph, 1918669, indicate for total 1,918,669 microsends (or 1.9 seconds) were spent on both file reading and writing during the 3 seconds sampling interval.
+火焰图里面展示的一共有 1918669 个采样，意味着在 3 秒的取样间隔中，一共有 1,918,669 毫秒（也就是 1.9 秒）花在文件读写上面。
 
-One can also combine either the `-r` or `-w` option with the `--latency` option to filter out file reads or file writes.
+你也可以也 `--latency` 选项一起使用 `-r` 或者 `-w` 来筛选出文件读或者写操作。
 
-This tool can be used to inspect any user process (not only Nginx processes) with debug symbols enabled.
+这个工具可以用来检测带调试符号的任意用户进程（不仅仅是 NGINX 进程）。
 
 [Back to TOC](#table-of-contents)
 
