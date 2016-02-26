@@ -912,9 +912,7 @@ ngx-pcre-stats
 
 ngx-accept-queue
 ----------------
-
-This tool has been renamed to [tcp-accept-queue](#tcp-accept-queue) because this tool is not specific to Nginx
-in any way and it makes no sense to keep the `ngx-` prefix in its name.
+这个工具已经被重命名为 [tcp-accept-queue](#tcp-accept-queue)，因为这个工具并不只针对 NGINX，所以保留 `ngx-` 这个前缀没有什么意义。
 
 [Back to TOC](#table-of-contents)
 
