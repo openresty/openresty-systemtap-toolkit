@@ -714,34 +714,34 @@ http://agentzh.org/misc/flamegraph/vfs-index-page-rw.svg
 
     $ ./sample-bt-vfs -p 12345 -t 3 -r > a.bt
 
-Here is an example of "file reading flamegraph" by sampling a Nginx loaded by requests accessing its default index page:
+这里有一个 "文件读取操作火焰图" 的例子，是采样一个正在加载默认起始页面的 NGINX 进程：
 
 http://agentzh.org/misc/flamegraph/vfs-index-page-r.svg
 
-We can see that only the standard nginx "static" module is the only thing shown in the graph.
+我们看到火焰图里面呈现的只有标准的 NGINX "静态" 模块。
 
-Similarly, you can specify the `-w` option to track file writing only:
+类似的，你可以指定 `-w` 选项来只跟踪文件写操作：
 
 
     $ ./sample-bt-vfs -p 12345 -t 3 -w > a.bt
 
-Here is a sample "file writing flamegraph" for Nginx (with debugging logs enabled):
+这里有一个 NGINX(打开了调试日志) 的 "文件写操作火焰图":
 
 http://agentzh.org/misc/flamegraph/vfs-debug-log.svg
 
-And below is another example for "file writing flamegraphs" for Nginx with debugging logs turned off:
+下面是另外一个 "文件写操作火焰图"，NGINX 关闭了调试日志：
 
 http://agentzh.org/misc/flamegraph/vfs-access-log-only.svg
 
-We can see that only access logging appears in the graph.
+我们可以看到这里只有访问日志的写操作出现在火焰图中。
 
-Do not confuse file I/O here with disk I/O because we are only probing on the (high) Virtual File System level. So the system page cache can save many disk reads here.
+这里不要混淆了文件 I/O 和磁盘 I/O，因为我们仅仅在虚拟文件系统（VFS）这个（高）级别进行了探测。所以这里系统 page cache 可以节省很多磁盘读操作。
 
-Generally, we are more interested in the latency (i.e, time) spent on the VFS reads and writes. You can specify the `--latency` option to track kernel call latency instead of the data volumn:
+一般来说，我们对花费在 VFS 读写上面的延迟（比如，时间）更感兴趣。你可以指定 `--latency` 选项去跟踪内核调用延迟而不是数据量：
 
     $ ./sample-bt-vfs -p 12345 -t 3 --latency > a.bt
 
-In this case, 1 sample corresponds to 1 microsends of file I/O time (or to be more correct, the `vfs_read` or `vfs_write` calls' time).
+这个例子里面，1个采样相当于1毫秒In this case, 1 sample corresponds to 1 microsends of file I/O time (or to be more correct, the `vfs_read` or `vfs_write` calls' time).
 
 Here is an example for this:
 
