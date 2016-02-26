@@ -824,9 +824,9 @@ ngx-pcre-stats
 这个工具需要 Linux 内核的 uretprobes 支持。
 
 同时你也需要确保 NGINX、PCRE 和 LuaJIT 在编译的时候，都已经开启了调试符号。
-比如你在 NGINX 或者 OpenResty 中通过源码编译 PCRE，你在指定 `--with-pcre=PATH` 选项的同时，也需要指定 `--with-pcre-opt=-g` 选项。
+比如你在 NGINX 或者 OpenResty 中通过源码编译 PCRE，你在指定 `--with-pcre=PATH` 选项的同时，也需要指定 `--with-pcre-opt=-g` 这个选项。
 
-Below is an example that analyzes the PCRE regex executation time distribution for a given Nginx worker process. Note that, the time is given in microseconds (`us`), i.e., 1e-6 seconds. The `--exec-time-dist` option is used here.
+下面的例子是分析指定 NGINX worker 进程中 PCRE 正则执行的时间分布。需要注意的是给出的时间是微秒（`us`）级别的，也就是 1e-6 秒。这里用了 `--exec-time-dist` 选项。
 
     $ ./ngx-pcre-stats -p 24528 --exec-time-dist
     Tracing 24528 (/opt/nginx/sbin/nginx)...
@@ -844,7 +844,7 @@ Below is an example that analyzes the PCRE regex executation time distribution f
       128 |                                                       0
       256 |                                                       0
 
-Also, you can specify the `--data-len-dist` option to analyze the distribution of the length of those subject string data being matched in individual runs.
+同样的你可以指定 `--data-len-dist` 选项，来分析在独立运行中匹配到的那些字符串数据长度的分布。
 
     $ ./ngx-pcre-stats -p 24528 --data-len-dist
     Tracing 24528 (/opt/nginx/sbin/nginx)...
@@ -865,7 +865,7 @@ Also, you can specify the `--data-len-dist` option to analyze the distribution o
      8192 |                                                       0
     16384 |                                                       0
 
-The `--worst-time-top` option can be specified to analyze the worst execution time of the individual regex matches using the ngx_lua module's [ngx.re API](http://wiki.nginx.org/HttpLuaModule#ngx.re.match):
+`--worst-time-top` 选项可以用来分析使用 ngx_lua 模块的 [ngx.re API](http://wiki.nginx.org/HttpLuaModule#ngx.re.match) 匹配到的各个正则的最差执行时间：
 
     $ ./ngx-pcre-stats -p 24528 --worst-time-top --luajit20
     Tracing 24528 (/opt/nginx/sbin/nginx)...
