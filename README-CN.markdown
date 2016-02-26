@@ -819,14 +819,12 @@ accessed-files
 ngx-pcre-stats
 --------------
 
-This tool can perform various statistical analysis of PCRE regex execution
-performance in a running Nginx worker process.
+这个工具会展示一个正在运行的 NGINX worker 进程中，PCRE 正则表达式执行效率的各类统计分析。
 
-This tool requires uretprobes support in the Linux kernel.
+这个工具需要 Linux 内核的 uretprobes 支持。
 
-Also, you need to ensure that debug symbols are enabled in your
-Nginx build, PCRE build, and LuaJIT build. For example, if you build PCRE from source with your Nginx or OpenResty by specifying the
-`--with-pcre=PATH` option, then you should also specify the `--with-pcre-opt=-g` option at the same time.
+同时你也需要确保 NGINX、PCRE 和 LuaJIT 在编译的时候，都已经开启了调试符号。
+比如你在 NGINX 或者 OpenResty 中通过源码编译 PCRE，你在指定 `--with-pcre=PATH` 选项的同时，也需要指定 `--with-pcre-opt=-g` 选项。
 
 Below is an example that analyzes the PCRE regex executation time distribution for a given Nginx worker process. Note that, the time is given in microseconds (`us`), i.e., 1e-6 seconds. The `--exec-time-dist` option is used here.
 
