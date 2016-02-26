@@ -844,7 +844,7 @@ ngx-pcre-stats
       128 |                                                       0
       256 |                                                       0
 
-同样的你可以指定 `--data-len-dist` 选项，来分析在独立运行中匹配到的那些字符串数据长度的分布。
+同样的你可以指定 `--data-len-dist` 选项，来分析在单个运行中匹配到的那些字符串数据长度的分布。
 
     $ ./ngx-pcre-stats -p 24528 --data-len-dist
     Tracing 24528 (/opt/nginx/sbin/nginx)...
@@ -878,9 +878,9 @@ ngx-pcre-stats
     4. pattern "b": 29us (data size: 12)
     5. pattern "ello": 26us (data size: 5)
 
-Note that the time values given above are just for individual runs and are not accumulated.
+请注意，以上所给出的时间值仅为单个运行，且不累计。
 
-And the `--total-time-top` option is similar to `--worst-time-top`, but using accumulated regex execution time.
+`--total-time-top` 选项和 `--worst-time-top` 类似，但给出是正则执行时间的累计。
 
     $ ./ngx-pcre-stats -p 24528 --total-time-top --luajit20
     Tracing 24528 (/opt/nginx/sbin/nginx)...
@@ -893,9 +893,7 @@ And the `--total-time-top` option is similar to `--worst-time-top`, but using ac
     4. pattern "ello": 26241us (total data size: 15005)
     5. pattern "a": 26180us (total data size: 36012)
 
-The -t option can be used to specify the time period
-(in seconds) for sampling instead of requiring the user to
-hit Ctrl-C to end sampling:
+-t 选项可以指定采样的时间周期（以秒为单位），不再需要用户按 Ctrl-C 去停止采样：
 
     $ ./ngx-pcre-stats -p 8701 --total-time-top --luajit20 -t 5
     Tracing 8701 (/opt/nginx/sbin/nginx)...
@@ -908,7 +906,7 @@ hit Ctrl-C to end sampling:
     4. pattern "b": 19us (total data size: 12)
     5. pattern "a": 9us (total data size: 12)
 
-LuaJIT 2.1 is also supported when the `--luajit20` is specified (yeah, I know the option name is confusing).
+`--luajit20` 同时也支持 LuaJIT 2.1 (恩，这个名字确实会产生误解)。
 
 [Back to TOC](#table-of-contents)
 
