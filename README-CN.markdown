@@ -765,9 +765,9 @@ ngx-accessed-files
 accessed-files
 --------------
 
-Find out the names of the files most frequently read from or written to in any user process (yes, not only nginx!) specified by the `-p` option.
+通过指定 `-p` 选项，找出来任意用户进程（对的，不限于 NGINX！）最常读写的文件名。
 
-The `-r` option can be specified to analyze files that are read from. For example,
+`-r` 选项可以指定去分析被读取的文件，比如,
 
     $ ./accessed-files -p 8823 -r
     Tracing 8823 (/opt/nginx/sbin/nginx)...
@@ -778,7 +778,7 @@ The `-r` option can be specified to analyze files that are read from. For exampl
     #2: 5 times, 75 bytes reads in file helloworld.html.
     #3: 2 times, 26 bytes reads in file a.html.
 
-And the `-w` option can be used to analyze files that are written to instead:
+`-w` 选项是指定分析被写入的文件：
 
     $ ./accessed-files -p 8823 -w
     Tracing 8823 (/opt/nginx/sbin/nginx)...
@@ -787,7 +787,7 @@ And the `-w` option can be used to analyze files that are written to instead:
     === Top 10 file writes ===
     #1: 17 times, 1600 bytes writes in file access.log.
 
-And you can specify both the `-r` and `-w` options:
+你可以同时指定 `-r` 和 `-w` 两个选项:
 
     $ ./accessed-files -p 8823 -w -r
     Tracing 8823 (/opt/nginx/sbin/nginx)...
@@ -799,7 +799,7 @@ And you can specify both the `-r` and `-w` options:
     #3: 5 times, 75 bytes reads/writes in file helloworld.html.
     #4: 2 times, 26 bytes reads/writes in file a.html.
 
-By default, hitting Ctrl-C will end the sampling process. And the `-t` option can be specified to control the sampling period by exact number of seconds, as in
+默认的，Ctrl-C 会终止对进程的采样。`-t` 选项指定准确的秒数来控制采样周期，比如，
 
     $ ./accessed-files -p 8823 -r -t 5
     Tracing 8823 (/opt/nginx/sbin/nginx)...
@@ -810,7 +810,7 @@ By default, hitting Ctrl-C will end the sampling process. And the `-t` option ca
     #2: 5 times, 75 bytes reads in file helloworld.html.
     #3: 2 times, 26 bytes reads in file a.html.
 
-By default, at most 10 different file names are printed out. You can control this upper limit by specifying the `-l` option. For instance,
+默认的，最多打印 10 个不同的文件名。你可以用 `-l` 选项控制这个阈值。比如，
 
     $ ./accessed-files -p 8823 -r -l 20
 
