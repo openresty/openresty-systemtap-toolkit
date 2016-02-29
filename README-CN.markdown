@@ -919,10 +919,10 @@ ngx-accept-queue
 tcp-accept-queue
 ----------------
 
-This tool samples the SYN queue and ACK backlog queue for the sockets listening on the local port specified by the `--port` option
-for the time interval when it is running. It can work on any server processes even it is not Nginx.
+对于那些监听 `--port` 选项指定的本地端口的 socket，这个工具会采样它们的 SYN 队列和 ACK backlog 队列。
+它可以对任意服务器进程生效，不仅仅是 NGINX。
 
-This is a real-time sampling tool.
+这是一个实时采样工具。
 
 SYN queue or ACK backlog queue overflowing often results in connecting timeout errors on the client side.
 
