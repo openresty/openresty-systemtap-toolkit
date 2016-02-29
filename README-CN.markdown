@@ -924,9 +924,9 @@ tcp-accept-queue
 
 这是一个实时采样工具。
 
-SYN queue or ACK backlog queue overflowing often results in connecting timeout errors on the client side.
+SYN 队列和 ACK backlog 队列的溢出经常会导致客户端侧的连接超时错误。
 
-By default, the tool prints out up to 10 queue overflow events and then quits immediately. For example:
+这个工具默认最多打印出 10 条队列溢出事件，然后就立即退出。举个例子：
 
     $ ./tcp-accept-queue --port=80
     WARNING: Tracing SYN & ACK backlog queue overflows on the listening port 80...
@@ -941,9 +941,9 @@ By default, the tool prints out up to 10 queue overflow events and then quits im
     [Tue May 14 12:29:15 2013 PDT] ACK backlog queue is overflown: 129 > 128
     [Tue May 14 12:29:15 2013 PDT] ACK backlog queue is overflown: 129 > 128
 
-From the output, we can see a lot of ACK backlog queue overflows happening when the tool is running. This means the corresponding SYN packets were dropped in the kernel.
+从输出中我们可以看到在工具运行期间，发生了很多 ACK backlog 队列的溢出。也就是对应的 SYN 包在内核里面被丢弃了。
 
-You can specify the `--limit` option to control the maximal number of issues reported:
+你可以指定 `--limit` 选项来控制事件报告数的阈值：
 
     $ ./tcp-accept-queue --port=80 --limit=3
     WARNING: Tracing SYN & ACK backlog queue overflows on the listening port 80...
@@ -951,10 +951,9 @@ You can specify the `--limit` option to control the maximal number of issues rep
     [Tue May 14 12:29:25 2013 PDT] ACK backlog queue is overflown: 129 > 128
     [Tue May 14 12:29:25 2013 PDT] ACK backlog queue is overflown: 129 > 128
 
-Or just hit Ctrl-C to end.
+或者直接 Ctrl-C 来结束。
 
-You can also specify the `--distr` option to make this tool just print out a histogram for the distribution
-of the queue lengths:
+你也可以指定 `--distr` 选项，来让这个工具打印出队列长度的柱状分布图：
 
     $ ./tcp-accept-queue --port=80 --distr
     WARNING: Tracing SYN & ACK backlog queue length distribution on the listening port 80...
