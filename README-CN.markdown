@@ -1082,13 +1082,13 @@ tcp-recv-queue
 1. 上一次在用户空间发起的诸如 recvmsg() 之类的系统调用后，第一个包进入了 TCP receive 队列。
 2. 下一次诸如 recvmsg() 之类的系统调用消费了 TCP receive 队列。
 
-Large receive queueing lantencies often mean the user process is just too busy to consume the incoming requests, probably leading to timeout errors on the client side.
+大量 receive 排队延迟通常意味着用户进程忙于消费涌入的请求，可能会导致终端侧的超时错误。
 
-Zero-length data packets in the TCP receive queue (i.e., the FIN packets) are ignored by this tool.
+这个工具会忽略 TCP receive 队列中长度为 0 的数据包（比如 FIN 包）。
 
-You are only required to specify the destination port number for the receiving packets via the `--dport` option.
+你只需要通过 `--dport` 选项来指明接收包的目的端口号。
 
-Here is an example for analyzing the MySQL server listening on the 3306 port:
+这里有一个例子，是分析监听 3306 端口的 MySQL 服务：
 
     $ ./tcp-recv-queue --dport=3306
     WARNING: Tracing the TCP receive queues for packets to the port 3306...
@@ -1107,9 +1107,9 @@ Here is an example for analyzing the MySQL server listening on the 3306 port:
        64 |                                                       0
       128 |                                                       0
 
-We can see that most of the latency times fall into the interval `[2us, 4us)`. And the worst latency is 42us.
+我们看到大部分的延迟时间分布在 `[2us, 4us)` 这个区间，最大的延迟是 42 微秒。
 
-You can also specify the exact sampling time interval (in seconds) via the `--time` option. For example, to analyze the Nginx server listening on the port 8080 for 5 seconds:
+你也可以用 `--time` 选项来指定采样的时间（单位是秒）。比如，对监听 1984 端口的 NGINX 服务分析 5 秒钟：
 
     $ ./tcp-recv-queue --dport=1984 --time=5
     WARNING: Tracing the TCP receive queues for packets to the port 1984...
