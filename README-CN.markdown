@@ -987,9 +987,9 @@ SYN 队列和 ACK backlog 队列的溢出经常会导致客户端侧的连接超
       256 |                                                     0
       512 |                                                     0
 
-从上面的输出可以看到，有 106 个采样（也就是 106 个新的连接请求）的 SYN 队列长度为0；From the outputs, we can see that for 106 samples (i.e., 106 new connecting request), the SYN queue length remains 0; for samples, the SYN queue is of the length 1; and for 84 samples, the queue size is within the interval [2, 4); and so on. We can see most of the samples have the SYN queue size 0 ~ 8.
+从上面的输出可以看到，有 106 个采样（也就是 106 个新的连接请求）的 SYN 队列长度为0；有 60 个采样的 SYN 队列长度为1；有 84 个采样的队列长度在 [2, 4)这个区间，其他也是类似的。我们可以看到绝大部分采样的 SYN 队列长度是 0 ~ 8。
 
-You need to hit Ctrl-C to make this tool print out the histgram when the `--distr` option is specified. Alternatively, you can specify the `--time` option to specify the exact number of seconds for real-time sampling:
+在指定了 `--distr` 选项时，你需要按键 Ctrl-C 来让这个工具打印出来柱状图。另外，你可以指定 `--time` 选项来指明实时采样的确切秒数：
 
     $ ./tcp-accept-queue --port=80 --distr --time=3
     WARNING: Tracing SYN & ACK backlog queue length distribution on the listening port 80...
@@ -1016,7 +1016,7 @@ You need to hit Ctrl-C to make this tool print out the histgram when the `--dist
       256 |                                                     0
       512 |                                                     0
 
-Even though the accept queue is not overflowing, long latency involved in accept queueing can also lead to client connecting timeout. The `--latency` option can be specified to analyze the accept queueing latency for a given listening port:
+即使 accept 队列没有溢出，涉及 accept 队列的长延时也会导致终端连接超时。`--latency` 选项可以用来分析指定端口 accept 队列的延时情况：
 
     $ ./tcp-accept-queue -port=80 --latency
     WARNING: Tracing accept queueing latency on the listening port 80...
@@ -1046,7 +1046,7 @@ Even though the accept queue is not overflowing, long latency involved in accept
     4194304 |                                                     0
     8388608 |                                                     0
 
-The `--time` option can also be specified to control the sampling time in seconds:
+`--time` 选项一样可以控制采样的秒数：
 
     $ ./tcp-accept-queue --port=80 --latency --time=5
     WARNING: Tracing accept queueing latency on the listening port 80...
@@ -1061,7 +1061,7 @@ The `--time` option can also be specified to control the sampling time in second
     4194304 |                                                    0
     8388608 |                                                    0
 
-This tool requires a Linux kernel compiled by gcc 4.5+ (preferrably gcc 4.7+) because gcc versions older than 4.5 generated incomplete DWARF debug info for C inlined functions. It is also recommended to enable DWARF format version 3 or above when compiling the kernel (by passing the `-gdwarf-3` or `-gdwarf-4` option to the `gcc` command line).
+这个工具需要用 gcc 4.5+（最好是 gcc 4.7+） 编译的 Linux 内核，因为 gcc 低于 4.5 的版本对 C 内联函数会生成不完整的 DWARF。同时在编译内核时，推荐启用 DWARF 3.0以上的格式（通过传给 `gcc` 命令行 `-gdwarf-3` 或者 `-gdwarf-4` 选项）。
 
 [Back to TOC](#table-of-contents)
 
