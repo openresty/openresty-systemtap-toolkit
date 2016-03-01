@@ -987,7 +987,7 @@ SYN 队列和 ACK backlog 队列的溢出经常会导致客户端侧的连接超
       256 |                                                     0
       512 |                                                     0
 
-From the outputs, we can see that for 106 samples (i.e., 106 new connecting request), the SYN queue length remains 0; for samples, the SYN queue is of the length 1; and for 84 samples, the queue size is within the interval [2, 4); and so on. We can see most of the samples have the SYN queue size 0 ~ 8.
+从上面的输出可以看到，有 106 个采样（也就是 106 个新的连接请求）的 SYN 队列长度为0；From the outputs, we can see that for 106 samples (i.e., 106 new connecting request), the SYN queue length remains 0; for samples, the SYN queue is of the length 1; and for 84 samples, the queue size is within the interval [2, 4); and so on. We can see most of the samples have the SYN queue size 0 ~ 8.
 
 You need to hit Ctrl-C to make this tool print out the histgram when the `--distr` option is specified. Alternatively, you can specify the `--time` option to specify the exact number of seconds for real-time sampling:
 
