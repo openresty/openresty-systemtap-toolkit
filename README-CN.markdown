@@ -1136,9 +1136,9 @@ tcp-recv-queue
     16384 |                                                       0
     32768 |                                                       0
 
-Successfully tested on Linux kernel 3.7 and should work for other versions of kernel as well.
+在 Linux 内核 3.7 上面测试成功，其他版本的内核应该也可以工作。
 
-This tool requires a Linux kernel compiled by gcc 4.5+ (preferrably gcc 4.7+) because gcc versions older than 4.5 generated incomplete DWARF debug info for C inlined functions. It is also recommended to enable DWARF format version 3 or above when compiling the kernel (by passing the `-gdwarf-3` or `-gdwarf-4` option to the `gcc` command line).
+这个工具需要用 gcc 4.5+（最好是 gcc 4.7+） 编译的 Linux 内核，因为 gcc 低于 4.5 的版本对 C 内联函数会生成不完整的 DWARF。同时在编译内核时，推荐启用 DWARF 3.0以上的格式（通过传给 `gcc` 命令行 `-gdwarf-3` 或者 `-gdwarf-4` 选项）。
 
 [Back to TOC](#table-of-contents)
 
