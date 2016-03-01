@@ -1142,7 +1142,7 @@ Here is an example for analyzing the MySQL server listening on the 3306 port:
 
 We can see that most of the latency times fall into the interval `[2us, 4us)`. And the worst latency is 42us.
 
-You can also specify the exact sampling time interval (in seconds) via the `--time` option. For example, to analyze the Nginx server listening on the port 8080 for 5 seconds:
+You can also specify the exact sampling time interval (in seconds) via the `--time` option. For example, to analyze the Nginx server listening on the port 1984 for 5 seconds:
 
     $ ./tcp-recv-queue --dport=1984 --time=5
     WARNING: Tracing the TCP receive queues for packets to the port 1984...
