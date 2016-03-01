@@ -1016,7 +1016,7 @@ SYN 队列和 ACK backlog 队列的溢出经常会导致客户端侧的连接超
       256 |                                                     0
       512 |                                                     0
 
-即使 accept 队列没有溢出，涉及 accept 队列的长延时也会导致终端连接超时。`--latency` 选项可以用来分析指定端口 accept 队列的延时情况：
+即使 accept 队列没有溢出，涉及 accept 队列的长延迟也会导致终端连接超时。`--latency` 选项可以用来分析指定端口 accept 队列的延迟情况：
 
     $ ./tcp-accept-queue -port=80 --latency
     WARNING: Tracing accept queueing latency on the listening port 80...
@@ -1068,20 +1068,19 @@ SYN 队列和 ACK backlog 队列的溢出经常会导致客户端侧的连接超
 ngx-recv-queue
 --------------
 
-This tool has been renamed to [tcp-recv-queue](#tcp-recv-queue) because this tool is not specific to Nginx
-in any way and it makes no sense to keep the `ngx-` prefix in its name.
+这个工具已经被重命名为 [tcp-recv-queue](#tcp-recv-queue)，因为这个工具并不只针对 NGINX，所以保留 `ngx-` 这个前缀没有什么意义。
 
 [Back to TOC](#table-of-contents)
 
 tcp-recv-queue
 --------------
 
-This tool can analyze the queueing latency involved in the TCP receive queue.
+这个工具可以分析涉及 TCP receive 队列的排队延迟。
 
-The queueing latency defined here is the delay between the following two events:
+这里定义的排队延迟是以下两个事件之前的延迟：
 
-1. The first packet enteres the TCP receive queue since the last recvmsg() syscalls (and the like) initiated on the userland.
-2. The next recvmsg() syscall (and the like) that consumes the TCP receive queue.
+1. 上一次在用户空间发起的诸如 recvmsg() 之类的系统调用后，第一个包进入了 TCP receive 队列。
+2. 下一次诸如 recvmsg() 之类的系统调用消费了 TCP receive 队列。
 
 Large receive queueing lantencies often mean the user process is just too busy to consume the incoming requests, probably leading to timeout errors on the client side.
 
