@@ -1146,12 +1146,12 @@ ngx-lua-shdict
 --------------
 对于指定的正在运行的 NGINX 进程，这个工具可以分析它的共享内存字典并且追踪字典的操作。
 
-你可以用 `-f` 选项指定 dict 和 key，来获取 option to fetch the data from the shared memory dict name by the specified dict and key.
-Specify the `--raw` option when you need dump the raw value of the given key.
+你可以用 `-f` 选项指定 dict 和 key，来获取共享内存字典里面的数据。
+`--raw` 选项可以导出指定 key 的原始值。
 
-Specify the `--lua51` option when you're using the standard Lua 5.1 interpreter in your Nginx build, or `--luajit20` if LuaJIT 2.0 is used instead. Currently only LuaJIT is supported.
+如果你编译 NGINX 时使用的是标准 Lua 5.1 解释器，就需要指定 `--lua51` 选项，如果是 LuaJIT 2.0 就是 `--luajit20`。当前只支持 LuaJIT。
 
-Here's a sample command to fetch the data from the shared memory dict:
+这里有一个从共享内存字典中获取数据的命令行示例：
 
     # assuming the nginx worker pid is 5050
     $ ./ngx-lua-shdict -p 5050 -f --dict dogs --key Jim --luajit20
@@ -1164,7 +1164,7 @@ Here's a sample command to fetch the data from the shared memory dict:
 
     6 microseconds elapsed in the probe handler.
 
-Similarly, you can specify the `-w` option to track dict writes for the given key:
+类似的，你可以用 `-w` 选项来追踪指定 key 的字典写操作：
 
     $./ngx-lua-shdict -p 5050 -w --key Jim --luajit20
     Tracing 5050 (/opt/nginx/sbin/nginx)...
@@ -1175,7 +1175,7 @@ Similarly, you can specify the `-w` option to track dict writes for the given ke
     replace Jim exptime=4626322717216342016
     ^C
 
-If you don't specify `-f` or `-w`, this tool will fetch the data by default.
+如果 `-f` 和 `-w` 都没有指定, 这个工具默认会获取数据。
 
 [Back to TOC](#table-of-contents)
 
