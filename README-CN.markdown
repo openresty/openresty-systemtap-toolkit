@@ -1144,10 +1144,9 @@ tcp-recv-queue
 
 ngx-lua-shdict
 --------------
+对于指定的正在运行的 NGINX 进程，这个工具可以分析它的共享内存字典并且追踪字典的操作。
 
-This tool analyzes shared memory dict and tracks dict operations in the specified running nginx process.
-
-You can specify the `-f` option to fetch the data from the shared memory dict name by the specified dict and key.
+你可以用 `-f` 选项指定 dict 和 key，来获取 option to fetch the data from the shared memory dict name by the specified dict and key.
 Specify the `--raw` option when you need dump the raw value of the given key.
 
 Specify the `--lua51` option when you're using the standard Lua 5.1 interpreter in your Nginx build, or `--luajit20` if LuaJIT 2.0 is used instead. Currently only LuaJIT is supported.
