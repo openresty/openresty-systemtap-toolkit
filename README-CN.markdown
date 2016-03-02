@@ -1182,11 +1182,11 @@ ngx-lua-shdict
 ngx-lua-conn-pools
 ----------------
 
-Dumps connections pools status of [ngx_lua](http://wiki.nginx.org/HttpLuaModule), reports the number of both out-of-pool and in-pool connections, calculates connections reused times statistics of in-pool connections, and prints the capacity of each pool.
+导出 [ngx_lua](http://wiki.nginx.org/HttpLuaModule) 的连接池状态, 报告连接池内外的连接数, 统计连接池内连接的重用次数，并打印出每个连接池的容量。
 
-Specify the `--lua51` option when you're using the standard Lua 5.1 interpreter in your Nginx build, or `--luajit20` if LuaJIT 2.0 is used instead.
+如果你在编译 NGINX 时使用的是标准 Lua 5.1 解释器，需要指定 `--lua51` 选项，如果是 LuaJIT 2.0 就用 `--luajit20`。
 
-Here's a sample command:
+这里有一个命令行示例：
 
     # assuming the nginx worker pid is 19773
     $ ./ngx-lua-conn-pools -p 19773 --luajit20
@@ -1225,7 +1225,7 @@ Here's a sample command:
     For total 5 connection pool(s) found.
     324 microseconds elapsed in the probe handler.
 
-You can specify the `--distr` option to get the distribution of numbers of resued times:
+你可以指定 `--distr` 选项来获取重用次数的分布：
 
     $ ./ngx-lua-conn-pools -p 19773 --luajit20 --distr
     Tracing 15001 (/opt/nginx/sbin/nginx) for LuaJIT 2.0...
