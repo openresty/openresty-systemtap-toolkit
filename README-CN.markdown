@@ -1279,11 +1279,11 @@ check-debug-info
 
 ngx-phase-handlers
 ------------------
-This tool dumps all the handlers registered by all the nginx modules for every nginx running phase in the order they actually run.
+对于每一个 NGINX 运行阶段，这个工具会按照实际运行的顺序，导出在 NGINX 模块注册的所有 handler。
 
-This is very useful in debugging Nginx configuration issues caused by misinterpreting the running order of the Nginx configuration directives.
+对于误解 NGINX 配置指令执行顺序而引起的 NGINX 配置问题，这个工具在调试的时候非常有用。
 
-Here is an example for an Nginx worker process with very few Nginx modules enabled:
+这里有一个例子，NGINX worker 进程开启的模块很少：
 
     # assuming the nginx worker pid is 4876
     $ ./ngx-phase-handlers -p 4876
@@ -1302,7 +1302,7 @@ Here is an example for an Nginx worker process with very few Nginx modules enabl
 
     22 microseconds elapsed in the probe handler.
 
-Here is another example for an Nginx worker process with quite a few Nginx modules enabled:
+另外有一个开启了很多 NGINX 模块的 NGINX worker 进程的例子：
 
     $ ./ngx-phase-handlers -p 24980
     Tracing 24980 (/opt/nginx/sbin/nginx)...
