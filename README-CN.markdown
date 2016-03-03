@@ -1252,17 +1252,17 @@ ngx-lua-conn-pools
 check-debug-info
 ----------------
 
-This tool checks which executable files do not contain debug info in any running process that you specify.
+对于指定的正在运行的进程，这个工具可以检测它里面哪些可执行文件没有包含调试信息。
 
-Basically, just run it like this:
+你可以这样子来运行：
 
     ./check-debug-info -p <pid>
 
-The executable file associated with the process and all the .so files already loaded by the process will be checked for dwarf info.
+这个进程关联到的可执行文件，以及这个进程已经加载的所有的 .so 文件，都会被检测 dwarf 信息。
 
-The process is not required to be nginx, but can be any user processes.
+这个进程不要求是 NGINX，它可以用于所有用户进程。
 
-Here is a complete example:
+这里是一个完整的例子：
 
     $ ./check-debug-info -p 26482
     File /usr/lib64/ld-2.15.so has no debug info embedded.
@@ -1273,7 +1273,7 @@ Here is a complete example:
     File /usr/lib64/libresolv-2.15.so has no debug info embedded.
     File /usr/lib64/librt-2.15.so has no debug info embedded.
 
-For now, this tool does not support separate .debug files yet.
+这个工具现在还不支持单独的 .debug 文件。
 
 [Back to TOC](#table-of-contents)
 
