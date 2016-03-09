@@ -384,7 +384,7 @@ ngx-header-filters
 ngx-pcrejit
 -----------
 
-这个脚本跟踪指定 NGINX worker 进程里面 PCRE 编译的正则表达式的执行（比如 `pcre_exec` 的调用），
+这个脚本跟踪指定 NGINX worker 进程里面 PCRE 编译的正则表达式的执行（即 `pcre_exec` 的调用），
 并且检测它们是否被 JIT 执行。
 
     # 假设正在处理请求的 NGINX worker 进程是 31360.
@@ -707,7 +707,7 @@ https://github.com/brendangregg/FlameGraph
 
 http://agentzh.org/misc/flamegraph/vfs-index-page-rw.svg
 
-这个火焰图呈现的是一个 NGINX worker 进程处理请求而加载默认的起始页面（比如 `/index.html`）。我们可以看到在标准访问日志模块里面的文件写操作，以及在标准静态模块里面的文件读操作。
+这个火焰图呈现的是一个 NGINX worker 进程处理请求而加载默认的起始页面（即 `/index.html`）。我们可以看到在标准访问日志模块里面的文件写操作，以及在标准静态模块里面的文件读操作。
 这个火焰图里面所有的采样空间是 1481361，也就是说在 VFS 中一共有 1481361 个字节的实际读写数据。
 
 你可以指定 `-r` 选项来只跟踪文件读操作：
@@ -1084,7 +1084,7 @@ tcp-recv-queue
 
 大量 receive 排队延迟通常意味着用户进程忙于消费涌入的请求，可能会导致终端侧的超时错误。
 
-这个工具会忽略 TCP receive 队列中长度为 0 的数据包（比如 FIN 包）。
+这个工具会忽略 TCP receive 队列中长度为 0 的数据包（即 FIN 包）。
 
 你只需要通过 `--dport` 选项来指明接收包的目的端口号。
 
@@ -1359,7 +1359,7 @@ PIC (Position-Indenpendent Code) 里面的内联函数现在还不支持，但�
 resolve-src-lines
 -----------------
 
-Similar to [resolve-inlines](#resolve-inlines) but expand function frames to both their function names and source line positions (i.e., source file names and source line numbers).
+类似 [resolve-inlines](#resolve-inlines) ,但是对它们的源代码文件名和源代码行数做了扩展。
 
 [Back to TOC](#table-of-contents)
 
