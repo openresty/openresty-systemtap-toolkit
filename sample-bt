@@ -71,11 +71,11 @@ if ($^O ne 'linux') {
 
 my $exec_file = "/proc/$pid/exe";
 if (!-f $exec_file) {
-    die "Nginx process $pid is not running or ",
+    die "Process $pid is not running or ",
         "you do not have enough permissions.\n";
-}
 
-my $nginx_path = readlink $exec_file;
+
+my $exec_path = readlink $exec_file;
 
 my $ver = `stap --version 2>&1`;
 if (!defined $ver) {
@@ -107,7 +107,7 @@ if ($user_space) {
 
 my $preamble = <<_EOC_;
 probe begin {
-    warn(sprintf("Tracing %d ($nginx_path) in $context...\\n", target()))
+    warn(sprintf("Tracing %d ($exec_path) in $context...\\n", target()))
 }
 _EOC_
 
@@ -268,7 +268,7 @@ if (%so_files) {
     $d_so_args = '';
 }
 
-open my $in, "|stap --skip-badvars --all-modules -x $pid -d '$nginx_path' --ldd $d_so_args $stap_args -"
+open my $in, "|stap --skip-badvars --all-modules -x $pid -d '$exec_path' --ldd $d_so_args $stap_args -"
     or die "Cannot run stap: $!\n";
 
 print $in $stap_src;
