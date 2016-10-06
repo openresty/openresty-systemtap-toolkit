@@ -414,11 +414,43 @@ and checks whether the compiled regexes being executed is JIT'd or not.
     ngx_http_lua_ngx_re_match: 1000 of 2000 are PCRE JIT'd.
     ngx_http_regex_exec: 0 of 1000 are PCRE JIT'd.
 
+Below is another more complete example. Consider the following `nginx.conf` snippet:
+
+```nginx
+pcre_jit on;
+
+http {
+	server {
+		listen 8080;
+
+		location ~ '^/t' {
+			content_by_lua_block {
+				ngx.say(ngx.re.find(ngx.var.uri, [[\w]], "jo"))
+			}
+		}
+	}
+}
+```
+
+Running `curl localhost:8080/t` twice while this tool is tracing the (only) nginx worker yields
+ the following output:
+
+```console
+$ ./ngx-pcrejit -p `pgrep -f 'nginx: worker'`
+Tracing 97156 (/home/agentzh/git/lua-nginx-module/work/nginx/sbin/nginx)...
+Hit Ctrl-C to end.
+^C
+ngx_http_regex_exec: 2 of 2 are PCRE JITted.
+ngx_http_lua_ngx_re_match_helper: 2 of 2 are PCRE JITted.
+```
+
+This is exactly what we would expect.
+
 When statically linking PCRE with your Nginx, it is important to enable
 debug symbols in your PCRE compilation.
 That is, you should build your Nginx and PCRE like this:
 
-    ./configure --with-pcre=/path/to/my/pcre-8.31 \
+    ./configure --with-pcre=/path/to/my/pcre-8.39 \
         --with-pcre-jit \
         --with-pcre-opt=-g \
         --prefix=/opt/nginx
