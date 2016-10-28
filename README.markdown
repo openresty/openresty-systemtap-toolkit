@@ -1,7 +1,7 @@
 NAME
 ====
 
-nginx-systemtap-toolkit - Real-time analyzing and diagnosing tools for Nginx based on [SystemTap](http://sourceware.org/systemtap/wiki)
+openresty-systemtap-toolkit - Real-time analysis and diagnoistcs tools for OpenResty (including NGINX, LuaJIT, ngx_lua, and more) based on [SystemTap](http://sourceware.org/systemtap/wiki)
 
 Table of Contents
 =================
