@@ -11,6 +11,7 @@ Table of Contents
 * [Prerequisites](#prerequisites)
     * [For old Linux systems](#for-old-linux-systems)
 * [Permissions](#permissions)
+* [Caveats](#caveats)
 * [Tools](#tools)
     * [ngx-active-reqs](#ngx-active-reqs)
     * [ngx-req-distr](#ngx-req-distr)
@@ -86,6 +87,15 @@ you can add your own (non-root) account name to the `stapusr` and `staprun` user
 But if the user account running the Nginx process is different from your current
 user account, then you will still be required to run "sudo" or other means to run these tools
 with root access.
+
+[Back to TOC](#table-of-contents)
+
+Caveats
+=======
+
+As with any other dynamic tracing tools based on SystemTap, you must ensure that your system's default C compiler is of *exactly the same* version of
+the C compiler originally used to build your current Linux kernel. Because SystemTap builds a Linux kernel module and Linux kernels never have an ABI,
+different versions of the C compiler may lead to incompatible ABI, which can cause memory corruptions in the kernel space.
 
 [Back to TOC](#table-of-contents)
 
