@@ -1476,7 +1476,7 @@ TODO
 Author
 ======
 
-Yichun "agentzh" Zhang (章亦春), CloudFlare Inc.
+Yichun "agentzh" Zhang (章亦春), OpenResty Inc.
 
 [Back to TOC](#table-of-contents)
 
@@ -1485,7 +1485,7 @@ Copyright & License
 
 This module is licenced under the BSD license.
 
-Copyright (C) 2012-2016 by Yichun Zhang (agentzh) <agentzh@gmail.com>, CloudFlare Inc.
+Copyright (C) 2012-2017 by Yichun Zhang (agentzh) <agentzh@gmail.com>, OpenResty Inc.
 
 All rights reserved.
 
