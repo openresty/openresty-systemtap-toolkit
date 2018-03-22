@@ -400,7 +400,7 @@ close $in;
 sub usage {
     return <<'_EOC_';
 Usage:
-    ngx-lua-shdict [optoins]
+    ngx-lua-shdict [options]
 
 Options:
     -p <pid>            Specify the nginx worker process pid.

@@ -398,7 +398,7 @@ close $in;
 sub usage {
     return <<'_EOC_';
 Usage:
-    ngx-pcre-stats [optoins]
+    ngx-pcre-stats [options]
 
 Options:
     -a <args>           Pass extra arguments to the stap utility.

@@ -284,7 +284,7 @@ close $in;
 sub usage {
     return <<'_EOC_';
 Usage:
-    sample-bt-off-cpu [optoins]
+    sample-bt-off-cpu [options]
 
 Options:
     -a <args>           Pass extra arguments to the stap utility.

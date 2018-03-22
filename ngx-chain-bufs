@@ -161,7 +161,7 @@ close $in;
 sub usage {
     return <<'_EOC_';
 Usage:
-    ngx-chain-bufs [optoins] <chain-link-pointer>
+    ngx-chain-bufs [options] <chain-link-pointer>
 
 Options:
     -a <args>           Pass extra arguments to the stap utility.
