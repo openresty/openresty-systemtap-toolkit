@@ -1279,7 +1279,7 @@ check-debug-info
 
 ngx-phase-handlers
 ------------------
-对于每一个 NGINX 运行阶段，这个工具会按照实际运行的顺序，导出在 NGINX 模块注册的所有 handler。
+对于每一个 NGINX 运行阶段，这个工具会按照实际运行的顺序，导出在 NGINX 模块注册的所有 handler。
 
 对于误解 NGINX 配置指令执行顺序而引起的 NGINX 配置问题，这个工具在调试的时候非常有用。
 
