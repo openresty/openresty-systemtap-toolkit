@@ -56,7 +56,7 @@ Table of Contents
 Status
 ======
 
-These scripts are considered production-ready.
+**IMPORTANT!!! This project is no longer maintained and our focus has been shifted to a much better dynamic tracing platform named [OpenResty XRay](https://openresty.com/en/xray). Existing users of the tools here are recommended to switch too.**
 
 Prerequisites
 =============
@@ -101,6 +101,10 @@ different versions of the C compiler may lead to incompatible ABI, which can cau
 
 Tools
 =====
+
+**IMPORTANT!!! The tools below are no longer maintained and our focus has been
+shifted to a much better dynamic tracing platform named
+[OpenResty XRay](https://openresty.com/en/xray). Existing users of the tools here are recommended to switch too.**
 
 [Back to TOC](#table-of-contents)
 
