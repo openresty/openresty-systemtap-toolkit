@@ -485,6 +485,9 @@ http://agentzh.org/misc/nginx/user-kernel-flamegraph.svg
 ngx-sample-lua-bt
 -----------------
 
+*警告* 这个工具有很多 bug 和限制，我们已经不再维护了。推荐使用 [OpenResty XRay](https://openresty.com/en/xray/)。可以参考博客文章
+[《Introduction to Lua-Land CPU Flame Graphs》](https://blog.openresty.com.cn/en/lua-cpu-flame-graph/).
+
 *警告* 这个工具只能和解释后的 Lua 代码工作，并且有很多的限制。
 对于 LuaJIT 2.1，推荐使用新的 [ngx-lj-lua-stacks](https://github.com/openresty/stapxx#ngx-lj-lua-stacks) 工具来采样解释后 和/或 编译后的 Lua 代码。
 

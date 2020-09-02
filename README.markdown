@@ -553,6 +553,8 @@ The overhead exposed on the target process is usually small. For example, the th
 ngx-sample-lua-bt
 -----------------
 
+*WARNING* This tool has many bugs and is obsoleted by [OpenResty XRay](https://openresty.com/en/xray/). See also the blog post ["Introduction to Lua-Land CPU Flame Graphs"](https://blog.openresty.com/en/lua-cpu-flame-graph/).
+
 *WARNING* This tool can only work with interpreted Lua code and has various limitations. For
 LuaJIT 2.1, it is recommended to use the new [ngx-lj-lua-stacks](https://github.com/openresty/stapxx#ngx-lj-lua-stacks)
 tool for sampling both interpreted and/or compiled Lua code.
