@@ -428,7 +428,9 @@ $fin_code
 
         elapsed = local_clock_us() - begin
         printf("%d microseconds elapsed in the probe handler.\\n", elapsed)
-        if (nreqs || !$keep_waiting) {
+
+        keep_waiting = $keep_waiting
+        if (nreqs || !keep_waiting) {
             exit()
         }
     } /* $condition */
