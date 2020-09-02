@@ -42,7 +42,7 @@ exec 'addr2line', '-e', $exec_file, '-f', @ARGV;
 sub usage {
     return <<'_EOC_';
 Usage:
-    ngx-backtrace [optoins]
+    ngx-backtrace [options]
 
 Options:
     -h                  Print this usage.

@@ -138,7 +138,7 @@ close $in;
 sub usage {
     return <<'_EOC_';
 Usage:
-    ngx-leaked-pools [optoins]
+    ngx-leaked-pools [options]
 
 Options:
     -a <args>           Pass extra arguments to the stap utility.

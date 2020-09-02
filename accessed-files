@@ -139,7 +139,7 @@ close $in;
 sub usage {
     return <<'_EOC_';
 Usage:
-    accessed-files [optoins]
+    accessed-files [options]
 
 Options:
     -a <args>           Pass extra arguments to the stap utility.

@@ -461,7 +461,7 @@ close $in;
 sub usage {
     return <<'_EOC_';
 Usage:
-    ngx-lua-conn-pools [optoins]
+    ngx-lua-conn-pools [options]
 
 Options:
     -p <pid>            Specify the nginx worker process pid.
