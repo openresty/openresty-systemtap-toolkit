@@ -52,7 +52,7 @@ if (!-f $exec_file) {
         "you do not have enough permissions.\n";
 }
 
-my $nginx_path = readlink $exec_file;
+my $nginx_path = "/proc/$pid/root" .  readlink $exec_file;
 
 my $ver = `stap --version 2>&1`;
 if (!defined $ver) {
@@ -96,9 +96,25 @@ my $p = '@cast(p, "ngx_event_pipe_t")';
 
 my $need_blank_line;
 
-my ($check_upstream_code, $check_pool_init_code, $check_pool_code);
+my ($check_upstream_code, $check_pool_init_code, $check_pool_code, $keep_waiting_code);
 
 my $fin_code = '';
+
+if ($keep_waiting) {
+    $keep_waiting_code  = <<_EOC_;
+_EOC_
+
+}else{
+
+    $keep_waiting_code  = <<_EOC_;
+        if (nreqs) {
+            exit()
+        }
+_EOC_
+
+}
+
+chop $keep_waiting_code;
 
 if ($check_upstreams) {
     $need_blank_line = 1;
@@ -428,9 +444,8 @@ $fin_code
 
         elapsed = local_clock_us() - begin
         printf("%d microseconds elapsed in the probe handler.\\n", elapsed)
-        if (nreqs || !$keep_waiting) {
-            exit()
-        }
+$keep_waiting_code	
+
     } /* $condition */
 }
 _EOC_

@@ -39,7 +39,7 @@ if (!-f $exec_file) {
         "you do not have enough permissions.\n";
 }
 
-my $nginx_path = readlink $exec_file;
+my $nginx_path = "/proc/$pid/root" .  readlink $exec_file;
 
 my $maps_file = "/proc/$pid/maps";
 if (!-f $maps_file) {

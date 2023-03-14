@@ -77,9 +77,9 @@ probe end {
         printf("\\n=== Top $limit file $operation ===\\n")
 
         i = 0
-        foreach (path in stats- limit $limit) {
+        foreach (pathname in stats- limit $limit) {
             printf("#%d: %d times, %d bytes $operation in file %s.\\n",
-                   ++i, \@count(stats[path]), \@sum(stats[path]), path)
+                   ++i, \@count(stats[pathname]), \@sum(stats[pathname]), pathname)
         }
     }
 }
@@ -114,9 +114,7 @@ $preamble
 
 probe $probes {
     if (pid() == target() && \$return > 0) {
-        path = __file_filename(file)
-        //println(path)
-        stats[path] <<< \$return
+        stats[pathname] <<< \$return
         found++;
     }
 }

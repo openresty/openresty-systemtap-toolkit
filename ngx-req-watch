@@ -1,0 +1,256 @@
+#! /usr/bin/env perl
+
+# Copyright (C) YangBingwu (detailyang)
+
+use 5.006001;
+use strict;
+use warnings;
+use Getopt::Std qw( getopts );
+
+sub usage();
+
+
+my %opts;
+
+getopts("ht:p:dt:s:c:T:u:", \%opts) or die usage();
+
+if ($opts{h}) {
+    print usage();
+    exit;
+}
+
+my $count = $opts{c} || 100;
+if ($count !~ /^\d+$/) {
+    die "Bad -t option value \"$count\": not look like count\n";
+}
+
+my $count_condition = "";
+if ($count > 0) {
+    $count_condition = <<_EOS_;
+    if (nreqs > $count) {
+        warn("up to max requests:$count")
+        exit();
+    }
+_EOS_
+}
+
+my $uri = $opts{u} || "";
+my $uri_codition = "";
+if ($uri) {
+    $uri_codition = <<_EOS_;
+    if (user_string_n(uri_data, uri_len) !~ "$uri") next
+_EOS_
+}
+
+my $time = $opts{t} || 0;
+if ($time !~ /^\d+$/) {
+    die "Bad -t option value \"$time\": not look like time\n";
+}
+
+my $slowtime = $opts{T} || 0;
+if ($slowtime !~ /^\d+$/) {
+    die "Bad -T option value \"$slowtime\": not look like time\n";
+}
+
+my $pid = $opts{p}
+    or die "No nginx process pid specified by the -p option\n";
+if ($pid !~ /^\d+$/) {
+    die "Bad -p option value \"$pid\": not look like a pid\n";
+}
+
+my $exec_file = "/proc/$pid/exe";
+
+if (!-f $exec_file) {
+    die "Nginx process $pid is not running or ",
+        "you do not have enough permissions.\n";
+}
+
+my $nginx_path = "/proc/$pid/root" .  readlink $exec_file;
+my $stap_args = $opts{a} || '';
+
+my $child_pids = get_child_processes($pid);
+if (!@$child_pids) {
+    push @$child_pids, $pid;
+}
+
+my $status_rv = 1;
+my @function_status_tmp;
+my @status = split ",", ($opts{s} or "");
+
+if ( $#status + 1 > 0) {
+    $status_rv = 0;
+}
+
+for my $code (@status) {
+    if ($code =~ /(\d)0x/) {
+        push @function_status_tmp, "    if (status >= $1*100 && status <= $1*100+99) return 1"
+    } else {
+        push @function_status_tmp, "    if (status == $code) return 1"
+    }
+}
+
+my $function_status_coditions = join "\r\n", @function_status_tmp;
+my $function_status_preamble = <<_EOS_;
+function filter_status:long(status:long)
+{
+    $function_status_coditions
+    return $status_rv
+}
+_EOS_
+
+my $c = '@cast(c, "ngx_connection_t")';
+my $r = '@cast(r, "ngx_http_request_t")';
+
+my $preamble = <<_EOS_;
+global nreqs;
+
+probe begin {
+    warn(sprintf("watching $nginx_path(@$child_pids) requests"))
+}
+
+$function_status_preamble
+
+_EOS_
+chomp($preamble);
+
+my $stap_src = <<_EOS_;
+$preamble
+
+probe process("$nginx_path").function("ngx_http_log_request") {
+    r = \$r
+
+    cached_sec = \@var("ngx_cached_time")->sec
+    cached_msec = \@var("ngx_cached_time")->msec
+
+    start_sec = $r->start_sec
+    start_msec = $r->start_msec
+
+    ms = (cached_sec - start_sec) * 1000 + (cached_msec - start_msec)
+    if (ms < 0) {
+        ms = 0
+    }
+
+    if (ms < $slowtime) next
+
+    nreqs++
+    $count_condition
+
+    status = $r->headers_out->status
+    if (!filter_status(status)) next
+
+    c = $r->connection
+    addr_text = &$c->addr_text
+    addr_text_data = \@cast(addr_text, "ngx_str_t")->data
+    addr_text_len = \@cast(addr_text, "ngx_str_t")->len
+
+    fd = $c->fd
+
+    uri = &$r->uri
+    uri_data = \@cast(uri, "ngx_str_t")->data
+    uri_len = \@cast(uri, "ngx_str_t")->len
+
+    $uri_codition
+
+    method = &$r->method_name
+    method_data = \@cast(method, "ngx_str_t")->data
+    method_len = \@cast(method, "ngx_str_t")->len
+
+    args = &$r->args
+    args_data = \@cast(args, "ngx_str_t")->data
+    args_len = \@cast(args, "ngx_str_t")->len
+
+    host = &$r->headers_in->server
+    host_data = \@cast(host, "ngx_str_t")->data
+    host_len = \@cast(host, "ngx_str_t")->len
+
+    printf("%s(%d) %s URI:%s%s HOST:%s STATUS:%d FROM %s FD:%d RT: %dms\\n",
+        execname(), pid(),
+        user_string_n(method_data, method_len),
+        user_string_n(uri_data, uri_len), args_data ? sprintf("?%s", user_string_n(args_data, args_len)) : "",
+        host_data ? user_string_n(host_data, host_len) : "",
+        status,
+        addr_text_data ? user_string_n(addr_text_data, addr_text_len) : "",
+        fd, ms
+    )
+}
+%(
+$time > 0
+%?
+probe timer.ms($time) {
+    warn("Time Ending....")
+    exit();
+}
+%:
+probe end {
+    exit()
+}
+%)
+_EOS_
+
+if ($opts{d}) {
+    print $stap_src;
+    exit;
+}
+
+my @opts;
+if (@$child_pids == 1) {
+    push @opts, '-x', $child_pids->[0];
+}
+
+open my $in, "|stap --skip-badvars @opts $stap_args -"
+    or die "Cannot run stap: $!\n";
+
+print $in $stap_src;
+
+close $in;
+
+if ($opts{d}) {
+    print $stap_src;
+    exit;
+}
+
+sub get_child_processes {
+    my $pid = shift;
+    # iterate /proc/pid is more compatible with /proc/pid/children with high kernel
+    my @files = glob "/proc/[0-9]*/stat";
+    my @children;
+
+    for my $file (@files) {
+        #print "file: $file\n";
+        if ($file =~ m{^/proc/$pid/}) {
+            next;
+        }
+
+        open my $in, $file or next;
+        my $line = <$in>;
+        close $in;
+        if ($line =~ /^(\d+) \S+ \S+ (\d+)/) {
+            my ($child, $parent) = ($1, $2);
+            if ($parent eq $pid) {
+                push @children, $child;
+            }
+        }
+    }
+
+    @children = sort { $a <=> $b } @children;
+    return \@children;
+}
+
+sub usage() {
+    return <<'_EOC_';
+Usage:
+    ngx-req-watch [optoins]
+Options:
+    -a <args>           Pass extra arguments to the stap utility.
+    -c <count>          Specify the max requests default 100.
+    -t <time>ms         Specify the number of mseconds for sampling.
+    -T <slow time>ms    Specify the threshold of mseconds for sampling.
+    -p <port>           Specify the tcp dport.
+    -s <status>20x,500  Specify code to sampling.
+    -u <uri> /abcd      URI to specify which support POSIX regular.
+    -d                  Dump out the systemtap script source.
+    -h                  Print this usage.
+Examples:
+    ngx-req-watch -p 12345 -s 20x,30x,40x,50x -c 100 -T 1000
+_EOC_
+}

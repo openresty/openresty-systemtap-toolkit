@@ -14,6 +14,7 @@ my $pid = $opts{p}
     or die "No -p <pid> option specified.\n";
 
 my $exec_file = "/proc/$pid/exe";
+
 if (!-f $exec_file) {
     die "User process $pid is not running or ",
         "you do not have enough permissions.\n";
@@ -41,6 +42,7 @@ my %files = ($path => 1);
 }
 
 for my $file (sort keys %files) {
+    $file = "/proc/$pid/root" . $file;
     my $lines = `objdump --dwarf=str $file|wc -l`;
     if ($? != 0) {
         warn "Failed to check file $file: $?\n";

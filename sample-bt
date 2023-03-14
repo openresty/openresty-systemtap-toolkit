@@ -75,7 +75,7 @@ if (!-f $exec_file) {
         "you do not have enough permissions.\n";
 }
 
-my $exec_path = readlink $exec_file;
+my $exec_path = "/proc/$pid/root" .  readlink $exec_file;
 
 my $ver = `stap --version 2>&1`;
 if (!defined $ver) {
