@@ -35,8 +35,6 @@ if (!-f $exec_file) {
         "you do not have enough permissions.\n";
 }
 
-my $nginx_path = readlink $exec_file;
-
 exec 'addr2line', '-e', $exec_file, '-f', @ARGV;
 
 sub usage {
